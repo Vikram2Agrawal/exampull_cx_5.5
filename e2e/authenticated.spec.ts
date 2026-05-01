@@ -63,6 +63,69 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 	await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
 });
 
+test("scholar user can configure and queue a reordered Power Mode exam", async ({ page }) => {
+	await signInAsTestUser(page, `power-${Date.now()}@exampull.test`, {
+		tier: "scholar",
+		credits: 100,
+	});
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Power Mode orchestration exam");
+	await page.getByLabel("Class label").fill("Physical Chemistry");
+	await page.getByLabel("Topics").fill("Entropy\nReaction kinetics\nElectrochemistry");
+	await page.getByRole("button", { name: "Power" }).click();
+	await expect(page.getByRole("heading", { name: "Power Mode slots" })).toBeVisible();
+	await page.getByLabel("Question 1 topic").fill("Entropy");
+	await page.getByRole("button", { name: "Add slot" }).click();
+	await page.getByLabel("Question 2 topic").fill("Reaction kinetics");
+	await page.getByLabel("Question 1 style").selectOption("proof");
+	await page.getByLabel("Question 2 style").selectOption("calculation");
+	await page.getByLabel("Question 2 difficulty").selectOption("hardcore");
+	await page.getByLabel("Question 2 points").fill("12");
+	await page.getByRole("button", { name: "Move question 2 up" }).click();
+	await expect(page.getByLabel("Question 1 topic")).toHaveValue("Reaction kinetics");
+	await expect(page.getByLabel("Question 2 topic")).toHaveValue("Entropy");
+
+	await page.getByLabel("Range start").fill("1");
+	await page.getByLabel("Range end").fill("2");
+	await page.getByLabel("Range style").selectOption("calculation");
+	await page.getByLabel("Range difficulty").selectOption("hardcore");
+	await page.getByLabel("Range points").fill("14");
+	await page.getByRole("button", { name: "Apply range" }).click();
+	await expect(page.getByLabel("Question 1 style")).toHaveValue("calculation");
+	await expect(page.getByLabel("Question 2 difficulty")).toHaveValue("hardcore");
+	await expect(page.getByLabel("Question 1 points")).toHaveValue("14");
+	await expect(page.getByText("2 configured of 25 available.")).toBeVisible();
+
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Power Mode orchestration exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Physical Chemistry - 2 questions - queued")).toBeVisible();
+
+	const examsResponse = await page.context().request.get("/api/exams");
+	expect(examsResponse.status()).toBe(200);
+	const examsPayload = (await examsResponse.json()) as {
+		exams: {
+			title: string;
+			mode: string;
+			questionCount: number;
+			questionStyles: string[];
+			difficulties: string[];
+		}[];
+	};
+	const createdExam = examsPayload.exams.find(
+		(exam) => exam.title === "Power Mode orchestration exam",
+	);
+	if (!createdExam) {
+		throw new Error("Created Power Mode exam was not returned by /api/exams.");
+	}
+	expect(createdExam.mode).toBe("power");
+	expect(createdExam.questionCount).toBe(2);
+	expect(createdExam.questionStyles).toContain("calculation");
+	expect(createdExam.difficulties).toContain("hardcore");
+});
+
 test("credit reservation is atomic across parallel exam requests", async ({ page }) => {
 	await signInAsTestUser(page, `credit-race-${Date.now()}@exampull.test`, {
 		tier: "free",

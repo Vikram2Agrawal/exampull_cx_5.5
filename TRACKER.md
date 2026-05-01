@@ -29,6 +29,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add locked local test-session and seed APIs plus authenticated Playwright coverage for own exam rendering and cross-user exam/class denial.
 - [x] Add authenticated Free manual-topics E2E for queuing a 12-question Standard exam without enqueueing Cloud Tasks during local tests.
 - [x] Add authenticated concurrent credit-reservation E2E proving exactly one full-cost Free exam request wins.
+- [x] Add authenticated Scholar Power Mode E2E covering slot edits, reorder, range bulk edit, queueing, and created-exam metadata.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -92,6 +93,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Local desktop Chrome authenticated class lifecycle E2E passed.
 - Full local gate after exam library E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after exam library E2E deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- Full local gate after Power Mode E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after Power Mode E2E deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

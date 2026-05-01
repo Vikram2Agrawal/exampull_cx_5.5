@@ -914,6 +914,7 @@ export function NewExamForm({
 							onChange={(event) => setQuickTopic(event.target.value)}
 							list="power-topic-options"
 							placeholder="Quick-add topic"
+							aria-label="Quick-add topic"
 							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 						/>
 						<input
@@ -926,6 +927,7 @@ export function NewExamForm({
 							aria-label="Quick-add count"
 						/>
 						<select
+							aria-label="Quick-add style"
 							value={quickStyle}
 							onChange={(event) => setQuickStyle(event.target.value as QuestionStyle)}
 							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
@@ -937,6 +939,7 @@ export function NewExamForm({
 							))}
 						</select>
 						<select
+							aria-label="Quick-add difficulty"
 							value={quickDifficulty}
 							onChange={(event) =>
 								setQuickDifficulty(event.target.value as QuestionDifficulty)
@@ -991,9 +994,11 @@ export function NewExamForm({
 							onChange={(event) => setRangeTopic(event.target.value)}
 							list="power-topic-options"
 							placeholder="Range topic"
+							aria-label="Range topic"
 							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 						/>
 						<select
+							aria-label="Range style"
 							value={rangeStyle}
 							onChange={(event) => setRangeStyle(event.target.value as QuestionStyle)}
 							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
@@ -1005,6 +1010,7 @@ export function NewExamForm({
 							))}
 						</select>
 						<select
+							aria-label="Range difficulty"
 							value={rangeDifficulty}
 							onChange={(event) =>
 								setRangeDifficulty(event.target.value as QuestionDifficulty)
@@ -1050,10 +1056,12 @@ export function NewExamForm({
 									}
 									list="power-topic-options"
 									placeholder="Question topic"
+									aria-label={`Question ${index + 1} topic`}
 									className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 								/>
 								<div className="space-y-2">
 									<select
+										aria-label={`Question ${index + 1} style`}
 										value={slot.style}
 										onChange={(event) =>
 											updatePowerSlot(slot.id, {
@@ -1078,6 +1086,7 @@ export function NewExamForm({
 								</div>
 								<div className="space-y-2">
 									<select
+										aria-label={`Question ${index + 1} difficulty`}
 										value={slot.difficulty}
 										onChange={(event) =>
 											updatePowerSlot(slot.id, {
@@ -1131,31 +1140,35 @@ export function NewExamForm({
 										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
 										onClick={() => movePowerSlot(slot.id, -1)}
 										disabled={index === 0}
+										aria-label={`Move question ${index + 1} up`}
 									>
-										<ArrowUp aria-label="Move up" size={16} />
+										<ArrowUp aria-hidden="true" size={16} />
 									</button>
 									<button
 										type="button"
 										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
 										onClick={() => movePowerSlot(slot.id, 1)}
 										disabled={index === powerSlots.length - 1}
+										aria-label={`Move question ${index + 1} down`}
 									>
-										<ArrowDown aria-label="Move down" size={16} />
+										<ArrowDown aria-hidden="true" size={16} />
 									</button>
 									<button
 										type="button"
 										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
 										onClick={() => duplicatePowerSlot(slot.id)}
 										disabled={powerSlots.length >= maxQuestions}
+										aria-label={`Duplicate question ${index + 1}`}
 									>
-										<Copy aria-label="Duplicate slot" size={16} />
+										<Copy aria-hidden="true" size={16} />
 									</button>
 									<button
 										type="button"
 										className="rounded-lg p-2 text-error hover:bg-error/10"
 										onClick={() => removePowerSlot(slot.id)}
+										aria-label={`Remove question ${index + 1}`}
 									>
-										<Trash2 aria-label="Remove slot" size={16} />
+										<Trash2 aria-hidden="true" size={16} />
 									</button>
 								</div>
 							</div>
