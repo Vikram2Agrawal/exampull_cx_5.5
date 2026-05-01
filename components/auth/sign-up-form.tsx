@@ -14,7 +14,7 @@ import {
 } from "firebase/auth";
 import { Phone, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { firebaseAuth } from "@/lib/firebase/client";
 
@@ -42,15 +42,23 @@ async function createSession({
 	idToken,
 	displayName,
 	testSignupToken,
+	referralCode,
 }: {
 	idToken: string;
 	displayName: string;
 	testSignupToken: string;
+	referralCode: string;
 }) {
 	const response = await fetch("/api/auth/session", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ idToken, mode: "signup", displayName, testSignupToken }),
+		body: JSON.stringify({
+			idToken,
+			mode: "signup",
+			displayName,
+			testSignupToken,
+			referralCode,
+		}),
 	});
 
 	if (!response.ok) {
@@ -70,10 +78,21 @@ export function SignUpForm() {
 	const [password, setPassword] = useState("");
 	const [phone, setPhone] = useState("");
 	const [testSignupToken, setTestSignupToken] = useState("");
+	const [referralCode, setReferralCode] = useState("");
 	const [verificationId, setVerificationId] = useState("");
 	const [code, setCode] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		const code = params.get("ref") ?? window.localStorage.getItem("exampull_referral_code");
+		if (code) {
+			const cleanCode = code.trim().slice(0, 80);
+			setReferralCode(cleanCode);
+			window.localStorage.setItem("exampull_referral_code", cleanCode);
+		}
+	}, []);
 
 	function verifier() {
 		if (!verifierRef.current) {
@@ -144,7 +163,7 @@ export function SignUpForm() {
 			const credential = PhoneAuthProvider.credential(verificationId, code);
 			await linkWithCredential(user, credential);
 			const idToken = await user.getIdToken(true);
-			await createSession({ idToken, displayName, testSignupToken });
+			await createSession({ idToken, displayName, testSignupToken, referralCode });
 			router.push("/dashboard");
 			router.refresh();
 		} catch (cause) {

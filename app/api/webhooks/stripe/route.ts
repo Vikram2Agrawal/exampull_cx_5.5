@@ -5,6 +5,7 @@ import { stripeClient } from "@/lib/billing/stripe";
 import { env } from "@/lib/env";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { TIER_MONTHLY_CREDITS, type Tier } from "@/lib/product/constants";
+import { applyReferralPaidReward } from "@/lib/referrals";
 import { createUserNotification } from "@/lib/user/data";
 
 export const runtime = "nodejs";
@@ -98,6 +99,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 			kind: "billing",
 			href: "/billing",
 		});
+		await applyReferralPaidReward(userId, tier);
 	}
 }
 

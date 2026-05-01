@@ -4,6 +4,7 @@ import { userSessionCookieName, userSessionMaxAgeSeconds } from "@/lib/auth/sess
 import { env } from "@/lib/env";
 import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
+import { createReferralSignup, ensureReferralCode } from "@/lib/referrals";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ const requestSchema = z.object({
 	mode: z.enum(["signup", "signin"]),
 	displayName: z.string().trim().max(80).optional(),
 	testSignupToken: z.string().optional(),
+	referralCode: z.string().trim().max(80).optional(),
 });
 
 export async function POST(request: Request) {
@@ -73,6 +75,12 @@ export async function POST(request: Request) {
 				inApp: true,
 			},
 		});
+		await ensureReferralCode(decoded.uid);
+		await createReferralSignup({
+			referralCode: input.referralCode,
+			referredUserId: decoded.uid,
+			isTestData: isTestAccount,
+		});
 	} else {
 		await userRef.set(
 			{
@@ -84,6 +92,7 @@ export async function POST(request: Request) {
 			},
 			{ merge: true },
 		);
+		await ensureReferralCode(decoded.uid);
 	}
 
 	const sessionCookie = await adminAuth.createSessionCookie(input.idToken, {

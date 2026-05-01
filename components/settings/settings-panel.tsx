@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CreditCard, Download, Link2, Moon, Shield } from "lucide-react";
+import { Bell, Copy, CreditCard, Download, Link2, Moon, Network, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,13 @@ import { Button } from "@/components/ui/button";
 export function SettingsPanel({
 	displayName,
 	email,
+	referralCode,
+	referralUrl,
 }: {
 	displayName: string;
 	email: string | null;
+	referralCode: string;
+	referralUrl: string;
 }) {
 	const router = useRouter();
 	const [name, setName] = useState(displayName);
@@ -62,6 +66,11 @@ export function SettingsPanel({
 				setStatus(error instanceof Error ? error.message : "Account deletion failed.");
 			}
 		});
+	}
+
+	async function copyReferralLink() {
+		await navigator.clipboard?.writeText(referralUrl);
+		setStatus("Referral link copied.");
 	}
 
 	return (
@@ -118,6 +127,28 @@ export function SettingsPanel({
 				</select>
 				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
 					Save appearance
+				</Button>
+			</section>
+			<section className="rounded-lg border border-glass-border bg-glass p-6">
+				<Network aria-hidden="true" className="text-secondary" size={22} />
+				<h2 className="mt-4 text-xl font-semibold">Refer friends</h2>
+				<p className="mt-2 text-sm leading-6 text-muted">
+					Earn Scholar months when friends generate exams and Guru months when they
+					upgrade.
+				</p>
+				<div className="mt-5 rounded-lg border border-glass-border bg-background/50 p-3">
+					<p className="text-xs uppercase text-muted">Referral code</p>
+					<p className="mt-1 font-mono text-sm">{referralCode}</p>
+					<p className="mt-3 break-all text-sm text-muted">{referralUrl}</p>
+				</div>
+				<Button
+					type="button"
+					className="mt-5"
+					disabled={isPending}
+					onClick={copyReferralLink}
+				>
+					<Copy aria-hidden="true" size={16} />
+					Copy link
 				</Button>
 			</section>
 			<section className="rounded-lg border border-glass-border bg-glass p-6">

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { computeExamCost, createExamConfigSchema } from "@/lib/billing/credits";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { applyReferralExamReward } from "@/lib/referrals";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 
 export const createExamRequestSchema = createExamConfigSchema.extend({
@@ -121,6 +122,7 @@ export async function createExamForUser({
 			{ merge: true },
 		);
 	}
+	await applyReferralExamReward(user.uid);
 
 	return { examId, creditsReserved: credits, queueResult };
 }
