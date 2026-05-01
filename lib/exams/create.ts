@@ -102,7 +102,7 @@ export async function createExamForUser({
 			creditsReserved: credits,
 			creditsConsumed: 0,
 			boostedScholar: useScholarBoost,
-			answerKeyUnlocked: useScholarBoost,
+			answerKeyUnlocked: generationTier !== "free" || useScholarBoost,
 			boostGradingIncluded: useScholarBoost,
 			archived: false,
 			bookmarked: false,

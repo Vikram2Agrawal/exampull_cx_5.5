@@ -15,6 +15,23 @@ test("authenticated test user can view own seeded exam", async ({ page }) => {
 	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
 });
 
+test("free user can queue a 12-question Standard exam from manual topics", async ({ page }) => {
+	await signInAsTestUser(page, `free-manual-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 24,
+	});
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Free manual topics exam");
+	await page.getByLabel("Topics").fill("Implicit differentiation\nRelated rates\nOptimization");
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Free manual topics exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
+});
+
 test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {
 	const ownerContext = await browser.newContext();
 	const ownerPage = await ownerContext.newPage();

@@ -33,15 +33,19 @@ export function testSignupToken() {
 	return token ?? "";
 }
 
-export async function signInAsTestUser(page: Page, email: string) {
+export async function signInAsTestUser(
+	page: Page,
+	email: string,
+	options: { tier?: "free" | "scholar" | "guru"; credits?: number } = {},
+) {
 	const token = testSignupToken();
 	const createResponse = await page.context().request.post("/api/test/session", {
 		data: {
 			token,
 			email,
 			displayName: "ExamPull E2E",
-			tier: "guru",
-			credits: 500,
+			tier: options.tier ?? "guru",
+			credits: options.credits ?? 500,
 		},
 	});
 	expect(createResponse.status()).toBe(200);
