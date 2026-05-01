@@ -32,6 +32,27 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 	await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
 });
 
+test("credit reservation is atomic across parallel exam requests", async ({ page }) => {
+	await signInAsTestUser(page, `credit-race-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 24,
+	});
+
+	const requestBody = {
+		title: "Parallel credit race",
+		topics: ["Limits", "Continuity"],
+		questionCount: 12,
+		mode: "standard",
+	};
+	const [firstResponse, secondResponse] = await Promise.all([
+		page.context().request.post("/api/exams", { data: requestBody }),
+		page.context().request.post("/api/exams", { data: requestBody }),
+	]);
+	const statuses = [firstResponse.status(), secondResponse.status()].sort();
+
+	expect(statuses).toEqual([201, 402]);
+});
+
 test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {
 	const ownerContext = await browser.newContext();
 	const ownerPage = await ownerContext.newPage();

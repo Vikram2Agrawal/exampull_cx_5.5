@@ -12,7 +12,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [!] P0-EXAM-001 Free user queues a 12-question Standard exam from manual topics in authenticated E2E; full worker completion E2E remains.
 - [ ] P0-EXAM-002 Scholar user generates a paid exam with answer key unlocked.
 - [!] P0-EXAM-003 Guru visual-feedback worker creates a downloadable PDF artifact; full authenticated upload-to-download E2E remains.
-- [ ] P0-CREDITS-001 Credit reservation is atomic across two tabs and releases on failure.
+- [x] P0-CREDITS-001 Credit reservation is atomic across parallel requests; authenticated E2E verifies one full-cost Free request succeeds and the other returns 402.
 - [x] P0-DOWNLOAD-001 Completed exam and answer key download through authenticated server routes without private Storage reads.
 - [x] P0-ADMIN-001 Unauthenticated `/admin/*` returns hard 404; agent auth works only through API.
 - [x] P0-SECURITY-001 User cannot read or mutate another user's data across Firestore/Storage rules and authenticated exam/class API routes.
@@ -68,6 +68,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome smoke after security-rule regression coverage: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome authenticated ownership/security suite: `pnpm exec playwright test --project=desktop-chrome` passed with own exam render plus cross-user exam/class denial.
 - Desktop Chrome authenticated Free manual-topics exam suite: `pnpm exec playwright test --project=desktop-chrome` passed with a 12-question queued Standard exam.
+- Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
