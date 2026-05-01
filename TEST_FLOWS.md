@@ -11,7 +11,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [ ] P0-AUTH-003 Phone-number conflict requires prior auth source unless dormant 180+ days.
 - [ ] P0-EXAM-001 Free user generates a 12-question Standard exam from manual topics.
 - [ ] P0-EXAM-002 Scholar user generates a paid exam with answer key unlocked.
-- [ ] P0-EXAM-003 Guru user grades an attempt and generates visual annotations.
+- [!] P0-EXAM-003 Guru visual-feedback worker creates a downloadable PDF artifact; full authenticated upload-to-download E2E remains.
 - [ ] P0-CREDITS-001 Credit reservation is atomic across two tabs and releases on failure.
 - [x] P0-DOWNLOAD-001 Completed exam and answer key download through authenticated server routes without private Storage reads.
 - [x] P0-ADMIN-001 Unauthenticated `/admin/*` returns hard 404; agent auth works only through API.
