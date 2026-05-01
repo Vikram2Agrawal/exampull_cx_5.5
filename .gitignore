@@ -24,6 +24,7 @@ artifacts/
 eval-results/*/
 team-output/
 pglite-debug.log
+firebase-debug.log
 
 # OS / IDE
 .DS_Store

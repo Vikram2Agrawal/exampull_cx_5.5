@@ -138,7 +138,7 @@ export function AttemptUploader({
 					<span>
 						<span className="font-medium">Visual annotations</span>
 						<span className="block text-muted">
-							Guru only. Adds margin-note annotation metadata after grading.
+							Guru only. Adds a downloadable visual feedback PDF after grading.
 						</span>
 					</span>
 				</label>
@@ -187,6 +187,14 @@ export function AttemptUploader({
 									Visual annotations:{" "}
 									{attempt.visualAnnotationStatus.replaceAll("_", " ")}
 								</p>
+							) : null}
+							{attempt.visualFeedbackReady ? (
+								<a
+									href={`/api/exams/${examId}/attempts/${attempt.id}/visual-feedback`}
+									className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-glass-border bg-glass px-3 text-sm font-medium"
+								>
+									Download visual feedback
+								</a>
 							) : null}
 						</div>
 					))

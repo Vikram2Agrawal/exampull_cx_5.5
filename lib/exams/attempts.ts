@@ -25,6 +25,7 @@ export type AttemptSummary = {
 	feedback: string | null;
 	visualAnnotations: boolean;
 	visualAnnotationStatus: string | null;
+	visualFeedbackReady: boolean;
 	createdAt: string;
 	gradedAt: string | null;
 };
@@ -75,6 +76,7 @@ function attemptFromDoc(id: string, data: FirebaseFirestore.DocumentData): Attem
 		visualAnnotations: Boolean(data.visualAnnotations ?? false),
 		visualAnnotationStatus:
 			typeof data.visualAnnotationStatus === "string" ? data.visualAnnotationStatus : null,
+		visualFeedbackReady: typeof data.visualFeedbackPdfBase64 === "string",
 		createdAt: isoDate(data.createdAt),
 		gradedAt: optionalIsoDate(data.gradedAt),
 	};
