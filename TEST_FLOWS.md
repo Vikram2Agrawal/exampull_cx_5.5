@@ -38,7 +38,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P2 Resilience And Quality Flows
 
-- [ ] P2-CHAOS-001 Refresh at every wizard step preserves draft state.
+- [!] P2-CHAOS-001 Refresh at every wizard step preserves draft state; new-exam draft persistence is implemented, full browser E2E remains.
 - [ ] P2-CHAOS-002 LaTeX 503 retries without burning visual QA budget.
 - [ ] P2-CHAOS-003 Stripe webhook during generation preserves tier snapshot.
 - [ ] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation.
@@ -61,6 +61,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome smoke after billing webhook hardening: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after referral implementation: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after generated-question artifact pass: `pnpm exec playwright test --project=desktop-chrome` passed.
+- Desktop Chrome smoke after wizard draft persistence: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
@@ -71,4 +72,5 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after billing webhook hardening deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after referral deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after generated-question artifact deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
+- Hosted production smoke after wizard draft persistence deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T21-59-10-970Z`.

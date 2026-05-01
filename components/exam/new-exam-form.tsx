@@ -11,7 +11,7 @@ import {
 	WandSparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
 import type { ClassSummary, MaterialSummary } from "@/lib/classes/data";
@@ -34,6 +34,8 @@ const difficultyOptions = [
 type PowerSlotDraft = PowerQuestionSlot & {
 	id: string;
 };
+
+const draftStorageKey = "exampull:new-exam-draft";
 
 function parseTopics(value: string) {
 	return value
@@ -68,6 +70,36 @@ function toServerPowerSlots(slots: PowerSlotDraft[]): PowerQuestionSlot[] {
 		difficulty: slot.difficulty,
 		points: slot.points,
 	}));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringArray(value: unknown) {
+	return Array.isArray(value)
+		? value.filter((item): item is string => typeof item === "string")
+		: [];
+}
+
+function powerSlotDrafts(value: unknown): PowerSlotDraft[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter(isRecord).flatMap((item) => {
+		const id = typeof item.id === "string" ? item.id : slotId();
+		const topic = typeof item.topic === "string" ? item.topic : "";
+		const style = styleOptions.some((option) => option.value === item.style)
+			? (item.style as QuestionStyle)
+			: "short_answer";
+		const difficulty = difficultyOptions.some((option) => option.value === item.difficulty)
+			? (item.difficulty as QuestionDifficulty)
+			: "balanced";
+		const points = typeof item.points === "number" ? item.points : 10;
+
+		return [{ id, topic, style, difficulty, points }];
+	});
 }
 
 type SourceClass = ClassSummary & {
@@ -115,6 +147,69 @@ export function NewExamForm({
 	const [rangePoints, setRangePoints] = useState(10);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	useEffect(() => {
+		const rawDraft = window.localStorage.getItem(draftStorageKey);
+		if (!rawDraft) {
+			return;
+		}
+
+		try {
+			const draft: unknown = JSON.parse(rawDraft);
+			if (!isRecord(draft)) {
+				return;
+			}
+
+			if (typeof draft.title === "string") setTitle(draft.title);
+			if (typeof draft.className === "string") setClassName(draft.className);
+			if (typeof draft.classId === "string") setClassId(draft.classId);
+			if (typeof draft.topicsText === "string") setTopicsText(draft.topicsText);
+			if (typeof draft.sourceNotes === "string") setSourceNotes(draft.sourceNotes);
+			if (typeof draft.questionCount === "number") {
+				setQuestionCount(Math.max(1, Math.min(maxQuestions, draft.questionCount)));
+			}
+			if (draft.mode === "standard" || draft.mode === "power") setMode(draft.mode);
+			if (typeof draft.mirrorInstructorStyle === "boolean") {
+				setMirrorInstructorStyle(draft.mirrorInstructorStyle);
+			}
+			if (typeof draft.useScholarBoost === "boolean") {
+				setUseScholarBoost(draft.useScholarBoost && boostUnlocked);
+			}
+			setSelectedMaterialIds(stringArray(draft.selectedMaterialIds));
+			setPowerSlots(powerSlotDrafts(draft.powerSlots));
+		} catch {
+			window.localStorage.removeItem(draftStorageKey);
+		}
+	}, [boostUnlocked, maxQuestions]);
+	useEffect(() => {
+		window.localStorage.setItem(
+			draftStorageKey,
+			JSON.stringify({
+				title,
+				className,
+				classId,
+				selectedMaterialIds,
+				topicsText,
+				sourceNotes,
+				questionCount,
+				mode,
+				powerSlots,
+				mirrorInstructorStyle,
+				useScholarBoost,
+			}),
+		);
+	}, [
+		title,
+		className,
+		classId,
+		selectedMaterialIds,
+		topicsText,
+		sourceNotes,
+		questionCount,
+		mode,
+		powerSlots,
+		mirrorInstructorStyle,
+		useScholarBoost,
+	]);
 	const selectedClass = useMemo(
 		() => classes.find((course) => course.id === classId) ?? null,
 		[classes, classId],
@@ -298,6 +393,7 @@ export function NewExamForm({
 				throw new Error(payload.error ?? "Exam creation failed.");
 			}
 
+			window.localStorage.removeItem(draftStorageKey);
 			router.push(`/exams/${payload.examId}`);
 			router.refresh();
 		} catch (cause) {
