@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { computeExamCost, createExamConfigSchema } from "@/lib/billing/credits";
+import { publicSourceUploadMetadata, resolveExamSourceUploads } from "@/lib/exams/source-uploads";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyReferralExamReward } from "@/lib/referrals";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
@@ -10,6 +11,7 @@ export const createExamRequestSchema = createExamConfigSchema.extend({
 	className: z.string().trim().max(80).optional(),
 	classId: z.string().trim().max(120).optional(),
 	sourceMaterialIds: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
+	adHocUploadIds: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
 	sourceNotes: z.string().trim().max(2000).optional(),
 	useScholarBoost: z.boolean().default(false),
 });
@@ -55,6 +57,8 @@ export async function createExamForUser({
 		}
 	}
 
+	const adHocUploads = await resolveExamSourceUploads(user.uid, parsed.adHocUploadIds);
+
 	await adminDb.runTransaction(async (transaction) => {
 		const userSnapshot = await transaction.get(userRef);
 		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
@@ -89,6 +93,8 @@ export async function createExamForUser({
 			classId: parsed.classId || null,
 			topics: parsed.topics,
 			sourceMaterialIds: parsed.sourceMaterialIds,
+			adHocUploadIds: adHocUploads.map((upload) => upload.id),
+			adHocSources: adHocUploads.map(publicSourceUploadMetadata),
 			questionCount,
 			tierAtGen: generationTier,
 			config,
@@ -106,6 +112,17 @@ export async function createExamForUser({
 			updatedAt: now,
 			isTestData: user.isTestAccount,
 		});
+		for (const upload of adHocUploads) {
+			transaction.set(
+				upload.ref,
+				{
+					examId,
+					lastExamId: examId,
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+		}
 	});
 
 	const queueResult = await enqueueWorkerTask({

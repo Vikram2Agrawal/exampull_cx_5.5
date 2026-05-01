@@ -5,13 +5,15 @@ import {
 	ArrowRight,
 	ArrowUp,
 	Copy,
+	FileUp,
 	ListPlus,
 	Plus,
+	RefreshCw,
 	Trash2,
 	WandSparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
 import type { ClassSummary, MaterialSummary } from "@/lib/classes/data";
@@ -35,7 +37,21 @@ type PowerSlotDraft = PowerQuestionSlot & {
 	id: string;
 };
 
+type ExamSourceUpload = {
+	id: string;
+	filename: string;
+	contentType: string;
+	sizeBytes: number;
+	focus: string | null;
+	status: string;
+	styleReference: boolean;
+	extractedTopics: string[];
+	createdAt: string;
+	uploadedAt: string | null;
+};
+
 const draftStorageKey = "exampull:new-exam-draft";
+const maxUploadBytes = 100 * 1024 * 1024;
 
 function parseTopics(value: string) {
 	return value
@@ -102,6 +118,60 @@ function powerSlotDrafts(value: unknown): PowerSlotDraft[] {
 	});
 }
 
+function sourceUploadDrafts(value: unknown): ExamSourceUpload[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter(isRecord).flatMap((item) => {
+		const id = typeof item.id === "string" ? item.id : "";
+		const filename = typeof item.filename === "string" ? item.filename : "";
+		const contentType =
+			typeof item.contentType === "string" ? item.contentType : "application/octet-stream";
+		const sizeBytes = typeof item.sizeBytes === "number" ? item.sizeBytes : 0;
+		const status = typeof item.status === "string" ? item.status : "uploading";
+		const createdAt = typeof item.createdAt === "string" ? item.createdAt : "";
+		const uploadedAt = typeof item.uploadedAt === "string" ? item.uploadedAt : null;
+
+		if (!id || !filename) {
+			return [];
+		}
+
+		return [
+			{
+				id,
+				filename,
+				contentType,
+				sizeBytes,
+				focus: typeof item.focus === "string" && item.focus ? item.focus : null,
+				status,
+				styleReference: Boolean(item.styleReference ?? false),
+				extractedTopics: stringArray(item.extractedTopics),
+				createdAt,
+				uploadedAt,
+			},
+		];
+	});
+}
+
+function mergeSourceUploads(current: ExamSourceUpload[], updates: ExamSourceUpload[]) {
+	const updatedById = new Map(updates.map((upload) => [upload.id, upload]));
+
+	return current.map((upload) => updatedById.get(upload.id) ?? upload);
+}
+
+function uploadIsExtracting(upload: ExamSourceUpload) {
+	return upload.status === "uploading" || upload.status === "extracting_topics";
+}
+
+function uploadStatusText(upload: ExamSourceUpload) {
+	if (upload.status === "ready") return "Ready";
+	if (upload.status === "ready_with_warnings") return "Ready with warning";
+	if (upload.status === "extracting_topics") return "Extracting topics";
+	if (upload.status === "uploading") return "Uploading";
+	return upload.status.replaceAll("_", " ");
+}
+
 type SourceClass = ClassSummary & {
 	materials: MaterialSummary[];
 };
@@ -128,6 +198,9 @@ export function NewExamForm({
 	const [className, setClassName] = useState("");
 	const [classId, setClassId] = useState("");
 	const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
+	const [sourceUploads, setSourceUploads] = useState<ExamSourceUpload[]>([]);
+	const [uploadFocus, setUploadFocus] = useState("");
+	const [uploadStyleReference, setUploadStyleReference] = useState(false);
 	const [topicsText, setTopicsText] = useState("");
 	const [sourceNotes, setSourceNotes] = useState("");
 	const [questionCount, setQuestionCount] = useState(Math.min(12, maxQuestions));
@@ -145,6 +218,7 @@ export function NewExamForm({
 	const [rangeStyle, setRangeStyle] = useState<QuestionStyle>("short_answer");
 	const [rangeDifficulty, setRangeDifficulty] = useState<QuestionDifficulty>("balanced");
 	const [rangePoints, setRangePoints] = useState(10);
+	const [isUploadingSource, setIsUploadingSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
@@ -175,6 +249,7 @@ export function NewExamForm({
 				setUseScholarBoost(draft.useScholarBoost && boostUnlocked);
 			}
 			setSelectedMaterialIds(stringArray(draft.selectedMaterialIds));
+			setSourceUploads(sourceUploadDrafts(draft.sourceUploads));
 			setPowerSlots(powerSlotDrafts(draft.powerSlots));
 		} catch {
 			window.localStorage.removeItem(draftStorageKey);
@@ -188,6 +263,7 @@ export function NewExamForm({
 				className,
 				classId,
 				selectedMaterialIds,
+				sourceUploads,
 				topicsText,
 				sourceNotes,
 				questionCount,
@@ -202,6 +278,7 @@ export function NewExamForm({
 		className,
 		classId,
 		selectedMaterialIds,
+		sourceUploads,
 		topicsText,
 		sourceNotes,
 		questionCount,
@@ -210,6 +287,41 @@ export function NewExamForm({
 		mirrorInstructorStyle,
 		useScholarBoost,
 	]);
+	const pendingUploadIds = useMemo(
+		() =>
+			sourceUploads
+				.filter(uploadIsExtracting)
+				.map((upload) => upload.id)
+				.join(","),
+		[sourceUploads],
+	);
+	useEffect(() => {
+		if (!pendingUploadIds) {
+			return;
+		}
+
+		let cancelled = false;
+		const interval = window.setInterval(() => {
+			void (async () => {
+				const response = await fetch(`/api/exam-uploads?ids=${pendingUploadIds}`);
+				const payload = (await response.json()) as {
+					uploads?: ExamSourceUpload[];
+					error?: string;
+				};
+
+				if (!cancelled && response.ok && payload.uploads) {
+					setSourceUploads((current) =>
+						mergeSourceUploads(current, payload.uploads ?? []),
+					);
+				}
+			})();
+		}, 2500);
+
+		return () => {
+			cancelled = true;
+			window.clearInterval(interval);
+		};
+	}, [pendingUploadIds]);
 	const selectedClass = useMemo(
 		() => classes.find((course) => course.id === classId) ?? null,
 		[classes, classId],
@@ -221,26 +333,107 @@ export function NewExamForm({
 				.flatMap((material) => material.extractedTopics) ?? []
 		);
 	}, [selectedClass, selectedMaterialIds]);
+	const uploadTopics = useMemo(
+		() => sourceUploads.flatMap((upload) => upload.extractedTopics),
+		[sourceUploads],
+	);
 	const topics = useMemo(() => {
 		return Array.from(
 			new Set([
 				...parseTopics(topicsText),
 				...materialTopics,
+				...uploadTopics,
 				...powerSlots.map((slot) => slot.topic.trim()).filter(Boolean),
 			]),
 		).slice(0, 30);
-	}, [topicsText, materialTopics, powerSlots]);
+	}, [topicsText, materialTopics, uploadTopics, powerSlots]);
 	const configuredQuestionCount = mode === "power" ? powerSlots.length : questionCount;
 	const rawCost = configuredQuestionCount * CREDIT_COSTS.GENERATE_QUESTION;
 	const cost = useScholarBoost ? 0 : rawCost;
 	const canGenerate =
 		topics.length > 0 &&
 		(useScholarBoost || cost <= credits) &&
+		!isUploadingSource &&
 		!isSubmitting &&
 		(mode === "standard" ||
 			(effectiveTier !== "free" &&
 				powerSlots.length > 0 &&
 				powerSlots.every((slot) => slot.topic.trim().length > 0)));
+
+	async function onSourceFilesSelected(event: ChangeEvent<HTMLInputElement>) {
+		const files = event.currentTarget.files ? Array.from(event.currentTarget.files) : [];
+		event.currentTarget.value = "";
+
+		if (files.length === 0) {
+			return;
+		}
+
+		setIsUploadingSource(true);
+		setError(null);
+
+		try {
+			for (const file of files) {
+				if (file.size > maxUploadBytes) {
+					throw new Error(`${file.name} is over the 100 MB upload limit.`);
+				}
+
+				const startResponse = await fetch("/api/exam-uploads", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						filename: file.name,
+						contentType: file.type || "application/octet-stream",
+						sizeBytes: file.size,
+						focus: uploadFocus,
+						styleReference: uploadStyleReference,
+					}),
+				});
+				const startPayload = (await startResponse.json()) as {
+					uploadId?: string;
+					uploadUrl?: string;
+					error?: string;
+				};
+
+				if (!startResponse.ok || !startPayload.uploadUrl || !startPayload.uploadId) {
+					throw new Error(startPayload.error ?? "Could not start source upload.");
+				}
+
+				const uploadResponse = await fetch(startPayload.uploadUrl, {
+					method: "PUT",
+					headers: { "Content-Type": file.type || "application/octet-stream" },
+					body: file,
+				});
+
+				if (!uploadResponse.ok) {
+					throw new Error(`${file.name} failed to upload.`);
+				}
+
+				const completeResponse = await fetch(`/api/exam-uploads/${startPayload.uploadId}`, {
+					method: "PATCH",
+				});
+				const completePayload = (await completeResponse.json()) as {
+					upload?: ExamSourceUpload;
+					error?: string;
+				};
+
+				if (!completeResponse.ok || !completePayload.upload) {
+					throw new Error(completePayload.error ?? "Could not finish source upload.");
+				}
+
+				const completedUpload = completePayload.upload;
+				setSourceUploads((current) => [...current, completedUpload]);
+			}
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : "Source upload failed.");
+		} finally {
+			setIsUploadingSource(false);
+		}
+	}
+
+	async function removeSourceUpload(uploadId: string) {
+		setSourceUploads((current) => current.filter((upload) => upload.id !== uploadId));
+		await fetch(`/api/exam-uploads/${uploadId}`, { method: "DELETE" });
+	}
 
 	function toggleScholarBoost(nextValue: boolean) {
 		if (nextValue && !boostUnlocked) {
@@ -378,6 +571,7 @@ export function NewExamForm({
 					className: selectedClass?.name ?? className,
 					classId: selectedClass?.id,
 					sourceMaterialIds: selectedMaterialIds,
+					adHocUploadIds: sourceUploads.map((upload) => upload.id),
 					topics,
 					sourceNotes,
 					questionCount: configuredQuestionCount,
@@ -494,6 +688,90 @@ export function NewExamForm({
 					) : null}
 				</div>
 			) : null}
+			<div className="rounded-lg border border-glass-border bg-background/35 p-4">
+				<div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+					<div>
+						<h2 className="text-sm font-medium">One-time source files</h2>
+						<p className="mt-1 text-sm text-muted">
+							Upload files for this exam only. They will be preserved on the exam
+							record, not added to a class library.
+						</p>
+					</div>
+					<label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white">
+						<FileUp aria-hidden="true" size={18} />
+						{isUploadingSource ? "Uploading" : "Upload files"}
+						<input
+							type="file"
+							multiple
+							onChange={onSourceFilesSelected}
+							disabled={isUploadingSource}
+							className="sr-only"
+						/>
+					</label>
+				</div>
+				<div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+					<label className="text-sm">
+						<span className="font-medium">Focus for next upload</span>
+						<input
+							value={uploadFocus}
+							onChange={(event) => setUploadFocus(event.target.value)}
+							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							placeholder="Chapters 7-9, Unit 4, thermodynamics only"
+							maxLength={500}
+						/>
+					</label>
+					<label className="flex items-center gap-2 self-end rounded-lg border border-glass-border bg-background/45 px-3 py-3 text-sm">
+						<input
+							type="checkbox"
+							checked={uploadStyleReference}
+							onChange={(event) => setUploadStyleReference(event.target.checked)}
+						/>
+						Style reference
+					</label>
+				</div>
+				{sourceUploads.length > 0 ? (
+					<ul className="mt-4 space-y-2">
+						{sourceUploads.map((upload) => (
+							<li
+								key={upload.id}
+								className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm md:flex-row md:items-center"
+							>
+								<div>
+									<p className="font-medium">{upload.filename}</p>
+									<p className="text-muted">
+										{Math.max(1, Math.round(upload.sizeBytes / 1024))} KB -{" "}
+										{uploadStatusText(upload)}
+									</p>
+									{upload.focus ? (
+										<p className="mt-1 text-muted">Focus: {upload.focus}</p>
+									) : null}
+									{upload.extractedTopics.length > 0 ? (
+										<p className="mt-1 text-muted">
+											{upload.extractedTopics.length} topics extracted
+										</p>
+									) : null}
+								</div>
+								<div className="flex items-center gap-2">
+									{uploadIsExtracting(upload) ? (
+										<RefreshCw
+											aria-label="Extracting topics"
+											className="animate-spin text-secondary"
+											size={18}
+										/>
+									) : null}
+									<button
+										type="button"
+										className="rounded-lg p-2 text-error hover:bg-error/10"
+										onClick={() => void removeSourceUpload(upload.id)}
+									>
+										<Trash2 aria-label="Remove source upload" size={18} />
+									</button>
+								</div>
+							</li>
+						))}
+					</ul>
+				) : null}
+			</div>
 			<div>
 				<label className="text-sm font-medium" htmlFor="topics">
 					Topics

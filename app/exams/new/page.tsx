@@ -1,4 +1,4 @@
-import { Plus, Upload } from "lucide-react";
+import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { NewExamForm } from "@/components/exam/new-exam-form";
 import { AppShell } from "@/components/layout/site-nav";
@@ -63,17 +63,6 @@ export default async function NewExamPage() {
 								title="Manual topics"
 								description="Generate from typed topics only."
 							/>
-						</div>
-						<div className="mt-6 rounded-lg border border-dashed border-glass-border p-8 text-center">
-							<Upload
-								aria-hidden="true"
-								className="mx-auto text-secondary"
-								size={32}
-							/>
-							<h2 className="mt-4 text-xl font-semibold">Drop files here</h2>
-							<p className="mt-2 text-sm text-muted">
-								Each file gets an optional focus field before topic extraction.
-							</p>
 						</div>
 						<div className="mt-6">
 							<NewExamForm

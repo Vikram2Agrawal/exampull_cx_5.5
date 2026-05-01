@@ -23,6 +23,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Wire generated question/answer content into the LaTeX artifact instead of rendering only deterministic placeholder prompts.
 - [x] Persist new-exam wizard drafts locally across refreshes and clear them after successful queueing.
 - [x] Retry transient LaTeX compile failures for rate-limit/server-error responses before failing an exam job.
+- [x] Implement one-time exam source uploads with signed Storage writes, extraction polling, persisted source metadata, and generation grounding from uploaded files.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -33,7 +34,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
 - Visual annotation now creates a rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
-- OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context.
+- OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
 - Anonymous preview claim-to-account preservation still needs full Firebase anonymous-linking E2E; preview delivery itself no longer exposes the source PDF.
 
@@ -66,6 +67,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after wizard draft persistence deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after LaTeX retry resilience passed.
 - Hosted smoke re-run after LaTeX retry resilience deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after ad hoc source upload implementation passed.
+- Hosted smoke re-run after ad hoc source upload deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

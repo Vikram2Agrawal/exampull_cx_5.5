@@ -182,6 +182,14 @@ export async function deleteExamForUser(user: CurrentUser, examId: string) {
 	const attemptStoragePaths = attempts.docs
 		.map((doc) => doc.get("storagePath"))
 		.filter((value): value is string => typeof value === "string" && value.length > 0);
+	const adHocUploadIds = stringList(snapshot.get("adHocUploadIds"));
+	const adHocUploads = await Promise.all(
+		adHocUploadIds.map((uploadId) => userRef.collection("examUploads").doc(uploadId).get()),
+	);
+	const adHocStoragePaths = adHocUploads
+		.filter((upload) => upload.exists && upload.get("examId") === examId)
+		.map((upload) => upload.get("storagePath"))
+		.filter((value): value is string => typeof value === "string" && value.length > 0);
 	const shares = await shareCollection
 		.where("ownerUid", "==", user.uid)
 		.where("examId", "==", examId)
@@ -202,13 +210,18 @@ export async function deleteExamForUser(user: CurrentUser, examId: string) {
 	}
 
 	await Promise.all(
-		attemptStoragePaths.map((storagePath) =>
+		[...attemptStoragePaths, ...adHocStoragePaths].map((storagePath) =>
 			adminStorage.bucket().file(storagePath).delete({ ignoreNotFound: true }),
 		),
 	);
 	await deleteCollection(ref.collection("attempts"));
 
 	const batch = adminDb.batch();
+	for (const upload of adHocUploads) {
+		if (upload.exists && upload.get("examId") === examId) {
+			batch.delete(upload.ref);
+		}
+	}
 	for (const share of shares.docs) {
 		batch.delete(share.ref);
 	}
@@ -332,6 +345,7 @@ export async function cloneExamForUser(user: CurrentUser, examId: string) {
 			stringList(data.sourceMaterialIds).length > 0
 				? stringList(data.sourceMaterialIds)
 				: stringList(config.sourceMaterialIds),
+		adHocUploadIds: stringList(data.adHocUploadIds),
 		sourceNotes,
 		questionCount: Number(data.questionCount ?? config.questionCount ?? 6),
 		mode,

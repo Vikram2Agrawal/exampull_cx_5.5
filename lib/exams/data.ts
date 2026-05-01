@@ -30,6 +30,12 @@ export type ExamSummary = {
 	creditsConsumed: number;
 	examPdfBase64: string | null;
 	answerKeyPdfBase64: string | null;
+	adHocSources: {
+		id: string;
+		filename: string;
+		focus: string | null;
+		extractedTopics: string[];
+	}[];
 };
 
 function isExamStatus(value: unknown): value is ExamStatus {
@@ -66,6 +72,30 @@ function uniqueSlotValues(data: FirebaseFirestore.DocumentData, field: "style" |
 				.filter((value): value is string => typeof value === "string"),
 		),
 	);
+}
+
+function adHocSources(value: unknown) {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter(isRecord).flatMap((source) => {
+		const id = typeof source.id === "string" ? source.id : "";
+		const filename = typeof source.filename === "string" ? source.filename : "Source upload";
+
+		if (!id) {
+			return [];
+		}
+
+		return [
+			{
+				id,
+				filename,
+				focus: typeof source.focus === "string" && source.focus ? source.focus : null,
+				extractedTopics: stringList(source.extractedTopics),
+			},
+		];
+	});
 }
 
 function isoDate(value: unknown) {
@@ -150,5 +180,6 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		answerKeyPdfBase64:
 			typeof data.answerKeyPdfBase64 === "string" ? data.answerKeyPdfBase64 : null,
+		adHocSources: adHocSources(data.adHocSources),
 	};
 }

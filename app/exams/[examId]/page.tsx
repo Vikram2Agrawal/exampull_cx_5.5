@@ -147,7 +147,22 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 						</GlassPanel>
 						<GlassPanel className="p-5">
 							<h2 className="font-semibold">Sources</h2>
-							<ul className="mt-3 space-y-2 text-sm text-muted">
+							<ul className="mt-3 space-y-3 text-sm text-muted">
+								{exam.adHocSources.map((source) => (
+									<li key={source.id}>
+										<span className="font-medium text-foreground">
+											{source.filename}
+										</span>
+										{source.focus ? (
+											<span className="block">Focus: {source.focus}</span>
+										) : null}
+										{source.extractedTopics.length > 0 ? (
+											<span className="block">
+												{source.extractedTopics.length} extracted topics
+											</span>
+										) : null}
+									</li>
+								))}
 								{exam.topics.map((topic) => (
 									<li key={topic}>{topic}</li>
 								))}
