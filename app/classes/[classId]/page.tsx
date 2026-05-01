@@ -1,5 +1,6 @@
-import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
+import { ClassManager } from "@/components/class/class-manager";
 import { MaterialUploader } from "@/components/class/material-uploader";
 import { AppShell } from "@/components/layout/site-nav";
 import { ButtonLink } from "@/components/ui/button";
@@ -53,20 +54,7 @@ export default async function ClassDetailPage({
 						</div>
 					</GlassPanel>
 					<div className="space-y-4">
-						<GlassPanel className="p-5">
-							<div className="flex items-center gap-3">
-								<GraduationCap
-									aria-hidden="true"
-									className="text-secondary"
-									size={22}
-								/>
-								<h2 className="font-semibold">Class profile</h2>
-							</div>
-							<p className="mt-4 text-sm text-muted">
-								{course.description ??
-									"Use the materials list and focus fields to define what ExamPull should treat as in-scope."}
-							</p>
-						</GlassPanel>
+						<ClassManager course={course} />
 						<GlassPanel className="p-5">
 							<div className="flex items-center gap-3">
 								<Sparkles aria-hidden="true" className="text-premium" size={22} />

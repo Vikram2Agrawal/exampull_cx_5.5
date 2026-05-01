@@ -103,6 +103,11 @@ export function MaterialUploader({
 	}
 
 	async function deleteMaterial(materialId: string) {
+		const confirmed = window.confirm("Delete this material permanently?");
+		if (!confirmed) {
+			return;
+		}
+
 		await fetch(`/api/classes/${classId}/materials/${materialId}`, { method: "DELETE" });
 		router.refresh();
 	}

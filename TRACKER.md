@@ -15,6 +15,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement AI gateway, multimodal material ingestion, LaTeX client/service, topic extraction, PDF text extraction, credit accounting, queue abstractions, worker auth, and worker routes.
 - [x] Implement Power Mode question-slot builder, per-slot LaTeX rendering, paid-tier enforcement, and slot-count credit accounting.
 - [x] Implement exam library search/filter/archive visibility/grid-list views, individual delete, and bulk archive/bookmark/delete/move-to-class operations.
+- [x] Implement class edit/archive/restore/delete controls, material delete confirmation, class-tag cleanup on deletion, and material storage cleanup.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -41,6 +42,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after multimodal material extraction deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after Power Mode and library management passed.
 - Hosted smoke re-run after Power Mode and library management deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after class lifecycle controls passed.
+- Hosted smoke re-run after class lifecycle controls deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`.
 
 ## Completion Bar

@@ -219,7 +219,6 @@ export async function deleteClassForUser(userId: string, classId: string) {
 		.doc(userId)
 		.collection("exams")
 		.where("classId", "==", classId)
-		.limit(50)
 		.get();
 	const hasInFlightExam = exams.docs.some((doc) => {
 		const status = doc.get("status");
@@ -234,14 +233,40 @@ export async function deleteClassForUser(userId: string, classId: string) {
 
 	const classRef = classCollection(userId).doc(classId);
 	const materials = await classRef.collection("materials").limit(200).get();
-	const batch = adminDb.batch();
+	const storagePaths = materials.docs
+		.map((material) => material.get("storagePath"))
+		.filter((value): value is string => typeof value === "string" && value.length > 0);
+	const mutations: ((batch: FirebaseFirestore.WriteBatch) => void)[] = [];
 
 	for (const material of materials.docs) {
-		batch.delete(material.ref);
+		mutations.push((batch) => batch.delete(material.ref));
 	}
 
-	batch.delete(classRef);
-	await batch.commit();
+	for (const exam of exams.docs) {
+		mutations.push((batch) =>
+			batch.update(exam.ref, {
+				classId: null,
+				className: "Manual topics",
+				updatedAt: Timestamp.now(),
+			}),
+		);
+	}
+
+	mutations.push((batch) => batch.delete(classRef));
+
+	for (let index = 0; index < mutations.length; index += 450) {
+		const batch = adminDb.batch();
+		for (const mutation of mutations.slice(index, index + 450)) {
+			mutation(batch);
+		}
+		await batch.commit();
+	}
+
+	await Promise.all(
+		storagePaths.map((storagePath) =>
+			adminStorage.bucket().file(storagePath).delete({ ignoreNotFound: true }),
+		),
+	);
 
 	return { deleted: true };
 }

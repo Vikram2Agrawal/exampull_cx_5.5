@@ -59,9 +59,16 @@ export default async function ClassesPage() {
 									</Link>
 									<p className="mt-2 text-sm text-muted">{course.institution}</p>
 								</div>
-								<span className="rounded-full border border-glass-border px-3 py-1 text-xs text-muted">
-									{course.educationLevel}/100
-								</span>
+								<div className="flex flex-col items-end gap-2">
+									<span className="rounded-full border border-glass-border px-3 py-1 text-xs text-muted">
+										{course.educationLevel}/100
+									</span>
+									{course.archived ? (
+										<span className="rounded-full bg-glass px-3 py-1 text-xs text-muted">
+											Archived
+										</span>
+									) : null}
+								</div>
 							</div>
 							<div className="mt-6 grid grid-cols-2 gap-3 text-sm">
 								<div className="rounded-lg bg-background/40 p-3">
