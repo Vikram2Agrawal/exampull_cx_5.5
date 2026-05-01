@@ -1,11 +1,39 @@
 "use client";
 
-import { ArrowRight, WandSparkles } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowRight,
+	ArrowUp,
+	Copy,
+	ListPlus,
+	Plus,
+	Trash2,
+	WandSparkles,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
 import type { ClassSummary, MaterialSummary } from "@/lib/classes/data";
 import { CREDIT_COSTS, TIER_MAX_QUESTIONS_PER_EXAM, type Tier } from "@/lib/product/constants";
+
+const styleOptions = [
+	{ value: "multiple_choice", label: "MC" },
+	{ value: "short_answer", label: "Short answer" },
+	{ value: "calculation", label: "Calculation" },
+	{ value: "essay", label: "Essay" },
+	{ value: "proof", label: "Proof" },
+] satisfies { value: QuestionStyle; label: string }[];
+
+const difficultyOptions = [
+	{ value: "light", label: "Light" },
+	{ value: "balanced", label: "Balanced" },
+	{ value: "hardcore", label: "Hardcore" },
+] satisfies { value: QuestionDifficulty; label: string }[];
+
+type PowerSlotDraft = PowerQuestionSlot & {
+	id: string;
+};
 
 function parseTopics(value: string) {
 	return value
@@ -13,6 +41,33 @@ function parseTopics(value: string) {
 		.map((topic) => topic.trim())
 		.filter(Boolean)
 		.slice(0, 30);
+}
+
+function slotId() {
+	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+		return crypto.randomUUID();
+	}
+
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createPowerSlot(topic = ""): PowerSlotDraft {
+	return {
+		id: slotId(),
+		topic,
+		style: "short_answer",
+		difficulty: "balanced",
+		points: 10,
+	};
+}
+
+function toServerPowerSlots(slots: PowerSlotDraft[]): PowerQuestionSlot[] {
+	return slots.map((slot) => ({
+		topic: slot.topic.trim(),
+		style: slot.style,
+		difficulty: slot.difficulty,
+		points: slot.points,
+	}));
 }
 
 type SourceClass = ClassSummary & {
@@ -38,6 +93,19 @@ export function NewExamForm({
 	const [sourceNotes, setSourceNotes] = useState("");
 	const [questionCount, setQuestionCount] = useState(Math.min(12, maxQuestions));
 	const [mode, setMode] = useState<"standard" | "power">("standard");
+	const [powerSlots, setPowerSlots] = useState<PowerSlotDraft[]>([]);
+	const [mirrorInstructorStyle, setMirrorInstructorStyle] = useState(true);
+	const [quickTopic, setQuickTopic] = useState("");
+	const [quickStyle, setQuickStyle] = useState<QuestionStyle>("multiple_choice");
+	const [quickDifficulty, setQuickDifficulty] = useState<QuestionDifficulty>("balanced");
+	const [quickPoints, setQuickPoints] = useState(5);
+	const [quickCount, setQuickCount] = useState(5);
+	const [rangeStart, setRangeStart] = useState(1);
+	const [rangeEnd, setRangeEnd] = useState(5);
+	const [rangeTopic, setRangeTopic] = useState("");
+	const [rangeStyle, setRangeStyle] = useState<QuestionStyle>("short_answer");
+	const [rangeDifficulty, setRangeDifficulty] = useState<QuestionDifficulty>("balanced");
+	const [rangePoints, setRangePoints] = useState(10);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const selectedClass = useMemo(
@@ -52,10 +120,119 @@ export function NewExamForm({
 		);
 	}, [selectedClass, selectedMaterialIds]);
 	const topics = useMemo(() => {
-		return Array.from(new Set([...parseTopics(topicsText), ...materialTopics])).slice(0, 30);
-	}, [topicsText, materialTopics]);
-	const cost = questionCount * CREDIT_COSTS.GENERATE_QUESTION;
-	const canGenerate = topics.length > 0 && cost <= credits && !isSubmitting;
+		return Array.from(
+			new Set([
+				...parseTopics(topicsText),
+				...materialTopics,
+				...powerSlots.map((slot) => slot.topic.trim()).filter(Boolean),
+			]),
+		).slice(0, 30);
+	}, [topicsText, materialTopics, powerSlots]);
+	const configuredQuestionCount = mode === "power" ? powerSlots.length : questionCount;
+	const cost = configuredQuestionCount * CREDIT_COSTS.GENERATE_QUESTION;
+	const canGenerate =
+		topics.length > 0 &&
+		cost <= credits &&
+		!isSubmitting &&
+		(mode === "standard" ||
+			(tier !== "free" &&
+				powerSlots.length > 0 &&
+				powerSlots.every((slot) => slot.topic.trim().length > 0)));
+
+	function selectMode(nextMode: "standard" | "power") {
+		if (nextMode === "power" && tier === "free") {
+			setError("Power Mode is available on Scholar and Guru.");
+			return;
+		}
+
+		setError(null);
+		setMode(nextMode);
+
+		if (nextMode === "power" && powerSlots.length === 0) {
+			setPowerSlots([createPowerSlot(topics[0] ?? "")]);
+		}
+	}
+
+	function updatePowerSlot(slotIdValue: string, update: Partial<PowerQuestionSlot>) {
+		setPowerSlots((current) =>
+			current.map((slot) => (slot.id === slotIdValue ? { ...slot, ...update } : slot)),
+		);
+	}
+
+	function addPowerSlot(topic = topics[0] ?? "") {
+		setPowerSlots((current) =>
+			current.length >= maxQuestions ? current : [...current, createPowerSlot(topic)],
+		);
+	}
+
+	function duplicatePowerSlot(slotIdValue: string) {
+		setPowerSlots((current) => {
+			const index = current.findIndex((slot) => slot.id === slotIdValue);
+			if (index === -1) {
+				return current;
+			}
+
+			const copy = { ...current[index], id: slotId() };
+			return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)];
+		});
+	}
+
+	function removePowerSlot(slotIdValue: string) {
+		setPowerSlots((current) => current.filter((slot) => slot.id !== slotIdValue));
+	}
+
+	function movePowerSlot(slotIdValue: string, direction: -1 | 1) {
+		setPowerSlots((current) => {
+			const index = current.findIndex((slot) => slot.id === slotIdValue);
+			const targetIndex = index + direction;
+			if (index === -1 || targetIndex < 0 || targetIndex >= current.length) {
+				return current;
+			}
+
+			const next = [...current];
+			const target = next[targetIndex];
+			next[targetIndex] = next[index];
+			next[index] = target;
+			return next;
+		});
+	}
+
+	function setAllPowerSlots(update: Partial<PowerQuestionSlot>) {
+		setPowerSlots((current) => current.map((slot) => ({ ...slot, ...update })));
+	}
+
+	function quickAddPowerSlots() {
+		const topic = quickTopic.trim() || topics[0] || "Selected course topic";
+		const count = Math.max(1, Math.min(20, quickCount));
+		const nextSlots = Array.from({ length: count }, () => ({
+			...createPowerSlot(topic),
+			style: quickStyle,
+			difficulty: quickDifficulty,
+			points: quickPoints,
+		}));
+
+		setPowerSlots((current) => [...current, ...nextSlots].slice(0, maxQuestions));
+	}
+
+	function applyRangeUpdate() {
+		const start = Math.max(1, Math.min(rangeStart, rangeEnd));
+		const end = Math.min(powerSlots.length, Math.max(rangeStart, rangeEnd));
+		const update: Partial<PowerQuestionSlot> = {
+			style: rangeStyle,
+			difficulty: rangeDifficulty,
+			points: rangePoints,
+		};
+
+		if (rangeTopic.trim()) {
+			update.topic = rangeTopic.trim();
+		}
+
+		setPowerSlots((current) =>
+			current.map((slot, index) =>
+				index + 1 >= start && index + 1 <= end ? { ...slot, ...update } : slot,
+			),
+		);
+	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -73,8 +250,10 @@ export function NewExamForm({
 					sourceMaterialIds: selectedMaterialIds,
 					topics,
 					sourceNotes,
-					questionCount,
+					questionCount: configuredQuestionCount,
 					mode,
+					powerSlots: mode === "power" ? toServerPowerSlots(powerSlots) : undefined,
+					mirrorInstructorStyle,
 				}),
 			});
 			const payload = (await response.json()) as { examId?: string; error?: string };
@@ -216,16 +395,32 @@ export function NewExamForm({
 						</label>
 						<span className="text-sm text-muted">Max {maxQuestions} on your tier</span>
 					</div>
-					<input
-						id="question-count"
-						type="range"
-						min={1}
-						max={maxQuestions}
-						value={questionCount}
-						onChange={(event) => setQuestionCount(Number(event.target.value))}
-						className="mt-4 w-full accent-brand"
-					/>
-					<p className="mt-2 text-2xl font-semibold">{questionCount}</p>
+					{mode === "standard" ? (
+						<>
+							<input
+								id="question-count"
+								type="range"
+								min={1}
+								max={maxQuestions}
+								value={questionCount}
+								onChange={(event) => setQuestionCount(Number(event.target.value))}
+								className="mt-4 w-full accent-brand"
+							/>
+							<p className="mt-2 text-2xl font-semibold">{questionCount}</p>
+						</>
+					) : (
+						<div className="mt-4 flex items-center justify-between gap-3">
+							<p className="text-2xl font-semibold">{powerSlots.length}</p>
+							<Button
+								type="button"
+								onClick={() => addPowerSlot()}
+								disabled={powerSlots.length >= maxQuestions}
+							>
+								<Plus aria-hidden="true" size={16} />
+								Add slot
+							</Button>
+						</div>
+					)}
 				</div>
 				<div className="rounded-lg border border-glass-border bg-background/40 p-4">
 					<p className="text-sm font-medium">Mode</p>
@@ -237,7 +432,7 @@ export function NewExamForm({
 									? "border-brand bg-brand text-white"
 									: "border-glass-border bg-background/60"
 							}`}
-							onClick={() => setMode("standard")}
+							onClick={() => selectMode("standard")}
 						>
 							Standard
 						</button>
@@ -248,13 +443,295 @@ export function NewExamForm({
 									? "border-premium bg-premium text-premium-foreground"
 									: "border-glass-border bg-background/60"
 							}`}
-							onClick={() => setMode("power")}
+							onClick={() => selectMode("power")}
 						>
 							Power
 						</button>
 					</div>
 				</div>
 			</div>
+			{mode === "power" ? (
+				<div className="space-y-4 rounded-lg border border-glass-border bg-background/35 p-4">
+					<div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+						<div>
+							<h2 className="text-lg font-semibold">Power Mode slots</h2>
+							<p className="text-sm text-muted">
+								{powerSlots.length} configured of {maxQuestions} available.
+							</p>
+						</div>
+						{selectedClass?.styleGuide ? (
+							<label className="flex items-center gap-2 text-sm">
+								<input
+									type="checkbox"
+									checked={mirrorInstructorStyle}
+									onChange={(event) =>
+										setMirrorInstructorStyle(event.target.checked)
+									}
+								/>
+								Mirror instructor style
+							</label>
+						) : null}
+					</div>
+					<datalist id="power-topic-options">
+						{topics.map((topic) => (
+							<option key={topic} value={topic} />
+						))}
+					</datalist>
+					<div className="grid gap-3 lg:grid-cols-[1.2fr_120px_150px_130px_90px_auto]">
+						<input
+							value={quickTopic}
+							onChange={(event) => setQuickTopic(event.target.value)}
+							list="power-topic-options"
+							placeholder="Quick-add topic"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						/>
+						<input
+							type="number"
+							min={1}
+							max={20}
+							value={quickCount}
+							onChange={(event) => setQuickCount(Number(event.target.value))}
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							aria-label="Quick-add count"
+						/>
+						<select
+							value={quickStyle}
+							onChange={(event) => setQuickStyle(event.target.value as QuestionStyle)}
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						>
+							{styleOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<select
+							value={quickDifficulty}
+							onChange={(event) =>
+								setQuickDifficulty(event.target.value as QuestionDifficulty)
+							}
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						>
+							{difficultyOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<input
+							type="number"
+							min={1}
+							max={100}
+							value={quickPoints}
+							onChange={(event) => setQuickPoints(Number(event.target.value))}
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							aria-label="Quick-add points"
+						/>
+						<Button
+							type="button"
+							onClick={quickAddPowerSlots}
+							disabled={powerSlots.length >= maxQuestions}
+						>
+							<ListPlus aria-hidden="true" size={16} />
+							Quick-add
+						</Button>
+					</div>
+					<div className="grid gap-3 rounded-lg border border-glass-border bg-background/45 p-3 lg:grid-cols-[80px_80px_1fr_150px_130px_90px_auto]">
+						<input
+							type="number"
+							min={1}
+							max={Math.max(1, powerSlots.length)}
+							value={rangeStart}
+							onChange={(event) => setRangeStart(Number(event.target.value))}
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							aria-label="Range start"
+						/>
+						<input
+							type="number"
+							min={1}
+							max={Math.max(1, powerSlots.length)}
+							value={rangeEnd}
+							onChange={(event) => setRangeEnd(Number(event.target.value))}
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							aria-label="Range end"
+						/>
+						<input
+							value={rangeTopic}
+							onChange={(event) => setRangeTopic(event.target.value)}
+							list="power-topic-options"
+							placeholder="Range topic"
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						/>
+						<select
+							value={rangeStyle}
+							onChange={(event) => setRangeStyle(event.target.value as QuestionStyle)}
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						>
+							{styleOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<select
+							value={rangeDifficulty}
+							onChange={(event) =>
+								setRangeDifficulty(event.target.value as QuestionDifficulty)
+							}
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						>
+							{difficultyOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+						<input
+							type="number"
+							min={1}
+							max={100}
+							value={rangePoints}
+							onChange={(event) => setRangePoints(Number(event.target.value))}
+							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							aria-label="Range points"
+						/>
+						<Button
+							type="button"
+							onClick={applyRangeUpdate}
+							disabled={powerSlots.length === 0}
+						>
+							Apply range
+						</Button>
+					</div>
+					<div className="space-y-3">
+						{powerSlots.map((slot, index) => (
+							<div
+								key={slot.id}
+								className="grid gap-3 rounded-lg border border-glass-border bg-background/55 p-3 lg:grid-cols-[44px_1fr_150px_130px_92px_160px]"
+							>
+								<div className="flex h-11 items-center justify-center rounded-lg bg-glass text-sm font-semibold">
+									{index + 1}
+								</div>
+								<input
+									value={slot.topic}
+									onChange={(event) =>
+										updatePowerSlot(slot.id, { topic: event.target.value })
+									}
+									list="power-topic-options"
+									placeholder="Question topic"
+									className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								/>
+								<div className="space-y-2">
+									<select
+										value={slot.style}
+										onChange={(event) =>
+											updatePowerSlot(slot.id, {
+												style: event.target.value as QuestionStyle,
+											})
+										}
+										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+									>
+										{styleOptions.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+									<button
+										type="button"
+										className="text-xs text-muted hover:text-foreground"
+										onClick={() => setAllPowerSlots({ style: slot.style })}
+									>
+										Set all
+									</button>
+								</div>
+								<div className="space-y-2">
+									<select
+										value={slot.difficulty}
+										onChange={(event) =>
+											updatePowerSlot(slot.id, {
+												difficulty: event.target
+													.value as QuestionDifficulty,
+											})
+										}
+										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+									>
+										{difficultyOptions.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+									<button
+										type="button"
+										className="text-xs text-muted hover:text-foreground"
+										onClick={() =>
+											setAllPowerSlots({ difficulty: slot.difficulty })
+										}
+									>
+										Set all
+									</button>
+								</div>
+								<div className="space-y-2">
+									<input
+										type="number"
+										min={1}
+										max={100}
+										value={slot.points}
+										onChange={(event) =>
+											updatePowerSlot(slot.id, {
+												points: Number(event.target.value),
+											})
+										}
+										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+										aria-label={`Question ${index + 1} points`}
+									/>
+									<button
+										type="button"
+										className="text-xs text-muted hover:text-foreground"
+										onClick={() => setAllPowerSlots({ points: slot.points })}
+									>
+										Set all
+									</button>
+								</div>
+								<div className="flex items-start justify-end gap-1">
+									<button
+										type="button"
+										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										onClick={() => movePowerSlot(slot.id, -1)}
+										disabled={index === 0}
+									>
+										<ArrowUp aria-label="Move up" size={16} />
+									</button>
+									<button
+										type="button"
+										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										onClick={() => movePowerSlot(slot.id, 1)}
+										disabled={index === powerSlots.length - 1}
+									>
+										<ArrowDown aria-label="Move down" size={16} />
+									</button>
+									<button
+										type="button"
+										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										onClick={() => duplicatePowerSlot(slot.id)}
+										disabled={powerSlots.length >= maxQuestions}
+									>
+										<Copy aria-label="Duplicate slot" size={16} />
+									</button>
+									<button
+										type="button"
+										className="rounded-lg p-2 text-error hover:bg-error/10"
+										onClick={() => removePowerSlot(slot.id)}
+									>
+										<Trash2 aria-label="Remove slot" size={16} />
+									</button>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			) : null}
 			{error ? (
 				<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
 			) : null}

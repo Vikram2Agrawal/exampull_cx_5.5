@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
-import { computeExamCost, examConfigSchema } from "@/lib/billing/credits";
+import { computeExamCost, createExamConfigSchema } from "@/lib/billing/credits";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 
-export const createExamRequestSchema = examConfigSchema.omit({ tier: true }).extend({
+export const createExamRequestSchema = createExamConfigSchema.extend({
 	className: z.string().trim().max(80).optional(),
 	classId: z.string().trim().max(120).optional(),
 	sourceMaterialIds: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
@@ -22,7 +22,20 @@ export async function createExamForUser({
 	input: CreateExamRequest;
 }) {
 	const parsed = createExamRequestSchema.parse(input);
-	const config = { ...parsed, tier: user.tier };
+	if (parsed.mode === "power" && user.tier === "free") {
+		throw new Error("Power Mode is available on Scholar and Guru.");
+	}
+
+	const questionCount =
+		parsed.mode === "power" && parsed.powerSlots
+			? parsed.powerSlots.length
+			: parsed.questionCount;
+	const config = {
+		...parsed,
+		questionCount,
+		tier: user.tier,
+		mirrorInstructorStyle: parsed.mirrorInstructorStyle ?? true,
+	};
 	const credits = computeExamCost(config);
 	const examId = randomUUID();
 	const userRef = adminDb.collection("users").doc(user.uid);
@@ -49,7 +62,7 @@ export async function createExamForUser({
 			classId: parsed.classId || null,
 			topics: parsed.topics,
 			sourceMaterialIds: parsed.sourceMaterialIds,
-			questionCount: parsed.questionCount,
+			questionCount,
 			tierAtGen: user.tier,
 			config,
 			sourceNotes: parsed.sourceNotes ?? null,

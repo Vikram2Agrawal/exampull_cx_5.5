@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
+import { examConfigSchema } from "@/lib/billing/credits";
 import { buildExamLatex } from "@/lib/exams/latex";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
@@ -37,6 +38,9 @@ export async function POST(request: Request) {
 	const topics = (snapshot.get("topics") ?? []) as string[];
 	const title = String(snapshot.get("title") ?? "Practice Exam");
 	const questionCount = Number(snapshot.get("questionCount") ?? topics.length);
+	const configResult = examConfigSchema.safeParse(snapshot.get("config"));
+	const config = configResult.success ? configResult.data : null;
+	const powerSlots = config?.mode === "power" ? config.powerSlots : undefined;
 	const creditsReserved = Number(snapshot.get("creditsReserved") ?? 0);
 	const userRef = adminDb.collection("users").doc(input.userId);
 
@@ -52,12 +56,34 @@ export async function POST(request: Request) {
 					content:
 						"Create a concise professional exam blueprint with topic balance, difficulty, and question forms.",
 				},
-				{ role: "user", content: `Title: ${title}\nTopics: ${topics.join(", ")}` },
+				{
+					role: "user",
+					content: powerSlots
+						? `Title: ${title}\nMode: Power\nMirror instructor style: ${config?.mirrorInstructorStyle === false ? "no" : "yes"}\nSlots:\n${powerSlots
+								.map(
+									(slot, index) =>
+										`${index + 1}. ${slot.topic} - ${slot.style}, ${slot.difficulty}, ${slot.points} points`,
+								)
+								.join("\n")}`
+						: `Title: ${title}\nTopics: ${topics.join(", ")}`,
+				},
 			],
 		});
 
-		const examLatex = buildExamLatex({ title, topics, questionCount, answerKey: false });
-		const answerKeyLatex = buildExamLatex({ title, topics, questionCount, answerKey: true });
+		const examLatex = buildExamLatex({
+			title,
+			topics,
+			questionCount,
+			answerKey: false,
+			powerSlots,
+		});
+		const answerKeyLatex = buildExamLatex({
+			title,
+			topics,
+			questionCount,
+			answerKey: true,
+			powerSlots,
+		});
 
 		await examRef.update({ status: "qa_in_progress", updatedAt: Timestamp.now() });
 		const [examCompiled, answerKeyCompiled] = await Promise.all([

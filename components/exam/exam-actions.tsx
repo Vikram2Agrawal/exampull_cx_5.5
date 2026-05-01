@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Bookmark, Copy, Flag, RotateCcw, Share2, Star } from "lucide-react";
+import { Archive, Bookmark, Copy, Flag, RotateCcw, Share2, Star, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,29 @@ export function ExamActions({
 		);
 	}
 
+	function deleteExam() {
+		const firstConfirm = window.confirm("Delete this exam permanently?");
+		if (!firstConfirm) {
+			return;
+		}
+
+		const secondConfirm = window.confirm(
+			"Consider archiving instead to preserve your exam history. Delete anyway?",
+		);
+		if (!secondConfirm) {
+			return;
+		}
+
+		startTransition(async () => {
+			try {
+				await readJson(await fetch(`/api/exams/${examId}`, { method: "DELETE" }));
+				router.push("/exams");
+			} catch (error) {
+				setStatus(error instanceof Error ? error.message : "Delete failed.");
+			}
+		});
+	}
+
 	function cloneExam() {
 		startTransition(async () => {
 			try {
@@ -142,6 +165,10 @@ export function ExamActions({
 				<Button type="button" variant="danger" onClick={reportExam} disabled={isPending}>
 					<Flag aria-hidden="true" size={18} />
 					Report issue
+				</Button>
+				<Button type="button" variant="danger" onClick={deleteExam} disabled={isPending}>
+					<Trash2 aria-hidden="true" size={18} />
+					Delete
 				</Button>
 			</div>
 			<div>

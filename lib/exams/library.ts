@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { publicBaseUrl } from "@/lib/env";
 import { createExamForUser, createExamRequestSchema } from "@/lib/exams/create";
-import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
 const shareCollection = adminDb.collection("share_links");
 const abuseCollection = adminDb.collection("abuseReports");
@@ -15,7 +15,24 @@ export const examUpdateSchema = z.object({
 	reportReason: z.string().trim().min(8).max(1200).optional(),
 });
 
+export const examBulkActionSchema = z
+	.object({
+		examIds: z.array(z.string().trim().min(1).max(160)).min(1).max(100),
+		action: z.enum(["archive", "restore", "bookmark", "unbookmark", "delete", "move_class"]),
+		classId: z.string().trim().min(1).max(120).nullable().optional(),
+	})
+	.superRefine((input, context) => {
+		if (input.action === "move_class" && input.classId === undefined) {
+			context.addIssue({
+				code: "custom",
+				path: ["classId"],
+				message: "Move to class requires a class id or null.",
+			});
+		}
+	});
+
 export type ExamUpdateInput = z.infer<typeof examUpdateSchema>;
+export type ExamBulkActionInput = z.infer<typeof examBulkActionSchema>;
 
 export type SharedExam = {
 	shareId: string;
@@ -31,6 +48,24 @@ export type SharedExam = {
 
 function examRef(userId: string, examId: string) {
 	return adminDb.collection("users").doc(userId).collection("exams").doc(examId);
+}
+
+async function deleteCollection(collection: FirebaseFirestore.CollectionReference) {
+	for (;;) {
+		const snapshot = await collection.limit(450).get();
+
+		if (snapshot.empty) {
+			return;
+		}
+
+		const batch = adminDb.batch();
+
+		for (const doc of snapshot.docs) {
+			batch.delete(doc.ref);
+		}
+
+		await batch.commit();
+	}
 }
 
 function stringList(value: unknown) {
@@ -105,6 +140,131 @@ export async function updateExamForUser({
 	return { examId };
 }
 
+export async function deleteExamForUser(user: CurrentUser, examId: string) {
+	const ref = examRef(user.uid, examId);
+	const snapshot = await ref.get();
+
+	if (!snapshot.exists) {
+		return null;
+	}
+
+	const creditsReserved = Number(snapshot.get("creditsReserved") ?? 0);
+	const userRef = adminDb.collection("users").doc(user.uid);
+	const attempts = await ref.collection("attempts").get();
+	const attemptStoragePaths = attempts.docs
+		.map((doc) => doc.get("storagePath"))
+		.filter((value): value is string => typeof value === "string" && value.length > 0);
+	const shares = await shareCollection
+		.where("ownerUid", "==", user.uid)
+		.where("examId", "==", examId)
+		.get();
+
+	if (creditsReserved > 0) {
+		await adminDb.runTransaction(async (transaction) => {
+			const userSnapshot = await transaction.get(userRef);
+			transaction.update(userRef, {
+				credits: Number(userSnapshot.get("credits") ?? 0) + creditsReserved,
+				reservedCredits: Math.max(
+					0,
+					Number(userSnapshot.get("reservedCredits") ?? 0) - creditsReserved,
+				),
+				updatedAt: Timestamp.now(),
+			});
+		});
+	}
+
+	await Promise.all(
+		attemptStoragePaths.map((storagePath) =>
+			adminStorage.bucket().file(storagePath).delete({ ignoreNotFound: true }),
+		),
+	);
+	await deleteCollection(ref.collection("attempts"));
+
+	const batch = adminDb.batch();
+	for (const share of shares.docs) {
+		batch.delete(share.ref);
+	}
+	batch.delete(ref);
+	await batch.commit();
+
+	return { examId, deleted: true };
+}
+
+export async function bulkUpdateExamsForUser({
+	user,
+	input,
+}: {
+	user: CurrentUser;
+	input: ExamBulkActionInput;
+}) {
+	const parsed = examBulkActionSchema.parse(input);
+	const uniqueExamIds = Array.from(new Set(parsed.examIds));
+
+	if (parsed.action === "delete") {
+		let deleted = 0;
+		for (const examId of uniqueExamIds) {
+			const result = await deleteExamForUser(user, examId);
+			if (result) {
+				deleted += 1;
+			}
+		}
+
+		return { updated: 0, deleted };
+	}
+
+	let className: string | null = null;
+	if (parsed.action === "move_class" && parsed.classId) {
+		const classSnapshot = await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("classes")
+			.doc(parsed.classId)
+			.get();
+
+		if (!classSnapshot.exists) {
+			throw new Error("Class not found.");
+		}
+
+		className =
+			typeof classSnapshot.get("name") === "string"
+				? String(classSnapshot.get("name"))
+				: null;
+	}
+
+	let updated = 0;
+	for (let index = 0; index < uniqueExamIds.length; index += 450) {
+		const chunk = uniqueExamIds.slice(index, index + 450);
+		const snapshots = await Promise.all(chunk.map((examId) => examRef(user.uid, examId).get()));
+		const batch = adminDb.batch();
+
+		for (const snapshot of snapshots) {
+			if (!snapshot.exists) {
+				continue;
+			}
+
+			const updateData: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {
+				updatedAt: Timestamp.now(),
+			};
+
+			if (parsed.action === "archive") updateData.archived = true;
+			if (parsed.action === "restore") updateData.archived = false;
+			if (parsed.action === "bookmark") updateData.bookmarked = true;
+			if (parsed.action === "unbookmark") updateData.bookmarked = false;
+			if (parsed.action === "move_class") {
+				updateData.classId = parsed.classId ?? null;
+				updateData.className = className ?? "Manual topics";
+			}
+
+			batch.update(snapshot.ref, updateData);
+			updated += 1;
+		}
+
+		await batch.commit();
+	}
+
+	return { updated, deleted: 0 };
+}
+
 export async function cloneExamForUser(user: CurrentUser, examId: string) {
 	const snapshot = await examRef(user.uid, examId).get();
 
@@ -147,6 +307,11 @@ export async function cloneExamForUser(user: CurrentUser, examId: string) {
 		sourceNotes,
 		questionCount: Number(data.questionCount ?? config.questionCount ?? 6),
 		mode,
+		powerSlots: Array.isArray(config.powerSlots) ? config.powerSlots : undefined,
+		mirrorInstructorStyle:
+			typeof config.mirrorInstructorStyle === "boolean"
+				? config.mirrorInstructorStyle
+				: undefined,
 	});
 
 	return createExamForUser({ user, input });
