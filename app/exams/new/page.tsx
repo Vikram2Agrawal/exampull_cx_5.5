@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/site-nav";
 import { GlassPanel, SectionHeader } from "@/components/ui/surface";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listClassMaterials, listUserClasses } from "@/lib/classes/data";
+import { listUserExams } from "@/lib/exams/data";
 
 const steps = ["Sources", "Topics", "Configure"];
 
@@ -15,7 +16,10 @@ export default async function NewExamPage() {
 		redirect("/sign-in");
 	}
 
-	const classes = await listUserClasses(user.uid);
+	const [classes, priorExams] = await Promise.all([
+		listUserClasses(user.uid),
+		listUserExams(user.uid, { limit: 2, includeArchived: true }),
+	]);
 	const sourceClasses = await Promise.all(
 		classes
 			.filter((course) => !course.archived)
@@ -75,6 +79,8 @@ export default async function NewExamPage() {
 							<NewExamForm
 								tier={user.tier}
 								credits={user.credits}
+								boostAvailable={user.tier === "free" && !user.boostUsedAt}
+								priorExamCount={priorExams.length}
 								classes={sourceClasses}
 							/>
 						</div>

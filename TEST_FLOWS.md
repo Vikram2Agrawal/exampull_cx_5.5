@@ -29,7 +29,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [!] P1-LIBRARY-001 Library search, filter, bookmark, archive, delete, move-to-class, grid/list, and bulk actions are implemented; authenticated E2E remains.
 - [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
-- [ ] P1-BOOST-001 Free user Scholar Boost is offered from second exam and atomically consumed.
+- [!] P1-BOOST-001 Free user Scholar Boost is offered from second exam and atomically consumed; implementation exists, full authenticated two-tab E2E remains.
 - [ ] P1-BILLING-001 Upgrade, downgrade, cancellation, credit packs, and receipts flow through Stripe test mode.
 - [!] P1-NOTIFY-001 In-app notification center handles exam, grading, feedback, and account events; payment/referral event coverage remains.
 - [x] P1-FEEDBACK-001 Product feedback widget routes feature requests, bugs, and general feedback to Firestore triage.
@@ -56,10 +56,12 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome smoke after Power Mode/library management: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after class lifecycle controls: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after secure anonymous preview: `pnpm exec playwright test --project=desktop-chrome` passed.
+- Desktop Chrome smoke after Scholar Boost implementation: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after Power Mode/library management deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after class lifecycle controls deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after secure anonymous preview deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
+- Hosted production smoke after Scholar Boost deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T20-23-56-330Z`.

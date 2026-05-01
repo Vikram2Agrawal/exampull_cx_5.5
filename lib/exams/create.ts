@@ -10,6 +10,7 @@ export const createExamRequestSchema = createExamConfigSchema.extend({
 	classId: z.string().trim().max(120).optional(),
 	sourceMaterialIds: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
 	sourceNotes: z.string().trim().max(2000).optional(),
+	useScholarBoost: z.boolean().default(false),
 });
 
 export type CreateExamRequest = z.infer<typeof createExamRequestSchema>;
@@ -22,7 +23,10 @@ export async function createExamForUser({
 	input: CreateExamRequest;
 }) {
 	const parsed = createExamRequestSchema.parse(input);
-	if (parsed.mode === "power" && user.tier === "free") {
+	const useScholarBoost = parsed.useScholarBoost && user.tier === "free";
+	const generationTier = useScholarBoost ? "scholar" : user.tier;
+
+	if (parsed.mode === "power" && generationTier === "free") {
 		throw new Error("Power Mode is available on Scholar and Guru.");
 	}
 
@@ -33,28 +37,50 @@ export async function createExamForUser({
 	const config = {
 		...parsed,
 		questionCount,
-		tier: user.tier,
+		tier: generationTier,
 		mirrorInstructorStyle: parsed.mirrorInstructorStyle ?? true,
 	};
-	const credits = computeExamCost(config);
+	const computedCost = computeExamCost(config);
+	const credits = useScholarBoost ? 0 : computedCost;
 	const examId = randomUUID();
 	const userRef = adminDb.collection("users").doc(user.uid);
 	const examRef = userRef.collection("exams").doc(examId);
+	const now = Timestamp.now();
+
+	if (useScholarBoost) {
+		const priorExam = await userRef.collection("exams").limit(1).get();
+		if (priorExam.empty) {
+			throw new Error("Scholar Boost appears after your first generated exam.");
+		}
+	}
 
 	await adminDb.runTransaction(async (transaction) => {
 		const userSnapshot = await transaction.get(userRef);
 		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
 		const reservedCredits = Number(userSnapshot.get("reservedCredits") ?? 0);
 
-		if (availableCredits < credits) {
+		if (useScholarBoost && userSnapshot.get("boostUsedAt")) {
+			throw new Error("Scholar Boost has already been used.");
+		}
+
+		if (!useScholarBoost && availableCredits < credits) {
 			throw new Error("Insufficient credits.");
 		}
 
-		transaction.update(userRef, {
-			credits: availableCredits - credits,
-			reservedCredits: reservedCredits + credits,
-			updatedAt: Timestamp.now(),
-		});
+		if (useScholarBoost) {
+			transaction.update(userRef, {
+				boostUsedAt: now,
+				boostExamId: examId,
+				updatedAt: now,
+			});
+		} else {
+			transaction.update(userRef, {
+				credits: availableCredits - credits,
+				reservedCredits: reservedCredits + credits,
+				updatedAt: now,
+			});
+		}
+
 		transaction.create(examRef, {
 			status: "queued",
 			title: parsed.title || "Untitled practice exam",
@@ -63,17 +89,20 @@ export async function createExamForUser({
 			topics: parsed.topics,
 			sourceMaterialIds: parsed.sourceMaterialIds,
 			questionCount,
-			tierAtGen: user.tier,
+			tierAtGen: generationTier,
 			config,
 			sourceNotes: parsed.sourceNotes ?? null,
 			creditsReserved: credits,
 			creditsConsumed: 0,
+			boostedScholar: useScholarBoost,
+			answerKeyUnlocked: useScholarBoost,
+			boostGradingIncluded: useScholarBoost,
 			archived: false,
 			bookmarked: false,
 			rating: null,
 			shareCount: 0,
-			createdAt: Timestamp.now(),
-			updatedAt: Timestamp.now(),
+			createdAt: now,
+			updatedAt: now,
 			isTestData: user.isTestAccount,
 		});
 	});

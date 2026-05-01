@@ -18,6 +18,9 @@ export type ExamSummary = {
 	mode: "standard" | "power";
 	questionStyles: string[];
 	difficulties: string[];
+	boostedScholar: boolean;
+	answerKeyUnlocked: boolean;
+	boostGradingIncluded: boolean;
 	createdAt: string;
 	rating: number | null;
 	bookmarked: boolean;
@@ -134,6 +137,9 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		mode: config.mode === "power" ? "power" : "standard",
 		questionStyles: uniqueSlotValues(data, "style"),
 		difficulties: uniqueSlotValues(data, "difficulty"),
+		boostedScholar: Boolean(data.boostedScholar ?? false),
+		answerKeyUnlocked: Boolean(data.answerKeyUnlocked ?? false),
+		boostGradingIncluded: Boolean(data.boostGradingIncluded ?? false),
 		createdAt: isoDate(data.createdAt),
 		rating: typeof data.rating === "number" ? data.rating : null,
 		bookmarked: Boolean(data.bookmarked ?? false),

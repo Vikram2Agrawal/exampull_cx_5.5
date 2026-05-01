@@ -101,18 +101,22 @@ export async function createAttemptUpload({
 	input: AttemptUploadInput;
 }) {
 	const parsed = attemptUploadSchema.parse(input);
+	const examSnapshot = await examRef(user.uid, examId).get();
+	if (!examSnapshot.exists) {
+		throw new Error("Exam not found.");
+	}
 
-	if (user.tier === "free") {
+	const boostGradingAvailable =
+		user.tier === "free" &&
+		Boolean(examSnapshot.get("boostGradingIncluded") ?? false) &&
+		!user.boostGradingUsedAt;
+
+	if (user.tier === "free" && !boostGradingAvailable) {
 		throw new Error("Attempt grading is available on Scholar and Guru.");
 	}
 
 	if (parsed.visualAnnotations && user.tier !== "guru") {
 		throw new Error("Visual annotations require Guru.");
-	}
-
-	const examSnapshot = await examRef(user.uid, examId).get();
-	if (!examSnapshot.exists) {
-		throw new Error("Exam not found.");
 	}
 
 	const attemptId = randomUUID();
@@ -131,6 +135,7 @@ export async function createAttemptUpload({
 			status: "uploading",
 			visualAnnotations: parsed.visualAnnotations,
 			visualAnnotationStatus: parsed.visualAnnotations ? "pending_upload" : null,
+			boostGradingCandidate: boostGradingAvailable,
 			creditsReserved: 0,
 			createdAt: now,
 			updatedAt: now,
@@ -157,6 +162,7 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 	const attemptRef = targetExamRef.collection("attempts").doc(attemptId);
 	let creditsReserved = 0;
 	let visualAnnotations = false;
+	let boostGradingUsed = false;
 
 	await adminDb.runTransaction(async (transaction) => {
 		const [userSnapshot, examSnapshot, attemptSnapshot] = await Promise.all([
@@ -171,24 +177,39 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 
 		const questionCount = Number(examSnapshot.get("questionCount") ?? 0);
 		visualAnnotations = Boolean(attemptSnapshot.get("visualAnnotations") ?? false);
-		creditsReserved =
-			questionCount * CREDIT_COSTS.GRADE_QUESTION +
-			(visualAnnotations ? questionCount * CREDIT_COSTS.ANNOTATE_QUESTION : 0);
+		boostGradingUsed =
+			user.tier === "free" &&
+			Boolean(examSnapshot.get("boostGradingIncluded") ?? false) &&
+			!userSnapshot.get("boostGradingUsedAt") &&
+			!visualAnnotations;
+		creditsReserved = boostGradingUsed
+			? 0
+			: questionCount * CREDIT_COSTS.GRADE_QUESTION +
+				(visualAnnotations ? questionCount * CREDIT_COSTS.ANNOTATE_QUESTION : 0);
 		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
 
 		if (availableCredits < creditsReserved) {
 			throw new Error("Insufficient credits for grading.");
 		}
 
-		transaction.update(userRef, {
-			credits: availableCredits - creditsReserved,
-			reservedCredits: Number(userSnapshot.get("reservedCredits") ?? 0) + creditsReserved,
-			updatedAt: Timestamp.now(),
-		});
+		if (boostGradingUsed) {
+			transaction.update(userRef, {
+				boostGradingUsedAt: Timestamp.now(),
+				boostGradingAttemptId: attemptId,
+				updatedAt: Timestamp.now(),
+			});
+		} else {
+			transaction.update(userRef, {
+				credits: availableCredits - creditsReserved,
+				reservedCredits: Number(userSnapshot.get("reservedCredits") ?? 0) + creditsReserved,
+				updatedAt: Timestamp.now(),
+			});
+		}
 		transaction.update(attemptRef, {
 			status: "grading_queued",
 			visualAnnotationStatus: visualAnnotations ? "queued_after_grading" : null,
 			creditsReserved,
+			boostGradingUsed,
 			uploadedAt: Timestamp.now(),
 			updatedAt: Timestamp.now(),
 		});

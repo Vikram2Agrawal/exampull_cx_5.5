@@ -27,6 +27,9 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 		notFound();
 	}
 
+	const canViewAnswerKey = user.tier !== "free" || exam.answerKeyUnlocked;
+	const canUseBoostGrading =
+		user.tier === "free" && exam.boostGradingIncluded && !user.boostGradingUsedAt;
 	const previewQuestions = Array.from(
 		{ length: Math.max(1, exam.questionCount) },
 		(_, questionNumber) => {
@@ -67,7 +70,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 								Exam PDF
 							</Button>
 						)}
-						{exam.answerKeyPdfBase64 && user.tier !== "free" ? (
+						{exam.answerKeyPdfBase64 && canViewAnswerKey ? (
 							<a
 								href={`/api/exams/${exam.id}/download?type=answer`}
 								className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-premium px-4 text-sm font-medium text-premium-foreground"
@@ -78,7 +81,9 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 						) : (
 							<Button type="button" variant="premium" disabled>
 								<Download aria-hidden="true" size={18} />
-								{user.tier === "free" ? "Answer key locked" : "Answer key"}
+								{user.tier === "free" && !canViewAnswerKey
+									? "Answer key locked"
+									: "Answer key"}
 							</Button>
 						)}
 					</div>
@@ -154,6 +159,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 								<AttemptUploader
 									examId={exam.id}
 									tier={user.tier}
+									boostGradingAvailable={canUseBoostGrading}
 									attempts={attempts}
 								/>
 							</div>

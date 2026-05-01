@@ -77,14 +77,21 @@ type SourceClass = ClassSummary & {
 export function NewExamForm({
 	tier,
 	credits,
+	boostAvailable,
+	priorExamCount,
 	classes,
 }: {
 	tier: Tier;
 	credits: number;
+	boostAvailable: boolean;
+	priorExamCount: number;
 	classes: SourceClass[];
 }) {
 	const router = useRouter();
-	const maxQuestions = TIER_MAX_QUESTIONS_PER_EXAM[tier];
+	const [useScholarBoost, setUseScholarBoost] = useState(false);
+	const boostUnlocked = boostAvailable && priorExamCount > 0;
+	const effectiveTier: Tier = useScholarBoost ? "scholar" : tier;
+	const maxQuestions = TIER_MAX_QUESTIONS_PER_EXAM[effectiveTier];
 	const [title, setTitle] = useState("Practice Exam");
 	const [className, setClassName] = useState("");
 	const [classId, setClassId] = useState("");
@@ -129,19 +136,47 @@ export function NewExamForm({
 		).slice(0, 30);
 	}, [topicsText, materialTopics, powerSlots]);
 	const configuredQuestionCount = mode === "power" ? powerSlots.length : questionCount;
-	const cost = configuredQuestionCount * CREDIT_COSTS.GENERATE_QUESTION;
+	const rawCost = configuredQuestionCount * CREDIT_COSTS.GENERATE_QUESTION;
+	const cost = useScholarBoost ? 0 : rawCost;
 	const canGenerate =
 		topics.length > 0 &&
-		cost <= credits &&
+		(useScholarBoost || cost <= credits) &&
 		!isSubmitting &&
 		(mode === "standard" ||
-			(tier !== "free" &&
+			(effectiveTier !== "free" &&
 				powerSlots.length > 0 &&
 				powerSlots.every((slot) => slot.topic.trim().length > 0)));
 
+	function toggleScholarBoost(nextValue: boolean) {
+		if (nextValue && !boostUnlocked) {
+			setError(
+				boostAvailable
+					? "Scholar Boost appears after your first generated exam."
+					: "Scholar Boost has already been used.",
+			);
+			return;
+		}
+
+		setUseScholarBoost(nextValue);
+		setError(null);
+
+		if (!nextValue && tier === "free") {
+			setMode("standard");
+			setQuestionCount((current) => Math.min(current, TIER_MAX_QUESTIONS_PER_EXAM.free));
+		}
+	}
+
 	function selectMode(nextMode: "standard" | "power") {
-		if (nextMode === "power" && tier === "free") {
-			setError("Power Mode is available on Scholar and Guru.");
+		if (nextMode === "power" && effectiveTier === "free") {
+			if (boostUnlocked) {
+				toggleScholarBoost(true);
+			} else {
+				setError("Power Mode is available on Scholar and Guru.");
+				return;
+			}
+		}
+
+		if (nextMode === "power" && !boostUnlocked && tier === "free") {
 			return;
 		}
 
@@ -254,6 +289,7 @@ export function NewExamForm({
 					mode,
 					powerSlots: mode === "power" ? toServerPowerSlots(powerSlots) : undefined,
 					mirrorInstructorStyle,
+					useScholarBoost,
 				}),
 			});
 			const payload = (await response.json()) as { examId?: string; error?: string };
@@ -387,6 +423,27 @@ export function NewExamForm({
 					placeholder="Optional focus, exam date, instructor preferences, or material notes"
 				/>
 			</div>
+			{tier === "free" && boostAvailable ? (
+				<label className="flex items-start gap-3 rounded-lg border border-premium/40 bg-premium/10 p-4 text-sm">
+					<input
+						type="checkbox"
+						checked={useScholarBoost}
+						disabled={!boostUnlocked}
+						onChange={(event) => toggleScholarBoost(event.target.checked)}
+						className="mt-1"
+					/>
+					<span>
+						<span className="font-semibold text-foreground">
+							Boost this exam to Scholar for free
+						</span>
+						<span className="mt-1 block text-muted">
+							{boostUnlocked
+								? "Unlock up to 25 questions, Power Mode, answer key access, and one grading round for this exam."
+								: "Your once-per-account Scholar Boost appears after your first generated exam."}
+						</span>
+					</span>
+				</label>
+			) : null}
 			<div className="grid gap-4 md:grid-cols-[1fr_220px]">
 				<div className="rounded-lg border border-glass-border bg-background/40 p-4">
 					<div className="flex items-center justify-between">
@@ -738,7 +795,12 @@ export function NewExamForm({
 			<div className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-glass p-4 sm:flex-row sm:items-center">
 				<div>
 					<p className="text-sm text-muted">Generation cost</p>
-					<p className="text-2xl font-semibold">{cost} credits</p>
+					<p className="text-2xl font-semibold">
+						{useScholarBoost ? "Scholar Boost" : `${cost} credits`}
+					</p>
+					{useScholarBoost ? (
+						<p className="mt-1 text-sm text-muted">{rawCost} credits waived</p>
+					) : null}
 				</div>
 				<Button type="submit" variant="primary" disabled={!canGenerate}>
 					<WandSparkles aria-hidden="true" size={18} />

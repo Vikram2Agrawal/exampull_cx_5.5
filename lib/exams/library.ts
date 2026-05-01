@@ -125,12 +125,40 @@ export async function updateExamForUser({
 	await ref.update(updateData);
 
 	if (parsed.reportReason !== undefined) {
+		const createdAt = snapshot.get("createdAt");
+		const boostedScholar = Boolean(snapshot.get("boostedScholar") ?? false);
+		const boostWithinRegretWindow =
+			boostedScholar &&
+			createdAt instanceof Timestamp &&
+			Date.now() - createdAt.toMillis() <= 24 * 60 * 60 * 1000;
+
+		if (boostWithinRegretWindow) {
+			await adminDb.collection("users").doc(user.uid).set(
+				{
+					boostUsedAt: FieldValue.delete(),
+					boostExamId: FieldValue.delete(),
+					boostGradingUsedAt: FieldValue.delete(),
+					boostGradingAttemptId: FieldValue.delete(),
+					updatedAt: Timestamp.now(),
+				},
+				{ merge: true },
+			);
+			await ref.set(
+				{
+					boostRefundedAt: Timestamp.now(),
+					updatedAt: Timestamp.now(),
+				},
+				{ merge: true },
+			);
+		}
+
 		await abuseCollection.add({
 			kind: "exam_report",
 			userId: user.uid,
 			examId,
 			reason: parsed.reportReason,
 			status: "open",
+			boostRefunded: boostWithinRegretWindow,
 			isTestData: user.isTestAccount,
 			createdAt: Timestamp.now(),
 			updatedAt: Timestamp.now(),
@@ -414,11 +442,14 @@ export async function getExamPdfForUser({
 		return null;
 	}
 
-	if (type === "answer" && user.tier === "free") {
+	const data = snapshot.data() ?? {};
+	const answerKeyUnlocked =
+		Boolean(data.answerKeyUnlocked ?? false) || Boolean(data.boostedScholar ?? false);
+
+	if (type === "answer" && user.tier === "free" && !answerKeyUnlocked) {
 		throw new Error("Answer keys are available on Scholar and Guru.");
 	}
 
-	const data = snapshot.data() ?? {};
 	const pdf =
 		type === "answer"
 			? typeof data.answerKeyPdfBase64 === "string"

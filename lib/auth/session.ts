@@ -14,11 +14,29 @@ export type CurrentUser = {
 	credits: number;
 	reservedCredits: number;
 	isTestAccount: boolean;
+	boostUsedAt: string | null;
+	boostGradingUsedAt: string | null;
 };
 
 export async function readUserSessionCookie() {
 	const cookieStore = await cookies();
 	return cookieStore.get(userSessionCookieName)?.value;
+}
+
+function optionalTimestampIso(value: unknown) {
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+
+	if (typeof value === "object" && value !== null && "toDate" in value) {
+		const maybeDate = value.toDate;
+		if (typeof maybeDate === "function") {
+			const date = maybeDate.call(value);
+			return date instanceof Date ? date.toISOString() : null;
+		}
+	}
+
+	return null;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -52,6 +70,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			credits: Number(data.credits ?? 0),
 			reservedCredits: Number(data.reservedCredits ?? 0),
 			isTestAccount: Boolean(data.isTestAccount ?? false),
+			boostUsedAt: optionalTimestampIso(data.boostUsedAt),
+			boostGradingUsedAt: optionalTimestampIso(data.boostGradingUsedAt),
 		};
 	} catch {
 		return null;

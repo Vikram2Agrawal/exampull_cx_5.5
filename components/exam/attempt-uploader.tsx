@@ -18,10 +18,12 @@ const maxUploadBytes = 100 * 1024 * 1024;
 export function AttemptUploader({
 	examId,
 	tier,
+	boostGradingAvailable,
 	attempts,
 }: {
 	examId: string;
 	tier: Tier;
+	boostGradingAvailable: boolean;
 	attempts: AttemptSummary[];
 }) {
 	const router = useRouter();
@@ -102,7 +104,7 @@ export function AttemptUploader({
 		}
 	}
 
-	if (tier === "free") {
+	if (tier === "free" && !boostGradingAvailable) {
 		return (
 			<p className="rounded-lg border border-glass-border bg-background/35 p-4 text-sm text-muted">
 				Upgrade to Scholar or Guru to grade attempts against this exam.
@@ -142,6 +144,11 @@ export function AttemptUploader({
 						</span>
 					</span>
 				</label>
+				{boostGradingAvailable ? (
+					<p className="rounded-lg bg-premium/10 p-3 text-sm text-muted">
+						Scholar Boost covers this grading round for free.
+					</p>
+				) : null}
 				{error ? (
 					<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
 				) : null}
