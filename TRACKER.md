@@ -30,6 +30,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Free manual-topics E2E for queuing a 12-question Standard exam without enqueueing Cloud Tasks during local tests.
 - [x] Add authenticated concurrent credit-reservation E2E proving exactly one full-cost Free exam request wins.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
+- [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -83,6 +84,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Local desktop Chrome authenticated E2E passed for Free manual-topics 12-question Standard exam queueing.
 - Hosted smoke after Free manual-topics E2E deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - Local desktop Chrome authenticated credit-race E2E passed.
+- Local desktop Chrome authenticated Scholar answer-key E2E passed.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

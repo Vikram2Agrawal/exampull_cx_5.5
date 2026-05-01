@@ -15,6 +15,20 @@ test("authenticated test user can view own seeded exam", async ({ page }) => {
 	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
 });
 
+test("scholar user can open answer key action for a completed paid exam", async ({ page }) => {
+	await signInAsTestUser(page, `scholar-answer-${Date.now()}@exampull.test`, {
+		tier: "scholar",
+		credits: 100,
+	});
+	const examId = await seedExam(page, "Scholar answer key exam");
+
+	await page.goto(`/exams/${examId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Scholar answer key exam" }),
+	).toBeVisible();
+	await expect(page.getByRole("link", { name: "Answer key" })).toBeVisible();
+});
+
 test("free user can queue a 12-question Standard exam from manual topics", async ({ page }) => {
 	await signInAsTestUser(page, `free-manual-${Date.now()}@exampull.test`, {
 		tier: "free",
