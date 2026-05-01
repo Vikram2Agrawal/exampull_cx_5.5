@@ -16,6 +16,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement Power Mode question-slot builder, per-slot LaTeX rendering, paid-tier enforcement, and slot-count credit accounting.
 - [x] Implement exam library search/filter/archive visibility/grid-list views, individual delete, and bulk archive/bookmark/delete/move-to-class operations.
 - [x] Implement class edit/archive/restore/delete controls, material delete confirmation, class-tag cleanup on deletion, and material storage cleanup.
+- [x] Harden anonymous preview to return a blurred first-page image instead of a PDF payload, with device/IP rate limiting and sign-up CTA.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -28,6 +29,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Visual annotation now creates a rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
+- Anonymous preview claim-to-account preservation still needs full Firebase anonymous-linking E2E; preview delivery itself no longer exposes the source PDF.
 
 ## Latest Verification
 
@@ -44,6 +46,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after Power Mode and library management deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after class lifecycle controls passed.
 - Hosted smoke re-run after class lifecycle controls deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after secure anonymous preview passed.
+- Hosted smoke re-run after secure anonymous preview deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`.
 
 ## Completion Bar

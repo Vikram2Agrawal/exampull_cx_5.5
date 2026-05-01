@@ -1,9 +1,13 @@
 "use client";
 
 import { FileText, WandSparkles } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Paper } from "@/components/ui/surface";
+
+let fingerprintPromise: Promise<string> | null = null;
 
 function parseTopics(value: string) {
 	return value
@@ -13,21 +17,38 @@ function parseTopics(value: string) {
 		.slice(0, 8);
 }
 
+async function getPreviewFingerprint() {
+	fingerprintPromise ??= import("@fingerprintjs/fingerprintjs").then(async (module) => {
+		const agent = await module.default.load();
+		const result = await agent.get();
+		return result.visitorId;
+	});
+
+	return fingerprintPromise;
+}
+
 export function AnonymousPreview() {
 	const [title, setTitle] = useState("Thermodynamics and Entropy");
 	const [topicsText, setTopicsText] = useState(
 		"Second law of thermodynamics\nIsothermal expansion\nEntropy statements",
 	);
-	const [pdfBase64, setPdfBase64] = useState("");
+	const [previewImageBase64, setPreviewImageBase64] = useState("");
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
+	const imageSrc = previewImageBase64.startsWith("data:")
+		? previewImageBase64
+		: `data:image/png;base64,${previewImageBase64}`;
 
 	function generatePreview() {
 		startTransition(async () => {
 			try {
+				const fingerprint = await getPreviewFingerprint();
 				const response = await fetch("/api/preview", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"X-Preview-Fingerprint": fingerprint,
+					},
 					body: JSON.stringify({
 						title,
 						topics: parseTopics(topicsText),
@@ -36,14 +57,14 @@ export function AnonymousPreview() {
 				});
 				const body = (await response.json().catch(() => ({}))) as {
 					error?: string;
-					pdfBase64?: string;
+					previewImageBase64?: string;
 				};
 
-				if (!response.ok || typeof body.pdfBase64 !== "string") {
+				if (!response.ok || typeof body.previewImageBase64 !== "string") {
 					throw new Error(body.error ?? "Preview generation failed.");
 				}
 
-				setPdfBase64(body.pdfBase64);
+				setPreviewImageBase64(body.previewImageBase64);
 				setStatus("Preview ready.");
 			} catch (error) {
 				setStatus(error instanceof Error ? error.message : "Preview generation failed.");
@@ -81,14 +102,38 @@ export function AnonymousPreview() {
 				</Button>
 				{status ? <p className="text-sm text-muted">{status}</p> : null}
 			</div>
-			{pdfBase64 ? (
-				<div className="overflow-hidden rounded-lg border border-glass-border bg-paper shadow-paper">
-					<iframe
-						title="Anonymous practice exam preview"
-						src={`data:application/pdf;base64,${pdfBase64}`}
-						className="h-[560px] w-full bg-paper"
-					/>
-				</div>
+			{previewImageBase64 ? (
+				<figure
+					className="overflow-hidden rounded-lg border border-glass-border bg-paper shadow-paper"
+					onContextMenu={(event) => event.preventDefault()}
+				>
+					<div className="relative mx-auto max-h-[620px] overflow-hidden bg-paper">
+						<Image
+							src={imageSrc}
+							alt="Blurred preview of the first page of a generated practice exam"
+							width={1200}
+							height={1550}
+							unoptimized
+							className="w-full select-none"
+							draggable={false}
+						/>
+						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-paper/70 backdrop-blur-md" />
+						<div className="absolute inset-x-0 bottom-0 grid min-h-40 place-items-center bg-gradient-to-t from-paper via-paper/90 to-paper/10 p-6 text-center">
+							<div>
+								<p className="text-lg font-semibold text-ink">Full exam locked</p>
+								<p className="mt-2 text-sm text-ink-muted">
+									Create a free account to claim the complete PDF.
+								</p>
+								<Link
+									href="/sign-up"
+									className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover"
+								>
+									Sign up free
+								</Link>
+							</div>
+						</div>
+					</div>
+				</figure>
 			) : (
 				<Paper interactive className="p-8">
 					<div className="border-b border-paper-border pb-5 text-center">
