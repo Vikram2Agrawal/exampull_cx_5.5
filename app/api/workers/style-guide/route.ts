@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, adminStorage, Timestamp } from "@/lib/firebase/admin";
+import { dataUrlFromBuffer, extractTextFromPdf } from "@/lib/materials/extract-text";
 import { CREDIT_COSTS } from "@/lib/product/constants";
 import { requireWorkerRequest } from "@/lib/tasks/auth";
 
@@ -31,6 +32,23 @@ export async function POST(request: Request) {
 
 	const filename = String(material.get("filename") ?? "instructor example");
 	const focus = typeof material.get("focus") === "string" ? String(material.get("focus")) : "";
+	const contentType = String(material.get("contentType") ?? "");
+	const storagePath = String(material.get("storagePath") ?? "");
+	let referenceText = `Uploaded style reference: ${filename}\nFocus: ${focus || "entire exam"}`;
+	let imageDataUrl: string | undefined;
+
+	if (storagePath && contentType === "application/pdf") {
+		const [buffer] = await adminStorage.bucket().file(storagePath).download();
+		referenceText = `${referenceText}\n\nExtracted PDF text:\n${await extractTextFromPdf(buffer)}`;
+	}
+
+	if (storagePath && contentType.startsWith("image/")) {
+		const [buffer] = await adminStorage.bucket().file(storagePath).download();
+		if (buffer.length <= 8 * 1024 * 1024) {
+			imageDataUrl = dataUrlFromBuffer(buffer, contentType);
+			referenceText = `${referenceText}\n\nUse the attached instructor sample image to infer layout, wording, rigor, answer-space conventions, and question archetypes.`;
+		}
+	}
 
 	try {
 		await materialRef.update({ status: "style_processing", updatedAt: Timestamp.now() });
@@ -45,7 +63,12 @@ export async function POST(request: Request) {
 				},
 				{
 					role: "user",
-					content: `Uploaded style reference: ${filename}\nFocus: ${focus || "entire exam"}`,
+					content: imageDataUrl
+						? [
+								{ type: "text", text: referenceText },
+								{ type: "image_url", image_url: { url: imageDataUrl } },
+							]
+						: referenceText,
 				},
 			],
 		});

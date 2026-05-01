@@ -19,9 +19,13 @@ const responseSchema = z.object({
 		.optional(),
 });
 
+export type LlmContentPart =
+	| { type: "text"; text: string }
+	| { type: "image_url"; image_url: { url: string } };
+
 export type LlmMessage = {
 	role: "system" | "user" | "assistant";
-	content: string;
+	content: string | LlmContentPart[];
 };
 
 export type LlmResult = {

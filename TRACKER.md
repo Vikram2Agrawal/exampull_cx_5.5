@@ -12,7 +12,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Provision Firestore, Storage, Cloud Tasks, App Hosting, LaTeX Cloud Run, bucket CORS, Stripe prices, and production secrets.
 - [x] Implement auth/session gate, dashboard, classes/materials, exam generation, attempts/grading, billing, feedback, notifications, settings export/delete, share links, and PDF downloads.
 - [x] Implement admin shell, agent auth, live read surfaces, credit grant API, triage API, configuration, referrals, operations, and audit-log foundation.
-- [x] Implement AI gateway, LaTeX client/service, topic extraction, PDF text extraction, credit accounting, queue abstractions, worker auth, and worker routes.
+- [x] Implement AI gateway, multimodal material ingestion, LaTeX client/service, topic extraction, PDF text extraction, credit accounting, queue abstractions, worker auth, and worker routes.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -23,7 +23,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
 - Visual annotation now creates a rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
-- OCR for scanned image-only PDFs/photos is not complete; text PDFs are extracted server-side and other files fall back to focus/filename plus LLM inference.
+- OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context.
 
 ## Latest Verification
 
@@ -35,6 +35,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passing.
 - Hosted smoke against `https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app` passing on desktop Chrome.
 - Hosted smoke re-run after visual feedback deployment passed on desktop Chrome.
+- Hosted smoke re-run after multimodal material extraction deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`.
 
 ## Completion Bar

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
 import { adminDb, adminStorage, Timestamp } from "@/lib/firebase/admin";
-import { extractTextFromPdf } from "@/lib/materials/extract-text";
+import { dataUrlFromBuffer, extractTextFromPdf } from "@/lib/materials/extract-text";
 import { requireWorkerRequest } from "@/lib/tasks/auth";
 
 export const runtime = "nodejs";
@@ -61,9 +61,10 @@ async function readMaterialText({
 	const contentType = String(snapshot.get("contentType") ?? "");
 	const storagePath = String(snapshot.get("storagePath") ?? "");
 	let text = `Filename: ${filename}\nFocus: ${focus || "none"}`;
+	let imageDataUrl: string | undefined;
 
 	if (!storagePath) {
-		return { materialRef, text, fallback: `${filename} ${focus}`.trim() };
+		return { materialRef, text, fallback: `${filename} ${focus}`.trim(), imageDataUrl };
 	}
 
 	if (
@@ -82,7 +83,15 @@ async function readMaterialText({
 		text = `${text}\n\n${extractedText}`;
 	}
 
-	return { materialRef, text, fallback: `${filename} ${focus}`.trim() };
+	if (contentType.startsWith("image/")) {
+		const [buffer] = await adminStorage.bucket().file(storagePath).download();
+		if (buffer.length <= 8 * 1024 * 1024) {
+			imageDataUrl = dataUrlFromBuffer(buffer, contentType);
+			text = `${text}\n\nUse the attached image to extract visible lecture, notes, diagram labels, formulas, and exam topics.`;
+		}
+	}
+
+	return { materialRef, text, fallback: `${filename} ${focus}`.trim(), imageDataUrl };
 }
 
 export async function POST(request: Request) {
@@ -115,7 +124,15 @@ export async function POST(request: Request) {
 				content:
 					"Extract 5-12 concise, testable academic topics. Return one topic per line, no prose.",
 			},
-			{ role: "user", content: text },
+			{
+				role: "user",
+				content: materialPayload?.imageDataUrl
+					? [
+							{ type: "text", text },
+							{ type: "image_url", image_url: { url: materialPayload.imageDataUrl } },
+						]
+					: text,
+			},
 		],
 	});
 	const topics = parseTopics(result.content, materialPayload?.fallback ?? text);

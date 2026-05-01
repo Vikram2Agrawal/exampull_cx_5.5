@@ -14,3 +14,7 @@ export async function extractTextFromPdf(buffer: Buffer, maxChars = 50000) {
 		await parser.destroy();
 	}
 }
+
+export function dataUrlFromBuffer(buffer: Buffer, contentType: string) {
+	return `data:${contentType};base64,${buffer.toString("base64")}`;
+}
