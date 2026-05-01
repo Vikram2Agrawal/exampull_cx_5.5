@@ -1,0 +1,100 @@
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  - variable: NODE_ENV
+    value: production
+  - variable: WEB_URL
+    value: https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app
+  - variable: NEXT_PUBLIC_WEB_URL
+    value: https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAt4EBvMJarSb3YljHpEXIr6kitQqzyxqI
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: exampull-gpt-5-5
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: exampull-gpt-5-5.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: exampull-gpt-5-5.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "1094245939898"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:1094245939898:web:26a97bfed150ed05d62083
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-MRDM53F7VL
+  - variable: NEXT_PUBLIC_ENABLE_POWER_MODE
+    value: "true"
+  - variable: NEXT_PUBLIC_ENABLE_VISUAL_FEEDBACK
+    value: "true"
+  - variable: GOOGLE_CLOUD_PROJECT
+    value: exampull-gpt-5-5
+  - variable: GOOGLE_CLOUD_REGION
+    value: us-central1
+  - variable: CLOUD_TASKS_QUEUE
+    value: exampull-jobs
+  - variable: CLOUD_TASKS_LOCATION
+    value: us-central1
+  - variable: CLOUD_TASKS_INVOKER_SA
+    value: exampull-tasks@exampull-gpt-5-5.iam.gserviceaccount.com
+  - variable: CLOUD_TASKS_AUTH_REQUIRED
+    value: "true"
+  - variable: OPENROUTER_BASE_URL
+    value: https://openrouter.ai/api/v1
+  - variable: OPENROUTER_API_KEY
+    secret: openrouter-api-key
+  - variable: LATEX_SERVICE_URL
+    value: https://latex-service-ynwifd3m2q-uc.a.run.app
+  - variable: ADMIN_AGENT_AUTH_ENABLED
+    value: "true"
+  - variable: ADMIN_AGENT_PASSWORD
+    secret: admin-agent-password
+  - variable: TEST_SIGNUP_TOKEN
+    secret: test-signup-token
+  - variable: STRIPE_SECRET_KEY
+    secret: stripe-secret-key
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: stripe-webhook-secret
+  - variable: STRIPE_RESTRICTED_KEY_REFUNDS
+    secret: stripe-restricted-key-refunds
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    secret: next-public-stripe-publishable-key
+  - variable: STRIPE_PRICE_SCHOLAR_MONTHLY
+    secret: stripe-price-scholar-monthly
+  - variable: STRIPE_PRICE_SCHOLAR_ANNUAL
+    secret: stripe-price-scholar-annual
+  - variable: STRIPE_PRICE_GURU_MONTHLY
+    secret: stripe-price-guru-monthly
+  - variable: STRIPE_PRICE_GURU_ANNUAL
+    secret: stripe-price-guru-annual
+  - variable: STRIPE_PRICE_CREDITS_20
+    secret: stripe-price-credits-20
+  - variable: STRIPE_PRICE_CREDITS_100
+    secret: stripe-price-credits-100
+  - variable: STRIPE_PRICE_CREDITS_240
+    secret: stripe-price-credits-240
+  - variable: RESEND_API_KEY
+    secret: resend-api-key
+  - variable: RESEND_DOMAIN_ID
+    secret: resend-domain-id
+  - variable: RESEND_FROM_ADDRESS
+    secret: resend-from-address
+  - variable: TWILIO_ACCOUNT_SID
+    secret: twilio-account-sid
+  - variable: TWILIO_AUTH_TOKEN
+    secret: twilio-auth-token
+  - variable: TWILIO_PHONE_NUMBER
+    secret: twilio-phone-number
+  - variable: TWILIO_USER_SID
+    secret: twilio-user-sid
+  - variable: FEATUREBASE_JWT_SECRET
+    secret: featurebase-jwt-secret
+  - variable: SENTRY_AUTH_TOKEN
+    secret: sentry-auth-token
+  - variable: POSTHOG_PERSONAL_API_KEY
+    secret: posthog-personal-api-key
+  - variable: POSTHOG_PROJECT_ID
+    secret: posthog-project-id

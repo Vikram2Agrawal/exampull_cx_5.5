@@ -1,0 +1,35 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { grantUserCredits } from "@/lib/admin/data";
+import { requireAdminApiSession } from "@/lib/admin/request";
+
+export const runtime = "nodejs";
+
+const requestSchema = z.object({
+	amount: z
+		.number()
+		.int()
+		.min(-100000)
+		.max(100000)
+		.refine((value) => value !== 0),
+	reason: z.string().trim().min(4).max(500),
+});
+
+export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
+	const authError = await requireAdminApiSession();
+	if (authError) {
+		return authError;
+	}
+
+	const { userId } = await params;
+
+	try {
+		const input = requestSchema.parse(await request.json());
+		const result = await grantUserCredits({ userId, ...input });
+
+		return NextResponse.json(result);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Credit grant failed.";
+		return NextResponse.json({ error: message }, { status: 400 });
+	}
+}

@@ -1,0 +1,31 @@
+# Environment variables — SECRETS, NEVER COMMIT
+.env
+.env.local
+.env.*.local
+.env.test
+
+# Service account keys — SECRETS
+.service-account-key.json
+*-service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+
+# Build outputs
+.next/
+out/
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+coverage/
+test-results/
+playwright-report/
+artifacts/
+eval-results/*/
+team-output/
+pglite-debug.log
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,38 @@
+{
+	"indexes": [
+		{
+			"collectionGroup": "users",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "tier", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "exams",
+			"queryScope": "COLLECTION_GROUP",
+			"fields": [
+				{ "fieldPath": "status", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "exams",
+			"queryScope": "COLLECTION_GROUP",
+			"fields": [
+				{ "fieldPath": "tierAtGen", "order": "ASCENDING" },
+				{ "fieldPath": "status", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "feedback",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "rating", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" }
+			]
+		}
+	],
+	"fieldOverrides": []
+}
