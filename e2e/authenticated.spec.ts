@@ -142,3 +142,56 @@ test("user-scoped class APIs deny another user's class id", async ({ browser }) 
 	await ownerContext.close();
 	await attackerContext.close();
 });
+
+test("authenticated user can create edit archive restore and delete a class", async ({ page }) => {
+	await signInAsTestUser(page, `class-life-${Date.now()}@exampull.test`);
+	const createResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: "Lifecycle Calculus",
+			institution: "ExamPull",
+			educationLevel: 80,
+			description: "Initial fixture.",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { classId: string };
+
+	const editResponse = await page
+		.context()
+		.request.patch(`/api/classes/${createPayload.classId}`, {
+			data: {
+				name: "Lifecycle Calculus II",
+				institution: "ExamPull Lab",
+				description: "Edited fixture.",
+				archived: true,
+			},
+		});
+	expect(editResponse.status()).toBe(200);
+
+	const archivedResponse = await page
+		.context()
+		.request.get(`/api/classes/${createPayload.classId}`);
+	expect(archivedResponse.status()).toBe(200);
+	const archivedPayload = (await archivedResponse.json()) as {
+		class: { name: string; archived: boolean };
+	};
+	expect(archivedPayload.class.name).toBe("Lifecycle Calculus II");
+	expect(archivedPayload.class.archived).toBe(true);
+
+	const restoreResponse = await page
+		.context()
+		.request.patch(`/api/classes/${createPayload.classId}`, {
+			data: { archived: false },
+		});
+	expect(restoreResponse.status()).toBe(200);
+
+	const deleteResponse = await page
+		.context()
+		.request.delete(`/api/classes/${createPayload.classId}`);
+	expect(deleteResponse.status()).toBe(200);
+
+	const missingResponse = await page
+		.context()
+		.request.get(`/api/classes/${createPayload.classId}`);
+	expect(missingResponse.status()).toBe(404);
+});

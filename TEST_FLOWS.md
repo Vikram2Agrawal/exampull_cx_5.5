@@ -19,7 +19,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P1 Product Flows
 
-- [!] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class; UI/API implementation exists, authenticated E2E remains.
+- [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class.
 - [!] P1-CLASS-002 Instructor example upload charges 2 credits and produces visible style guide; worker now reads text PDFs and supported image uploads, but full browser E2E remains.
 - [!] P1-WIZARD-001 Wizard combines class materials, ad hoc uploads, and manual topics; one-time upload implementation exists, authenticated E2E remains.
 - [!] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; server-side text PDF/image extraction is implemented, but long-document progress E2E remains.
@@ -71,6 +71,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
+- Desktop Chrome authenticated class lifecycle suite: `pnpm exec playwright test --project=desktop-chrome` passed with create/edit/archive/restore/delete.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.

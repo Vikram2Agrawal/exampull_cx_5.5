@@ -32,6 +32,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
+- [x] Add authenticated class lifecycle E2E covering create, edit, archive, restore, delete, and missing-after-delete.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -87,6 +88,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Local desktop Chrome authenticated credit-race E2E passed.
 - Local desktop Chrome authenticated Scholar answer-key E2E passed.
 - Local desktop Chrome authenticated Guru visual-feedback download E2E passed.
+- Local desktop Chrome authenticated class lifecycle E2E passed.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
