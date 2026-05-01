@@ -20,6 +20,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement once-per-account Scholar Boost: second-exam prompt, atomic consumption, Scholar-tier generation, answer-key unlock, one free grading round, and 24-hour report regret recovery.
 - [x] Harden Stripe webhook credit grants with ledger idempotency, subscription-cycle monthly credits, and billing notifications.
 - [x] Implement referral link generation, signup attribution, first-exam Scholar rewards, paid-conversion Guru rewards, admin referral rows, and referral notifications.
+- [x] Wire generated question/answer content into the LaTeX artifact instead of rendering only deterministic placeholder prompts.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -57,6 +58,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after billing webhook hardening deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after referral implementation passed.
 - Hosted smoke re-run after referral deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after generated-question artifact pass passed.
+- Hosted smoke re-run after generated-question artifact deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`.
 
 ## Completion Bar

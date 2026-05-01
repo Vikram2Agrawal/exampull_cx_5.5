@@ -31,4 +31,25 @@ describe("exam LaTeX builder", () => {
 		expect(latex).toContain("Proof");
 		expect(latex).toContain("Mean Value Theorem");
 	});
+
+	it("renders generated prompts and answer-key solutions", () => {
+		const latex = buildExamLatex({
+			title: "Generated Test",
+			topics: ["Entropy"],
+			questionCount: 1,
+			answerKey: true,
+			generatedQuestions: [
+				{
+					prompt: "Explain why entropy increases in an isolated system.",
+					answer: "A complete answer cites the second law and identifies irreversible processes.",
+					points: 7,
+				},
+			],
+		});
+
+		expect(latex).toContain("\\question[7]");
+		expect(latex).toContain("Explain why entropy increases");
+		expect(latex).toContain("\\begin{solution}");
+		expect(latex).toContain("second law");
+	});
 });

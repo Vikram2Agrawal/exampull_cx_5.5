@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
 import { examConfigSchema } from "@/lib/billing/credits";
-import { buildExamLatex } from "@/lib/exams/latex";
+import { buildExamLatex, type GeneratedExamQuestion } from "@/lib/exams/latex";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
 import type { Tier } from "@/lib/product/constants";
@@ -15,6 +15,44 @@ const requestSchema = z.object({
 	userId: z.string().min(1),
 	examId: z.string().min(1),
 });
+
+const generatedQuestionSchema = z.object({
+	prompt: z.string().trim().min(10).max(1500),
+	answer: z.string().trim().min(10).max(2500),
+	points: z.number().int().min(1).max(100),
+});
+
+function extractJsonArray(value: string) {
+	const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+	if (fenced) {
+		return fenced;
+	}
+
+	const start = value.indexOf("[");
+	const end = value.lastIndexOf("]");
+	if (start >= 0 && end > start) {
+		return value.slice(start, end + 1);
+	}
+
+	return value;
+}
+
+function parseGeneratedQuestions(value: string, expectedCount: number): GeneratedExamQuestion[] {
+	let decoded: unknown;
+	try {
+		decoded = JSON.parse(extractJsonArray(value));
+	} catch {
+		return [];
+	}
+
+	const parsed = z.array(generatedQuestionSchema).min(1).safeParse(decoded);
+
+	if (!parsed.success) {
+		return [];
+	}
+
+	return parsed.data.slice(0, expectedCount);
+}
 
 export async function POST(request: Request) {
 	const authError = await requireWorkerRequest(request);
@@ -69,6 +107,32 @@ export async function POST(request: Request) {
 				},
 			],
 		});
+		const questionGeneration = await callLlm({
+			stage: "questionGeneration",
+			tier,
+			messages: [
+				{
+					role: "system",
+					content:
+						"Write professional exam questions and answer-key solutions. Return JSON only: an array of objects with prompt, answer, and points. Prompts must be self-contained and suitable for a formal PDF exam.",
+				},
+				{
+					role: "user",
+					content: powerSlots
+						? `Title: ${title}\nBlueprint:\n${plan.content}\nPower slots:\n${powerSlots
+								.map(
+									(slot, index) =>
+										`${index + 1}. Topic: ${slot.topic}; style: ${slot.style}; difficulty: ${slot.difficulty}; points: ${slot.points}`,
+								)
+								.join("\n")}`
+						: `Title: ${title}\nBlueprint:\n${plan.content}\nGenerate exactly ${questionCount} questions across these topics: ${topics.join(", ")}. Use 10 points per question.`,
+				},
+			],
+		});
+		const generatedQuestions = parseGeneratedQuestions(
+			questionGeneration.content,
+			powerSlots?.length ?? questionCount,
+		);
 
 		const examLatex = buildExamLatex({
 			title,
@@ -76,6 +140,7 @@ export async function POST(request: Request) {
 			questionCount,
 			answerKey: false,
 			powerSlots,
+			generatedQuestions,
 		});
 		const answerKeyLatex = buildExamLatex({
 			title,
@@ -83,6 +148,7 @@ export async function POST(request: Request) {
 			questionCount,
 			answerKey: true,
 			powerSlots,
+			generatedQuestions,
 		});
 
 		await examRef.update({ status: "qa_in_progress", updatedAt: Timestamp.now() });
@@ -122,6 +188,13 @@ export async function POST(request: Request) {
 							inputTokens: plan.inputTokens,
 							outputTokens: plan.outputTokens,
 							latencyMs: plan.latencyMs,
+						},
+						{
+							stage: "questionGeneration",
+							model: questionGeneration.model,
+							inputTokens: questionGeneration.inputTokens,
+							outputTokens: questionGeneration.outputTokens,
+							latencyMs: questionGeneration.latencyMs,
 						},
 					],
 				},

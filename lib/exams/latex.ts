@@ -1,6 +1,12 @@
 import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
 import { sanitizeLatex } from "@/lib/latex/sanitize";
 
+export type GeneratedExamQuestion = {
+	prompt: string;
+	answer: string;
+	points: number;
+};
+
 function questionTopic(topics: string[], index: number) {
 	if (topics.length === 0) {
 		return "the selected course material";
@@ -85,30 +91,43 @@ export function buildExamLatex({
 	questionCount,
 	answerKey,
 	powerSlots,
+	generatedQuestions,
 }: {
 	title: string;
 	topics: string[];
 	questionCount: number;
 	answerKey: boolean;
 	powerSlots?: PowerQuestionSlot[];
+	generatedQuestions?: GeneratedExamQuestion[];
 }) {
-	const questions = (
-		powerSlots && powerSlots.length > 0
-			? powerSlots
-			: Array.from({ length: questionCount }, (_, index) => ({
-					topic: questionTopic(topics, index),
-					style: "short_answer" as const,
-					difficulty: "balanced" as const,
-					points: 10,
-				}))
-	)
-		.map((slot) => {
-			const prompt = slotPrompt(slot);
-			const solution = answerKey ? slotSolution(slot) : "\n\\vspace{2.2in}";
+	const questions =
+		generatedQuestions && generatedQuestions.length > 0
+			? generatedQuestions
+					.map((question) => {
+						const prompt = `\\question[${question.points}] ${latexEscape(question.prompt)}`;
+						const solution = answerKey
+							? `\n\\begin{solution}\n${latexEscape(question.answer)}\n\\end{solution}`
+							: "\n\\vspace{2.2in}";
 
-			return `${prompt}${solution}`;
-		})
-		.join("\n\n");
+						return `${prompt}${solution}`;
+					})
+					.join("\n\n")
+			: (powerSlots && powerSlots.length > 0
+					? powerSlots
+					: Array.from({ length: questionCount }, (_, index) => ({
+							topic: questionTopic(topics, index),
+							style: "short_answer" as const,
+							difficulty: "balanced" as const,
+							points: 10,
+						}))
+				)
+					.map((slot) => {
+						const prompt = slotPrompt(slot);
+						const solution = answerKey ? slotSolution(slot) : "\n\\vspace{2.2in}";
+
+						return `${prompt}${solution}`;
+					})
+					.join("\n\n");
 
 	return sanitizeLatex(String.raw`
 \documentclass[11pt,addpoints]{exam}
