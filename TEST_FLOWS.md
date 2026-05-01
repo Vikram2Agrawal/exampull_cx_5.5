@@ -71,4 +71,4 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after billing webhook hardening deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after referral deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after generated-question artifact deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
-- Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T20-23-56-330Z`.
+- Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T21-59-10-970Z`.

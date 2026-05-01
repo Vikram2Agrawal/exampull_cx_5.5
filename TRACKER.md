@@ -60,7 +60,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after referral deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after generated-question artifact pass passed.
 - Hosted smoke re-run after generated-question artifact deployment passed on desktop Chrome.
-- `pnpm eval:run` writes eval artifacts under `artifacts/eval/`.
+- `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
 
