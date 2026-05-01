@@ -22,6 +22,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement referral link generation, signup attribution, first-exam Scholar rewards, paid-conversion Guru rewards, admin referral rows, and referral notifications.
 - [x] Wire generated question/answer content into the LaTeX artifact instead of rendering only deterministic placeholder prompts.
 - [x] Persist new-exam wizard drafts locally across refreshes and clear them after successful queueing.
+- [x] Retry transient LaTeX compile failures for rate-limit/server-error responses before failing an exam job.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -63,6 +64,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after generated-question artifact deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after wizard draft persistence passed.
 - Hosted smoke re-run after wizard draft persistence deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after LaTeX retry resilience passed.
+- Hosted smoke re-run after LaTeX retry resilience deployment passed on desktop Chrome.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

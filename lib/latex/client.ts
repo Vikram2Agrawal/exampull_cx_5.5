@@ -9,6 +9,14 @@ const compileResponseSchema = z.object({
 
 const auth = new GoogleAuth();
 
+function delay(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetry(status: number) {
+	return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
 export async function compileLatex({
 	latex,
 	engine = "pdflatex",
@@ -36,20 +44,30 @@ export async function compileLatex({
 		}
 	}
 
-	const response = await fetch(url, {
-		method: "POST",
-		headers,
-		body: JSON.stringify({ latex, engine, dpi: 200 }),
-	});
+	let lastStatus = 0;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const response = await fetch(url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ latex, engine, dpi: 200 }),
+		});
 
-	if (!response.ok) {
-		throw new Error(`LaTeX service failed with ${response.status}`);
+		if (response.ok) {
+			const parsed = compileResponseSchema.parse(await response.json());
+
+			return {
+				pdfBase64: parsed.pdf,
+				pages: parsed.pages,
+			};
+		}
+
+		lastStatus = response.status;
+		if (!shouldRetry(response.status) || attempt === 2) {
+			break;
+		}
+
+		await delay(500 * 2 ** attempt);
 	}
 
-	const parsed = compileResponseSchema.parse(await response.json());
-
-	return {
-		pdfBase64: parsed.pdf,
-		pages: parsed.pages,
-	};
+	throw new Error(`LaTeX service failed with ${lastStatus}`);
 }
