@@ -1,0 +1,75 @@
+import { expect, test } from "@playwright/test";
+import { seedExam, signInAsTestUser } from "./test-auth";
+
+test.skip(
+	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
+	"Authenticated test-session API is disabled for this target.",
+);
+
+test("authenticated test user can view own seeded exam", async ({ page }) => {
+	await signInAsTestUser(page, `owner-${Date.now()}@exampull.test`);
+	const examId = await seedExam(page, "Authenticated ownership exam");
+
+	await page.goto(`/exams/${examId}`);
+	await expect(page.getByRole("heading", { name: "Authenticated ownership exam" })).toBeVisible();
+	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+});
+
+test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {
+	const ownerContext = await browser.newContext();
+	const ownerPage = await ownerContext.newPage();
+	await signInAsTestUser(ownerPage, `owner-${Date.now()}@exampull.test`);
+	const examId = await seedExam(ownerPage, "Private owner exam");
+
+	const attackerContext = await browser.newContext();
+	const attackerPage = await attackerContext.newPage();
+	await signInAsTestUser(attackerPage, `attacker-${Date.now()}@exampull.test`);
+
+	const patchResponse = await attackerPage.context().request.patch(`/api/exams/${examId}`, {
+		data: { archived: true },
+	});
+	expect(patchResponse.status()).toBe(404);
+
+	const downloadResponse = await attackerPage
+		.context()
+		.request.get(`/api/exams/${examId}/download?type=exam`);
+	expect(downloadResponse.status()).toBe(404);
+
+	await ownerContext.close();
+	await attackerContext.close();
+});
+
+test("user-scoped class APIs deny another user's class id", async ({ browser }) => {
+	const ownerContext = await browser.newContext();
+	const ownerPage = await ownerContext.newPage();
+	await signInAsTestUser(ownerPage, `class-owner-${Date.now()}@exampull.test`);
+	const createResponse = await ownerPage.context().request.post("/api/classes", {
+		data: {
+			name: "Private Calculus",
+			institution: "ExamPull",
+			educationLevel: 75,
+			description: "Synthetic class fixture.",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { classId: string };
+
+	const attackerContext = await browser.newContext();
+	const attackerPage = await attackerContext.newPage();
+	await signInAsTestUser(attackerPage, `class-attacker-${Date.now()}@exampull.test`);
+
+	const getResponse = await attackerPage
+		.context()
+		.request.get(`/api/classes/${createPayload.classId}`);
+	expect(getResponse.status()).toBe(404);
+
+	const patchResponse = await attackerPage
+		.context()
+		.request.patch(`/api/classes/${createPayload.classId}`, {
+			data: { name: "Stolen class" },
+		});
+	expect(patchResponse.status()).toBe(404);
+
+	await ownerContext.close();
+	await attackerContext.close();
+});

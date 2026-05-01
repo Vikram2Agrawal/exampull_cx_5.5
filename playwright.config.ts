@@ -24,7 +24,7 @@ export default defineConfig({
 		{ name: "mobile-android", use: { ...devices["Pixel 7"] } },
 	],
 	webServer: {
-		command: "pnpm exec next dev --turbopack -p 3100",
+		command: "TEST_SESSION_API_ENABLED=true pnpm exec next dev --turbopack -p 3100",
 		url: "http://localhost:3100",
 		reuseExistingServer: false,
 		timeout: 120_000,

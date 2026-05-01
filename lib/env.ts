@@ -36,6 +36,7 @@ const envSchema = z.object({
 	ADMIN_AGENT_AUTH_ENABLED: z.string().default("true"),
 	ADMIN_SECRET: z.string().optional(),
 	TEST_SIGNUP_TOKEN: z.string().optional(),
+	TEST_SESSION_API_ENABLED: z.string().default("false"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -44,6 +45,7 @@ const fallbackEnv: z.output<typeof envSchema> = {
 	OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
 	CLOUD_TASKS_QUEUE: "exampull-jobs",
 	ADMIN_AGENT_AUTH_ENABLED: "true",
+	TEST_SESSION_API_ENABLED: "false",
 };
 
 export const env: z.output<typeof envSchema> = parsed.success ? parsed.data : fallbackEnv;
