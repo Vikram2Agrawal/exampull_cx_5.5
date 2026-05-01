@@ -2,6 +2,8 @@
 	{
 		"origin": [
 			"http://localhost:3000",
+			"http://localhost:3100",
+			"http://127.0.0.1:3100",
 			"https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app"
 		],
 		"method": ["GET", "PUT", "POST", "HEAD", "OPTIONS"],

@@ -126,6 +126,42 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 	expect(createdExam.difficulties).toContain("hardcore");
 });
 
+test("authenticated user can upload one-time source material and queue a grounded exam", async ({
+	page,
+}) => {
+	await signInAsTestUser(page, `source-upload-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Ad hoc upload grounded exam");
+	await page.getByLabel("Class label").fill("Chemistry source upload");
+	await page.getByLabel("Focus for next upload").fill("rate laws and Arrhenius equation");
+	await page.getByLabel("Upload files").setInputFiles({
+		name: "rate-laws-notes.txt",
+		mimeType: "text/plain",
+		buffer: Buffer.from(
+			"Rate laws\nIntegrated rate laws\nArrhenius equation\nActivation energy",
+		),
+	});
+	await expect(page.getByText("rate-laws-notes.txt")).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText(/KB - Ready/)).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
+	await expect(page.getByText(/topics extracted/)).toBeVisible();
+
+	await page.getByLabel("Topics").fill("Activation energy");
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Ad hoc upload grounded exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Chemistry source upload - 12 questions - queued")).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
+	await expect(page.getByText("rate-laws-notes.txt")).toBeVisible();
+	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
+});
+
 test("credit reservation is atomic across parallel exam requests", async ({ page }) => {
 	await signInAsTestUser(page, `credit-race-${Date.now()}@exampull.test`, {
 		tier: "free",
