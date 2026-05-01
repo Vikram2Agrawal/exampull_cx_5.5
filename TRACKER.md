@@ -25,6 +25,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Retry transient LaTeX compile failures for rate-limit/server-error responses before failing an exam job.
 - [x] Implement one-time exam source uploads with signed Storage writes, extraction polling, persisted source metadata, and generation grounding from uploaded files.
 - [x] Implement server-side phone conflict policy: active conflicts require prior auth source, dormant 180-day conflicts release the phone with audit logging.
+- [x] Add security-rule regression coverage for owner-only user reads and server-only writes to private Firestore/Storage data.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -72,6 +73,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke re-run after ad hoc source upload deployment passed on desktop Chrome.
 - Local desktop Chrome smoke re-run after phone conflict policy passed.
 - Hosted smoke re-run after phone conflict policy deployment passed on desktop Chrome.
+- Local desktop Chrome smoke re-run after security-rule regression coverage passed.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

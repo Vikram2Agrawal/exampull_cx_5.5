@@ -15,7 +15,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [ ] P0-CREDITS-001 Credit reservation is atomic across two tabs and releases on failure.
 - [x] P0-DOWNLOAD-001 Completed exam and answer key download through authenticated server routes without private Storage reads.
 - [x] P0-ADMIN-001 Unauthenticated `/admin/*` returns hard 404; agent auth works only through API.
-- [ ] P0-SECURITY-001 User cannot read or mutate another user's data.
+- [!] P0-SECURITY-001 User cannot read or mutate another user's data; Firestore/Storage rules regression coverage exists, authenticated cross-user API E2E remains.
 
 ## P1 Product Flows
 
@@ -65,6 +65,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome smoke after LaTeX retry resilience: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after ad hoc source upload implementation: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after phone conflict policy: `pnpm exec playwright test --project=desktop-chrome` passed.
+- Desktop Chrome smoke after security-rule regression coverage: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
