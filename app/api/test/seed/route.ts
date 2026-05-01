@@ -7,11 +7,19 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 
-const requestSchema = z.object({
-	token: z.string().min(1),
-	kind: z.literal("exam"),
-	title: z.string().trim().min(1).max(120).default("Seeded exam"),
-});
+const requestSchema = z.discriminatedUnion("kind", [
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("exam"),
+		title: z.string().trim().min(1).max(120).default("Seeded exam"),
+	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("visual_attempt"),
+		examId: z.string().min(1),
+		filename: z.string().trim().min(1).max(180).default("attempt.pdf"),
+	}),
+]);
 
 function assertEnabled(token: string) {
 	return (
@@ -29,50 +37,90 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "Not found." }, { status: 404 });
 	}
 
-	const examId = randomUUID();
 	const now = Timestamp.now();
-	await adminDb
-		.collection("users")
-		.doc(user.uid)
-		.collection("exams")
-		.doc(examId)
-		.create({
-			status: "complete",
-			title: input.title,
-			className: "Synthetic E2E",
-			classId: null,
-			topics: ["Derivatives", "Optimization"],
-			sourceMaterialIds: [],
-			adHocUploadIds: [],
-			adHocSources: [],
-			questionCount: 2,
-			tierAtGen: user.tier,
-			config: {
+
+	if (input.kind === "exam") {
+		const examId = randomUUID();
+		await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("exams")
+			.doc(examId)
+			.create({
+				status: "complete",
 				title: input.title,
+				className: "Synthetic E2E",
+				classId: null,
 				topics: ["Derivatives", "Optimization"],
+				sourceMaterialIds: [],
+				adHocUploadIds: [],
+				adHocSources: [],
 				questionCount: 2,
-				tier: user.tier,
-				mode: "standard",
-			},
-			sourceNotes: "Synthetic test fixture.",
+				tierAtGen: user.tier,
+				config: {
+					title: input.title,
+					topics: ["Derivatives", "Optimization"],
+					questionCount: 2,
+					tier: user.tier,
+					mode: "standard",
+				},
+				sourceNotes: "Synthetic test fixture.",
+				creditsReserved: 0,
+				creditsConsumed: 0,
+				boostedScholar: false,
+				answerKeyUnlocked: true,
+				boostGradingIncluded: false,
+				archived: false,
+				bookmarked: false,
+				rating: null,
+				shareCount: 0,
+				examPdfBase64: Buffer.from("%PDF-1.4\n% synthetic test pdf\n").toString("base64"),
+				answerKeyPdfBase64: Buffer.from("%PDF-1.4\n% synthetic answer key\n").toString(
+					"base64",
+				),
+				createdAt: now,
+				completedAt: now,
+				updatedAt: now,
+				isTestData: true,
+			});
+
+		return NextResponse.json({ examId });
+	}
+
+	const attemptId = randomUUID();
+	const examRef = adminDb.collection("users").doc(user.uid).collection("exams").doc(input.examId);
+	const exam = await examRef.get();
+
+	if (!exam.exists) {
+		return NextResponse.json({ error: "Exam not found." }, { status: 404 });
+	}
+
+	await examRef
+		.collection("attempts")
+		.doc(attemptId)
+		.create({
+			filename: input.filename,
+			contentType: "application/pdf",
+			sizeBytes: 128,
+			storagePath: null,
+			status: "graded",
+			score: 16,
+			maxScore: 20,
+			feedback: "Review the optimization setup and show derivative sign changes.",
+			visualAnnotations: true,
+			visualAnnotationStatus: "complete",
+			visualFeedbackPdfBase64: Buffer.from(
+				"%PDF-1.4\n% synthetic visual feedback\n",
+			).toString("base64"),
+			visualFeedbackRenderedPages: [],
 			creditsReserved: 0,
 			creditsConsumed: 0,
-			boostedScholar: false,
-			answerKeyUnlocked: true,
-			boostGradingIncluded: false,
-			archived: false,
-			bookmarked: false,
-			rating: null,
-			shareCount: 0,
-			examPdfBase64: Buffer.from("%PDF-1.4\n% synthetic test pdf\n").toString("base64"),
-			answerKeyPdfBase64: Buffer.from("%PDF-1.4\n% synthetic answer key\n").toString(
-				"base64",
-			),
 			createdAt: now,
-			completedAt: now,
+			uploadedAt: now,
+			gradedAt: now,
 			updatedAt: now,
 			isTestData: true,
 		});
 
-	return NextResponse.json({ examId });
+	return NextResponse.json({ attemptId });
 }

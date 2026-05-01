@@ -85,3 +85,18 @@ export async function seedExam(page: Page, title: string) {
 
 	return payload.examId;
 }
+
+export async function seedVisualAttempt(page: Page, examId: string) {
+	const response = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "visual_attempt",
+			examId,
+			filename: "guru-attempt.pdf",
+		},
+	});
+	expect(response.status()).toBe(200);
+	const payload = (await response.json()) as { attemptId: string };
+
+	return payload.attemptId;
+}

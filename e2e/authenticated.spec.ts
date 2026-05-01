@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { seedExam, signInAsTestUser } from "./test-auth";
+import { seedExam, seedVisualAttempt, signInAsTestUser } from "./test-auth";
 
 test.skip(
 	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
@@ -27,6 +27,23 @@ test("scholar user can open answer key action for a completed paid exam", async 
 		page.getByRole("heading", { level: 1, name: "Scholar answer key exam" }),
 	).toBeVisible();
 	await expect(page.getByRole("link", { name: "Answer key" })).toBeVisible();
+});
+
+test("guru user can download completed visual feedback PDF", async ({ page }) => {
+	await signInAsTestUser(page, `guru-visual-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+	const examId = await seedExam(page, "Guru visual feedback exam");
+	await seedVisualAttempt(page, examId);
+
+	await page.goto(`/exams/${examId}`);
+	const download = page.getByRole("link", { name: "Download visual feedback" });
+	await expect(download).toBeVisible();
+	const response = await page.context().request.get((await download.getAttribute("href")) ?? "");
+
+	expect(response.status()).toBe(200);
+	expect(response.headers()["content-type"]).toContain("application/pdf");
 });
 
 test("free user can queue a 12-question Standard exam from manual topics", async ({ page }) => {
