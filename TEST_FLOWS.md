@@ -26,7 +26,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [ ] P1-WIZARD-003 Topic extraction failure offers best-effort/manual fallback.
 - [!] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; schema/UI/LaTeX support exists, authenticated E2E remains.
 - [!] P1-POWER-002 Mobile Power Mode uses tap reorder and bulk actions; explicit up/down controls and range bulk edits exist, tap-to-target E2E remains.
-- [!] P1-LIBRARY-001 Library search, filter, bookmark, archive, delete, move-to-class, grid/list, and bulk actions are implemented; authenticated E2E remains.
+- [x] P1-LIBRARY-001 Library search, filter, bookmark, archive, restore, delete, move-to-class, grid/list, and bulk actions pass authenticated E2E.
 - [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
 - [!] P1-BOOST-001 Free user Scholar Boost is offered from second exam and atomically consumed; implementation exists, full authenticated two-tab E2E remains.
@@ -72,6 +72,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
 - Desktop Chrome authenticated class lifecycle suite: `pnpm exec playwright test --project=desktop-chrome` passed with create/edit/archive/restore/delete.
+- Desktop Chrome authenticated exam library suite: `pnpm exec playwright test --project=desktop-chrome` passed with search/filter/grid-list/bookmark/archive/restore/move/delete.
 - Desktop Safari and Mobile Safari smoke: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passed after installing WebKit.
 - Hosted production smoke: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after multimodal extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
@@ -88,4 +89,5 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after phone conflict policy deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed.
 - Hosted production smoke after authenticated E2E harness deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Hosted production smoke after Free manual-topics E2E deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
+- Hosted production smoke after exam library E2E deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T21-59-10-970Z`.

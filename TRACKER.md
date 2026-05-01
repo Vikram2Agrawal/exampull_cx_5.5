@@ -33,6 +33,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
 - [x] Add authenticated class lifecycle E2E covering create, edit, archive, restore, delete, and missing-after-delete.
+- [x] Add authenticated exam library E2E covering search, filters, grid/list, bookmark, archive/restore, move-to-class, and delete.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
@@ -89,6 +90,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Local desktop Chrome authenticated Scholar answer-key E2E passed.
 - Local desktop Chrome authenticated Guru visual-feedback download E2E passed.
 - Local desktop Chrome authenticated class lifecycle E2E passed.
+- Full local gate after exam library E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after exam library E2E deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

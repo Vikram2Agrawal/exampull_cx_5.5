@@ -217,6 +217,7 @@ export function ExamLibrary({
 							/>
 						</label>
 						<select
+							aria-label="Status filter"
 							value={statusFilter}
 							onChange={(event) => setStatusFilter(event.target.value)}
 							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3"
@@ -229,6 +230,7 @@ export function ExamLibrary({
 							))}
 						</select>
 						<select
+							aria-label="Class filter"
 							value={classFilter}
 							onChange={(event) => setClassFilter(event.target.value)}
 							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3"
@@ -245,6 +247,7 @@ export function ExamLibrary({
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 							<select
+								aria-label="Style filter"
 								value={styleFilter}
 								onChange={(event) => setStyleFilter(event.target.value)}
 								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
@@ -257,6 +260,7 @@ export function ExamLibrary({
 								))}
 							</select>
 							<select
+								aria-label="Difficulty filter"
 								value={difficultyFilter}
 								onChange={(event) => setDifficultyFilter(event.target.value)}
 								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
@@ -269,6 +273,7 @@ export function ExamLibrary({
 								))}
 							</select>
 							<select
+								aria-label="Bookmark filter"
 								value={bookmarkFilter}
 								onChange={(event) => setBookmarkFilter(event.target.value)}
 								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
@@ -278,6 +283,7 @@ export function ExamLibrary({
 								<option value="unbookmarked">Unbookmarked</option>
 							</select>
 							<select
+								aria-label="Archive filter"
 								value={archiveFilter}
 								onChange={(event) =>
 									setArchiveFilter(
@@ -297,16 +303,18 @@ export function ExamLibrary({
 								size="icon"
 								variant={view === "grid" ? "primary" : "secondary"}
 								onClick={() => setView("grid")}
+								aria-label="Grid view"
 							>
-								<Grid2X2 aria-label="Grid view" size={18} />
+								<Grid2X2 aria-hidden="true" size={18} />
 							</Button>
 							<Button
 								type="button"
 								size="icon"
 								variant={view === "list" ? "primary" : "secondary"}
 								onClick={() => setView("list")}
+								aria-label="List view"
 							>
-								<List aria-label="List view" size={18} />
+								<List aria-hidden="true" size={18} />
 							</Button>
 							<Button type="button" onClick={toggleAllVisible}>
 								<CheckSquare aria-hidden="true" size={16} />
@@ -355,6 +363,7 @@ export function ExamLibrary({
 							Unbookmark
 						</Button>
 						<select
+							aria-label="Move selected to class"
 							value={bulkClassId}
 							onChange={(event) => setBulkClassId(event.target.value)}
 							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"

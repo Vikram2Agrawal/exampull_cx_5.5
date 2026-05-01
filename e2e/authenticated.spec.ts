@@ -195,3 +195,63 @@ test("authenticated user can create edit archive restore and delete a class", as
 		.request.get(`/api/classes/${createPayload.classId}`);
 	expect(missingResponse.status()).toBe(404);
 });
+
+test("authenticated user can search and bulk manage the exam library", async ({ page }) => {
+	await signInAsTestUser(page, `library-${Date.now()}@exampull.test`);
+	await seedExam(page, "Library entropy exam");
+	await seedExam(page, "Library kinetics exam");
+	const classResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: "Library Target Class",
+			institution: "ExamPull",
+			educationLevel: 70,
+			description: "Bulk move target.",
+		},
+	});
+	expect(classResponse.status()).toBe(201);
+	const classPayload = (await classResponse.json()) as { classId: string };
+
+	await page.goto("/exams");
+	await page.getByRole("button", { name: "List view" }).click();
+	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
+	await page.getByRole("button", { name: "Grid view" }).click();
+
+	await page.getByPlaceholder("Search title, topic, or class").fill("entropy");
+	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
+	await expect(page.getByLabel("Select Library kinetics exam")).toHaveCount(0);
+
+	await page.getByPlaceholder("Search title, topic, or class").fill("");
+	await page.getByLabel("Select Library entropy exam").check();
+	await page.getByRole("button", { name: "Bookmark", exact: true }).click();
+	await expect(page.getByText("Library updated.")).toBeVisible();
+
+	await page.getByLabel("Bookmark filter").selectOption("bookmarked");
+	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
+	await expect(page.getByLabel("Select Library kinetics exam")).toHaveCount(0);
+
+	await page.getByLabel("Bookmark filter").selectOption("all");
+	await page.getByLabel("Select Library entropy exam").check();
+	await page.getByRole("button", { name: "Archive" }).click();
+	await expect(page.getByLabel("Select Library entropy exam")).toHaveCount(0);
+
+	await page.getByLabel("Archive filter").selectOption("archived");
+	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
+	await page.getByLabel("Select Library entropy exam").check();
+	await page.getByRole("button", { name: "Restore" }).click();
+	await expect(page.getByLabel("Select Library entropy exam")).toHaveCount(0);
+
+	await page.getByLabel("Archive filter").selectOption("active");
+	await page.getByLabel("Select Library entropy exam").check();
+	await page.getByLabel("Move selected to class").selectOption(classPayload.classId);
+	await page.getByRole("button", { name: "Move" }).click();
+	await page.getByLabel("Class filter").selectOption(classPayload.classId);
+	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
+	await expect(page.getByLabel("Select Library kinetics exam")).toHaveCount(0);
+
+	await page.getByLabel("Select Library entropy exam").check();
+	page.once("dialog", (dialog) => {
+		void dialog.accept();
+	});
+	await page.getByRole("button", { name: "Delete" }).click();
+	await expect(page.getByLabel("Select Library entropy exam")).toHaveCount(0);
+});
