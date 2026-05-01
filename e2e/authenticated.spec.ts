@@ -54,7 +54,9 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Free manual topics exam");
-	await page.getByLabel("Topics").fill("Implicit differentiation\nRelated rates\nOptimization");
+	await page
+		.getByRole("textbox", { name: "Topics" })
+		.fill("Implicit differentiation\nRelated rates\nOptimization");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -72,7 +74,9 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Power Mode orchestration exam");
 	await page.getByLabel("Class label").fill("Physical Chemistry");
-	await page.getByLabel("Topics").fill("Entropy\nReaction kinetics\nElectrochemistry");
+	await page
+		.getByRole("textbox", { name: "Topics" })
+		.fill("Entropy\nReaction kinetics\nElectrochemistry");
 	await page.getByRole("button", { name: "Power" }).click();
 	await expect(page.getByRole("heading", { name: "Power Mode slots" })).toBeVisible();
 	await page.getByLabel("Question 1 topic").fill("Entropy");
@@ -150,7 +154,7 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
 	await expect(page.getByText(/topics extracted/)).toBeVisible();
 
-	await page.getByLabel("Topics").fill("Activation energy");
+	await page.getByRole("textbox", { name: "Topics" }).fill("Activation energy");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -160,6 +164,136 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
 	await expect(page.getByText("rate-laws-notes.txt")).toBeVisible();
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
+});
+
+test("authenticated user can upload a class style reference and see credit accounting", async ({
+	page,
+}) => {
+	await signInAsTestUser(page, `style-ref-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 40,
+	});
+	const classResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: "Style Reference Chemistry",
+			institution: "ExamPull",
+			educationLevel: 68,
+			description: "Past exam style reference coverage.",
+		},
+	});
+	expect(classResponse.status()).toBe(201);
+	const classPayload = (await classResponse.json()) as { classId: string };
+
+	await page.goto(`/classes/${classPayload.classId}`);
+	await page.getByLabel("Focus").fill("short constructed-response kinetics questions");
+	await page.getByLabel("Instructor style reference").check();
+	await page.getByLabel("Material file").setInputFiles({
+		name: "instructor-style-reference.txt",
+		mimeType: "text/plain",
+		buffer: Buffer.from(
+			"Past exam style\nUse compact prompts\nRequire short constructed-response explanations",
+		),
+	});
+	await page.getByRole("button", { name: "Upload material" }).click();
+
+	await expect(page.getByText("instructor-style-reference.txt", { exact: true })).toBeVisible({
+		timeout: 20000,
+	});
+	await expect(page.getByText(/KB - style ready/)).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText("Style reference", { exact: true }).last()).toBeVisible();
+	await expect(page.getByText("ready", { exact: true })).toBeVisible();
+	await expect(
+		page.getByText("Instructor style guide inferred from instructor-style-reference.txt."),
+	).toBeVisible();
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+		} | null;
+		classes: {
+			id: string;
+			styleGuideStatus?: string;
+			styleGuide?: string;
+		}[];
+		classMaterials: {
+			classId: string;
+			materials: {
+				id: string;
+				filename?: string;
+				status?: string;
+				styleReference?: boolean;
+				extractedTopics?: string[];
+			}[];
+		}[];
+	};
+	expect(exportPayload.profile?.credits).toBe(38);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(2);
+	const exportedClass = exportPayload.classes.find(
+		(course) => course.id === classPayload.classId,
+	);
+	expect(exportedClass?.styleGuideStatus).toBe("ready");
+	expect(exportedClass?.styleGuide).toContain("instructor-style-reference.txt");
+	const exportedMaterial = exportPayload.classMaterials
+		.find((course) => course.classId === classPayload.classId)
+		?.materials.find((material) => material.filename === "instructor-style-reference.txt");
+	if (!exportedMaterial) {
+		throw new Error("Uploaded class material was not returned by export.");
+	}
+	expect(exportedMaterial?.status).toBe("style_ready");
+	expect(exportedMaterial?.styleReference).toBe(true);
+	expect(exportedMaterial?.extractedTopics?.length).toBeGreaterThan(0);
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Combined stored and ad hoc sources exam");
+	await page.getByLabel("Stored class").selectOption(classPayload.classId);
+	await page.getByLabel(/instructor-style-reference\.txt/).check();
+	await page.getByLabel("Focus for next upload").fill("activation energy supplement");
+	await page.getByLabel("Upload files").setInputFiles({
+		name: "activation-energy-supplement.txt",
+		mimeType: "text/plain",
+		buffer: Buffer.from("Activation energy\nCollision theory\nTemperature effects"),
+	});
+	await expect(page.getByText("activation-energy-supplement.txt")).toBeVisible({
+		timeout: 20000,
+	});
+	await page.getByRole("textbox", { name: "Topics" }).fill("Collision theory");
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Combined stored and ad hoc sources exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Style Reference Chemistry - 12 questions - queued")).toBeVisible();
+	await expect(page.getByText("activation-energy-supplement.txt")).toBeVisible();
+	await expect(page.getByText("Collision theory", { exact: true })).toBeVisible();
+
+	const combinedExportResponse = await page.context().request.get("/api/settings/export");
+	expect(combinedExportResponse.status()).toBe(200);
+	const combinedExport = (await combinedExportResponse.json()) as {
+		exams: {
+			title?: string;
+			sourceMaterialIds?: string[];
+			adHocSources?: { filename?: string }[];
+			topics?: string[];
+		}[];
+	};
+	const combinedExam = combinedExport.exams.find(
+		(exam) => exam.title === "Combined stored and ad hoc sources exam",
+	);
+	if (!combinedExam) {
+		throw new Error("Combined source exam was not returned by export.");
+	}
+	expect(combinedExam.sourceMaterialIds).toContain(exportedMaterial.id);
+	expect(
+		combinedExam.adHocSources?.some(
+			(source) => source.filename === "activation-energy-supplement.txt",
+		),
+	).toBe(true);
+	expect(combinedExam.topics).toContain("Collision theory");
 });
 
 test("credit reservation is atomic across parallel exam requests", async ({ page }) => {

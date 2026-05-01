@@ -31,6 +31,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated concurrent credit-reservation E2E proving exactly one full-cost Free exam request wins.
 - [x] Add authenticated Scholar Power Mode E2E covering slot edits, reorder, range bulk edit, queueing, and created-exam metadata.
 - [x] Add authenticated one-time source upload E2E covering signed Storage write, ready fallback extraction, queueing, and detail-page source retention.
+- [x] Add authenticated class style-reference E2E covering 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and combined exam queueing.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -98,6 +99,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after Power Mode E2E deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - Full local gate after one-time source upload E2E and localhost:3100 Storage CORS update passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Firebase Storage CORS verified with localhost:3100, 127.0.0.1:3100, localhost:3000, and hosted production origins.
+- Full local gate after class style-reference fallback and combined-source wizard E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after class style-reference fallback deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

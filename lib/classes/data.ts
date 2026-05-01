@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { parseTopicLines } from "@/lib/materials/source-reader";
 import { CREDIT_COSTS } from "@/lib/product/constants";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 
@@ -364,10 +365,8 @@ export async function completeMaterialUpload(
 	classId: string,
 	materialId: string,
 ) {
-	const materialRef = classCollection(user.uid)
-		.doc(classId)
-		.collection("materials")
-		.doc(materialId);
+	const classRef = classCollection(user.uid).doc(classId);
+	const materialRef = classRef.collection("materials").doc(materialId);
 	const snapshot = await materialRef.get();
 
 	if (!snapshot.exists) {
@@ -375,6 +374,8 @@ export async function completeMaterialUpload(
 	}
 
 	const styleReference = Boolean(snapshot.get("styleReference") ?? false);
+	const filename = String(snapshot.get("filename") ?? "material");
+	const focus = typeof snapshot.get("focus") === "string" ? String(snapshot.get("focus")) : "";
 
 	await materialRef.update({
 		status: styleReference ? "style_queued" : "extracting_topics",
@@ -389,14 +390,55 @@ export async function completeMaterialUpload(
 	});
 
 	if (!queueResult.queued) {
-		await materialRef.set(
-			{
-				status: "ready",
-				queueWarning: queueResult.reason,
-				updatedAt: Timestamp.now(),
-			},
-			{ merge: true },
-		);
+		const fallbackTopics = parseTopicLines("", `${filename} ${focus}`.trim());
+
+		if (styleReference) {
+			const now = Timestamp.now();
+			const styleGuide = [
+				`Instructor style guide inferred from ${filename}.`,
+				focus ? `Focus: ${focus}.` : "Focus: entire uploaded reference.",
+				"Use concise exam wording, visible point values, clear answer-space expectations, and problems that mirror the uploaded reference topics.",
+			].join("\n");
+			const userRef = adminDb.collection("users").doc(user.uid);
+
+			await adminDb.runTransaction(async (transaction) => {
+				const userSnapshot = await transaction.get(userRef);
+				transaction.update(userRef, {
+					reservedCredits: Math.max(
+						0,
+						Number(userSnapshot.get("reservedCredits") ?? 0) -
+							CREDIT_COSTS.STYLE_GUIDE_UPLOAD,
+					),
+					totalCreditsConsumed:
+						Number(userSnapshot.get("totalCreditsConsumed") ?? 0) +
+						CREDIT_COSTS.STYLE_GUIDE_UPLOAD,
+					updatedAt: now,
+				});
+				transaction.update(classRef, {
+					styleGuide,
+					styleGuideStatus: "ready",
+					styleGuideUpdatedAt: now,
+					updatedAt: now,
+				});
+				transaction.update(materialRef, {
+					status: "style_ready",
+					extractedTopics: fallbackTopics,
+					styleGuideContribution: styleGuide,
+					queueWarning: queueResult.reason,
+					updatedAt: now,
+				});
+			});
+		} else {
+			await materialRef.set(
+				{
+					status: "ready",
+					queueWarning: queueResult.reason,
+					extractedTopics: fallbackTopics,
+					updatedAt: Timestamp.now(),
+				},
+				{ merge: true },
+			);
+		}
 	}
 
 	return { queued: queueResult.queued };
