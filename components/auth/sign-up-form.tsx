@@ -27,7 +27,7 @@ function signupMessage(error: unknown) {
 		}
 
 		if (error.code === "auth/credential-already-in-use") {
-			return "That phone number is already attached to another account.";
+			return "That phone number is already attached to an ExamPull account. Sign in with a previously linked email or Google account before using it.";
 		}
 
 		if (error.code === "auth/invalid-verification-code") {
