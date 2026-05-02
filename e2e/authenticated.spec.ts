@@ -273,6 +273,86 @@ test("settings shows synced linked auth sources without duplicate account state"
 	expect(exportPayload.profile?.notificationPreferences?.low_credits?.email).toBe(true);
 });
 
+test("Featurebase customer voice surfaces use signed SSO and feed the admin inbox", async ({
+	page,
+}) => {
+	const organization = envValue("NEXT_PUBLIC_FEATUREBASE_ORGANIZATION");
+	expect(organization, "NEXT_PUBLIC_FEATUREBASE_ORGANIZATION must be set").toBeTruthy();
+	await page.route("https://do.featurebase.app/js/sdk.js", async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: "application/javascript",
+			body: "window.Featurebase=function(){window.__featurebaseCalls=(window.__featurebaseCalls||0)+1};",
+		});
+	});
+	await page.route("**://*.featurebase.app/**", async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: "text/html",
+			body: "<html><body>Featurebase test portal</body></html>",
+		});
+	});
+
+	await signInAsTestUser(page, `featurebase-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+
+	const sessionResponse = await page.context().request.get("/api/featurebase/session");
+	expect(sessionResponse.status()).toBe(200);
+	const session = (await sessionResponse.json()) as {
+		organization?: string;
+		featurebaseJwt?: string;
+		hasUnreadChangelog?: boolean;
+	};
+	expect(session.organization).toBe(organization);
+	expect(session.featurebaseJwt?.split(".")).toHaveLength(3);
+	expect(session.hasUnreadChangelog).toBe(true);
+
+	await page.goto("/dashboard");
+	await expect(
+		page.getByRole("button", { name: /Open help and feedback, unread changelog/ }),
+	).toBeVisible();
+	await page.getByRole("button", { name: /Open help and feedback/ }).click();
+	await expect(page.getByRole("heading", { name: "Send a note" })).toBeVisible();
+	const widgetTitle = `Widget request ${Date.now()}`;
+	await page.getByPlaceholder("Title").fill(widgetTitle);
+	await page
+		.getByPlaceholder("What should change?")
+		.fill("Please add a customer-voice regression marker for this in-app widget.");
+	await page.getByRole("button", { name: "Submit" }).click();
+	await expect(page.getByText("Feedback submitted.")).toBeVisible();
+
+	await page.goto("/feedback");
+	let frameSrc = await page.getByTestId("featurebase-embed").getAttribute("src");
+	expect(frameSrc).toContain(`https://${organization}.featurebase.app/`);
+	expect(frameSrc).toContain("hideMenu=true");
+	expect(frameSrc).toContain("jwt=");
+
+	await page.goto("/roadmap");
+	frameSrc = await page.getByTestId("featurebase-embed").getAttribute("src");
+	expect(frameSrc).toContain(`https://${organization}.featurebase.app/roadmap`);
+
+	await page.goto("/changelog");
+	frameSrc = await page.getByTestId("featurebase-embed").getAttribute("src");
+	expect(frameSrc).toContain(`https://${organization}.featurebase.app/changelog`);
+	await expect
+		.poll(async () => {
+			const updated = await page.context().request.get("/api/featurebase/session");
+			const payload = (await updated.json()) as { hasUnreadChangelog?: boolean };
+
+			return payload.hasUnreadChangelog;
+		})
+		.toBe(false);
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/communications");
+	await expect(page.getByText(widgetTitle)).toBeVisible();
+	await expect(
+		page.locator("tr").filter({ hasText: widgetTitle }).getByText("in_app_widget"),
+	).toBeVisible();
+});
+
 test("admin write APIs reject missing or invalid CSRF tokens and destructive writes require reauth", async ({
 	page,
 }) => {

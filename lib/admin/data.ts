@@ -42,6 +42,8 @@ export type AdminFeedbackRow = {
 	title: string;
 	body: string;
 	status: string;
+	source: string;
+	visibility: string;
 	userId: string | null;
 	createdAt: string;
 };
@@ -267,6 +269,11 @@ export async function listAdminFeedback(
 		title: text(doc.get("title"), text(doc.get("examId"), "Untitled")),
 		body: text(doc.get("body"), text(doc.get("reason"), "")),
 		status: text(doc.get("status"), "open"),
+		source: text(
+			doc.get("source"),
+			collectionName === "feedback" ? "feedback_page" : "exam_report",
+		),
+		visibility: text(doc.get("visibility"), "private"),
 		userId: typeof doc.get("userId") === "string" ? doc.get("userId") : null,
 		createdAt: isoDate(doc.get("createdAt")),
 	}));

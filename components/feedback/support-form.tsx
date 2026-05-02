@@ -1,31 +1,22 @@
 "use client";
 
-import { Bug, Lightbulb, MessageSquare } from "lucide-react";
+import { Bug, CreditCard, LifeBuoy } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const kinds = [
-	{ value: "feature", label: "Suggest a feature", icon: Lightbulb },
-	{ value: "bug", label: "Report a bug", icon: Bug },
-	{ value: "general", label: "General feedback", icon: MessageSquare },
+const reasons = [
+	{ value: "refund", label: "Refund request", icon: CreditCard },
+	{ value: "bug", label: "Bug report", icon: Bug },
+	{ value: "general", label: "General help", icon: LifeBuoy },
 ] as const;
 
-type FeedbackKind = (typeof kinds)[number]["value"];
+type SupportKind = (typeof reasons)[number]["value"];
 
-export function FeedbackForm({
-	source = "feedback_page",
-	defaultKind = "feature",
-	onSubmitted,
-}: {
-	source?: "feedback_page" | "in_app_widget" | "support_page" | "share_page";
-	defaultKind?: FeedbackKind;
-	onSubmitted?: () => void;
-}) {
-	const [kind, setKind] = useState<FeedbackKind>(defaultKind);
+export function SupportForm() {
+	const [kind, setKind] = useState<SupportKind>("refund");
 	const [title, setTitle] = useState("");
 	const [body, setBody] = useState("");
-	const [visibility, setVisibility] = useState<"public" | "private">("public");
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
 
@@ -35,70 +26,63 @@ export function FeedbackForm({
 				const response = await fetch("/api/feedback", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ kind, title, body, source, visibility }),
+					body: JSON.stringify({
+						kind,
+						title,
+						body,
+						source: "support_page",
+						visibility: "private",
+					}),
 				});
 				const result = (await response.json().catch(() => ({}))) as { error?: string };
 
 				if (!response.ok) {
-					throw new Error(result.error ?? "Feedback submission failed.");
+					throw new Error(result.error ?? "Support request failed.");
 				}
 
 				setTitle("");
 				setBody("");
-				setStatus("Feedback submitted.");
-				onSubmitted?.();
+				setStatus("Support request sent.");
 			} catch (error) {
-				setStatus(error instanceof Error ? error.message : "Feedback submission failed.");
+				setStatus(error instanceof Error ? error.message : "Support request failed.");
 			}
 		});
 	}
 
 	return (
 		<div>
-			<div className="grid gap-2">
-				{kinds.map((tab) => {
-					const Icon = tab.icon;
+			<div className="grid gap-3">
+				{reasons.map((reason) => {
+					const Icon = reason.icon;
 
 					return (
 						<button
-							key={tab.value}
+							key={reason.value}
 							type="button"
 							className={cn(
 								"flex min-h-12 items-center gap-3 rounded-lg border border-glass-border bg-background/40 px-3 text-left text-sm hover:bg-glass",
-								kind === tab.value ? "border-secondary bg-glass-strong" : "",
+								kind === reason.value ? "border-secondary bg-glass-strong" : "",
 							)}
-							onClick={() => setKind(tab.value)}
+							onClick={() => setKind(reason.value)}
 						>
 							<Icon aria-hidden="true" className="text-secondary" size={18} />
-							{tab.label}
+							{reason.label}
 						</button>
 					);
 				})}
 			</div>
 			<input
 				className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-				placeholder="Title"
+				placeholder="Subject"
 				value={title}
 				onChange={(event) => setTitle(event.target.value)}
 			/>
 			<textarea
 				className="mt-3 min-h-32 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
-				placeholder="What should change?"
+				placeholder="What should we know?"
 				value={body}
 				onChange={(event) => setBody(event.target.value)}
 			/>
-			{kind === "feature" ? (
-				<label className="mt-3 flex min-h-11 items-center gap-3 rounded-lg border border-glass-border bg-background/40 px-3 text-sm text-muted">
-					<input
-						type="checkbox"
-						checked={visibility === "public"}
-						onChange={(event) =>
-							setVisibility(event.target.checked ? "public" : "private")
-						}
-					/>
-					Make this request public on the feedback board
-				</label>
-			) : null}
 			<Button
 				type="button"
 				variant="primary"
@@ -106,7 +90,7 @@ export function FeedbackForm({
 				disabled={isPending}
 				onClick={submit}
 			>
-				Submit
+				Send request
 			</Button>
 			{status ? <p className="mt-3 text-sm text-muted">{status}</p> : null}
 		</div>

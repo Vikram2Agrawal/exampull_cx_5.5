@@ -8,9 +8,13 @@ import {
 } from "@/lib/user/notification-preferences";
 
 export const feedbackSchema = z.object({
-	kind: z.enum(["feature", "bug", "general"]),
+	kind: z.enum(["feature", "bug", "general", "refund"]),
 	title: z.string().trim().min(3).max(140),
 	body: z.string().trim().min(10).max(4000),
+	source: z
+		.enum(["feedback_page", "in_app_widget", "support_page", "share_page"])
+		.default("feedback_page"),
+	visibility: z.enum(["public", "private"]).default("public"),
 	examId: z.string().trim().max(120).optional(),
 	shareId: z.string().trim().max(120).optional(),
 });
@@ -71,6 +75,8 @@ export async function submitFeedback(user: CurrentUser | null, input: FeedbackIn
 		kind: parsed.kind,
 		title: parsed.title,
 		body: parsed.body,
+		source: parsed.source,
+		visibility: parsed.kind === "feature" ? parsed.visibility : "private",
 		examId: parsed.examId ?? null,
 		shareId: parsed.shareId ?? null,
 		userId: user?.uid ?? null,

@@ -1,5 +1,6 @@
-import { Bell, BookOpen, FileText, GraduationCap, HelpCircle, Settings } from "lucide-react";
+import { Bell, BookOpen, FileText, GraduationCap, Settings } from "lucide-react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { FeaturebaseHelpButton } from "@/components/feedback/featurebase-help-button";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -162,13 +163,7 @@ export function AppShell({
 					})}
 				</div>
 			</nav>
-			<button
-				type="button"
-				aria-label="Open help and feedback"
-				className="fixed bottom-20 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-foreground shadow-glass md:bottom-5"
-			>
-				<HelpCircle aria-hidden="true" size={20} />
-			</button>
+			<FeaturebaseHelpButton theme={theme} />
 		</div>
 	);
 }

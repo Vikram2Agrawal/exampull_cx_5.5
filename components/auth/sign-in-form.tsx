@@ -47,6 +47,14 @@ function emailFromFirebaseError(error: FirebaseError) {
 	return typeof email === "string" ? email : "";
 }
 
+function safeReturnTo(value: string | null) {
+	if (!value?.startsWith("/") || value.startsWith("//")) {
+		return null;
+	}
+
+	return value;
+}
+
 async function createSession(idToken: string, previewId: string) {
 	const response = await fetch("/api/auth/session", {
 		method: "POST",
@@ -68,6 +76,7 @@ export function SignInForm() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [previewId, setPreviewId] = useState("");
+	const [returnTo, setReturnTo] = useState<string | null>(null);
 	const [pendingGoogleCredential, setPendingGoogleCredential] = useState<OAuthCredential | null>(
 		null,
 	);
@@ -76,6 +85,7 @@ export function SignInForm() {
 
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
+		setReturnTo(safeReturnTo(params.get("returnTo")));
 		const preview = params.get("preview") ?? window.localStorage.getItem("exampull_preview_id");
 		if (preview) {
 			const cleanPreview = preview.trim().slice(0, 120);
@@ -89,7 +99,9 @@ export function SignInForm() {
 		if (session.claimedExamId) {
 			window.localStorage.removeItem("exampull_preview_id");
 		}
-		router.push(session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard");
+		router.push(
+			session.claimedExamId ? `/exams/${session.claimedExamId}` : (returnTo ?? "/dashboard"),
+		);
 		router.refresh();
 	}
 

@@ -44,6 +44,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add PRD payment-failure grace: Stripe past-due starts a 14-day paid-capability grace, records email/SMS reminders, exposes billing-page warning, pauses downgrade until worker expiry, and starts share-key downgrade grace after payment-grace expiry.
 - [x] Surface top-level outbound communications in the admin Communications tab alongside support inbox feedback.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
+- [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -298,6 +299,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after per-event notification preferences passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after per-event notification preferences passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after per-event notification preferences deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
+- Focused Featurebase/customer-voice verification passed: `pnpm format && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Featurebase customer voice"` with signed SSO JWT, public Featurebase embed URLs, in-app widget fallback submission, changelog seen-state update, and admin Support Inbox visibility.
+- Full local gate after Featurebase/customer-voice wiring passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 46 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

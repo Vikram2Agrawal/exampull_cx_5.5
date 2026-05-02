@@ -63,7 +63,7 @@ export default async function AdminCommunicationsPage() {
 				<AdminTable
 					title="Support Inbox"
 					description="User feedback, support notes, and feature requests that need operator triage."
-					headers={["Kind", "Title", "Body", "User", "Status", "Created"]}
+					headers={["Kind", "Title", "Body", "Source", "User", "Status", "Created"]}
 					empty="No feedback submissions yet."
 					rows={feedback.map((item) => ({
 						key: item.id,
@@ -75,6 +75,10 @@ export default async function AdminCommunicationsPage() {
 							<p key="body" className="line-clamp-3 text-slate-600">
 								{item.body}
 							</p>,
+							<div key="source" className="space-y-1 text-slate-600">
+								<p>{item.source}</p>
+								<p className="text-xs text-slate-400">{item.visibility}</p>
+							</div>,
 							item.userId ?? "anonymous",
 							<TriageAction
 								key="status"

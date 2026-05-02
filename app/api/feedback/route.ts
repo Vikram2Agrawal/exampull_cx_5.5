@@ -9,6 +9,13 @@ export async function POST(request: Request) {
 
 	try {
 		const input = feedbackSchema.parse(await request.json());
+		if (input.kind === "feature" && !user) {
+			return NextResponse.json(
+				{ error: "Sign in to submit feature requests." },
+				{ status: 401 },
+			);
+		}
+
 		const result = await submitFeedback(user, input);
 
 		return NextResponse.json(result, { status: 201 });

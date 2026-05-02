@@ -23,6 +23,8 @@ const envSchema = z.object({
 	LATEX_SERVICE_AUTH_DISABLED: z.string().optional(),
 	STRIPE_SECRET_KEY: z.string().optional(),
 	NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+	NEXT_PUBLIC_FEATUREBASE_ORGANIZATION: z.string().optional(),
+	FEATUREBASE_JWT_SECRET: z.string().optional(),
 	STRIPE_WEBHOOK_SECRET: z.string().optional(),
 	STRIPE_RESTRICTED_KEY_REFUNDS: z.string().optional(),
 	STRIPE_PRICE_SCHOLAR_MONTHLY: z.string().optional(),

@@ -1,13 +1,13 @@
+import { FeaturebaseEmbed } from "@/components/feedback/featurebase-embed";
 import { PublicNav } from "@/components/layout/site-nav";
-import { GlassPanel, SectionHeader } from "@/components/ui/surface";
+import { SectionHeader } from "@/components/ui/surface";
+import { getCurrentUser } from "@/lib/auth/session";
+import { createFeaturebaseJwt, featurebasePortalUrl } from "@/lib/featurebase/sso";
 
-const roadmap = [
-	{ status: "Planned", items: ["Native mobile apps", "Spaced repetition", "LMS integration"] },
-	{ status: "In Progress", items: ["LaTeX visual QA", "Power Mode", "Admin operations"] },
-	{ status: "Shipped", items: ["Preview flow", "Credit model", "Class library"] },
-] as const;
+export default async function RoadmapPage() {
+	const user = await getCurrentUser();
+	const jwt = user ? await createFeaturebaseJwt(user) : null;
 
-export default function RoadmapPage() {
 	return (
 		<div className="min-h-screen">
 			<PublicNav />
@@ -15,22 +15,12 @@ export default function RoadmapPage() {
 				<SectionHeader title="Roadmap">
 					<p>Public product direction. Voting and comments require an account.</p>
 				</SectionHeader>
-				<div className="mt-10 grid gap-4 md:grid-cols-3">
-					{roadmap.map((column) => (
-						<GlassPanel key={column.status} className="p-5">
-							<h2 className="text-xl font-semibold">{column.status}</h2>
-							<ul className="mt-5 space-y-3">
-								{column.items.map((item) => (
-									<li
-										key={item}
-										className="rounded-lg bg-background/40 p-3 text-sm text-muted"
-									>
-										{item}
-									</li>
-								))}
-							</ul>
-						</GlassPanel>
-					))}
+				<div className="mt-10">
+					<FeaturebaseEmbed
+						src={featurebasePortalUrl({ surface: "roadmap", jwt })}
+						title="Featurebase roadmap"
+						fallbackTitle="Roadmap"
+					/>
 				</div>
 			</main>
 		</div>
