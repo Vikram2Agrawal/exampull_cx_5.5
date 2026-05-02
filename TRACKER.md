@@ -291,6 +291,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after payment-failure grace deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - Focused admin outbound-communications regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"` with payment-failure email/SMS rows visible in `/admin/communications`.
 - Full local gate after admin outbound communications passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips; `pnpm test` passed with 34 unit tests.
+- App Hosting deploy after admin outbound communications passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after admin outbound communications deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
