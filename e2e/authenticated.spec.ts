@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { seedExam, seedVisualAttempt, signInAsTestUser } from "./test-auth";
+import {
+	createTestAuthUser,
+	idTokenForCustomToken,
+	seedExam,
+	seedVisualAttempt,
+	signInAsTestUser,
+	testSignupToken,
+} from "./test-auth";
 
 test.skip(
 	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
@@ -102,6 +109,95 @@ test("anonymous preview can be claimed by a verified test account", async ({ pag
 	expect(claimedExam?.creditsConsumed).toBe(0);
 	expect(claimedExam?.anonymousPreviewId).toBe(previewId);
 	expect(claimedExam?.examPdfBase64?.length).toBeGreaterThan(100);
+});
+
+test("phone conflict blocks an active prior account during session creation", async ({ page }) => {
+	const phoneNumber = `+1${String(Date.now()).slice(-10).padStart(10, "5")}`;
+	await createTestAuthUser(page, `active-phone-owner-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 40,
+		phoneNumber,
+		authPhoneNumber: false,
+		writeUserDoc: true,
+	});
+	const incoming = await createTestAuthUser(
+		page,
+		`active-phone-incoming-${Date.now()}@exampull.test`,
+		{
+			phoneNumber,
+			authPhoneNumber: true,
+			writeUserDoc: false,
+		},
+	);
+	const idToken = await idTokenForCustomToken(incoming);
+
+	const response = await page.context().request.post("/api/auth/session", {
+		data: {
+			idToken,
+			mode: "signup",
+			displayName: "Phone Conflict E2E",
+			testSignupToken: testSignupToken(),
+		},
+	});
+	expect(response.status()).toBe(409);
+	const payload = (await response.json()) as { code?: string; error?: string };
+	expect(payload.code).toBe("phone_prior_auth_required");
+	expect(payload.error).toContain("previously linked email or Google account");
+});
+
+test("dormant phone conflict releases the number without inheriting old data", async ({ page }) => {
+	const phoneNumber = `+1${String(Date.now() + 17)
+		.slice(-10)
+		.padStart(10, "6")}`;
+	await createTestAuthUser(page, `dormant-phone-owner-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 777,
+		phoneNumber,
+		authPhoneNumber: false,
+		writeUserDoc: true,
+		ageDays: 181,
+	});
+	const incoming = await createTestAuthUser(
+		page,
+		`dormant-phone-incoming-${Date.now()}@exampull.test`,
+		{
+			phoneNumber,
+			authPhoneNumber: true,
+			writeUserDoc: false,
+		},
+	);
+	const idToken = await idTokenForCustomToken(incoming);
+
+	const response = await page.context().request.post("/api/auth/session", {
+		data: {
+			idToken,
+			mode: "signup",
+			displayName: "Dormant Reclaim E2E",
+			testSignupToken: testSignupToken(),
+		},
+	});
+	expect(response.status()).toBe(200);
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			email?: string | null;
+			phoneNumber?: string;
+			tier?: string;
+			credits?: number;
+			totalCreditsConsumed?: number;
+			isTestAccount?: boolean;
+		} | null;
+		exams: unknown[];
+	};
+	expect(exportPayload.profile?.email).toContain("dormant-phone-incoming");
+	expect(exportPayload.profile?.phoneNumber).toBe(phoneNumber);
+	expect(exportPayload.profile?.tier).toBe("free");
+	expect(exportPayload.profile?.credits).toBe(40);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(0);
+	expect(exportPayload.profile?.isTestAccount).toBe(true);
+	expect(exportPayload.exams).toHaveLength(0);
 });
 
 test("scholar user can open answer key action for a completed paid exam", async ({ page }) => {

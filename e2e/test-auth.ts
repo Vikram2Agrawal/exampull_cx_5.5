@@ -33,42 +33,78 @@ export function testSignupToken() {
 	return token ?? "";
 }
 
-export async function signInAsTestUser(
+export async function createTestAuthUser(
 	page: Page,
 	email: string,
-	options: { tier?: "free" | "scholar" | "guru"; credits?: number; previewId?: string } = {},
+	options: {
+		tier?: "free" | "scholar" | "guru";
+		credits?: number;
+		phoneNumber?: string;
+		authPhoneNumber?: boolean;
+		writeUserDoc?: boolean;
+		ageDays?: number;
+	} = {},
 ) {
 	const token = testSignupToken();
-	const createResponse = await page.context().request.post("/api/test/session", {
+	const response = await page.context().request.post("/api/test/session", {
 		data: {
 			token,
 			email,
 			displayName: "ExamPull E2E",
 			tier: options.tier ?? "guru",
 			credits: options.credits ?? 500,
+			phoneNumber: options.phoneNumber,
+			authPhoneNumber: options.authPhoneNumber,
+			writeUserDoc: options.writeUserDoc,
+			ageDays: options.ageDays,
 		},
 	});
-	expect(createResponse.status()).toBe(200);
-	const createPayload = (await createResponse.json()) as {
+	expect(response.status()).toBe(200);
+
+	return (await response.json()) as {
 		uid: string;
 		customToken: string;
 		apiKey: string;
 	};
+}
+
+export async function idTokenForCustomToken({
+	customToken,
+	apiKey,
+}: {
+	customToken: string;
+	apiKey: string;
+}) {
 	const identityResponse = await fetch(
-		`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${createPayload.apiKey}`,
+		`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`,
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				token: createPayload.customToken,
+				token: customToken,
 				returnSecureToken: true,
 			}),
 		},
 	);
 	expect(identityResponse.status).toBe(200);
 	const identityPayload = (await identityResponse.json()) as { idToken: string };
+
+	return identityPayload.idToken;
+}
+
+export async function signInAsTestUser(
+	page: Page,
+	email: string,
+	options: { tier?: "free" | "scholar" | "guru"; credits?: number; previewId?: string } = {},
+) {
+	const token = testSignupToken();
+	const createPayload = await createTestAuthUser(page, email, {
+		tier: options.tier,
+		credits: options.credits,
+	});
+	const idToken = await idTokenForCustomToken(createPayload);
 	const sessionResponse = await page.context().request.put("/api/test/session", {
-		data: { token, idToken: identityPayload.idToken, previewId: options.previewId },
+		data: { token, idToken, previewId: options.previewId },
 	});
 	expect(sessionResponse.status()).toBe(200);
 	const sessionPayload = (await sessionResponse.json()) as { claimedExamId?: string };

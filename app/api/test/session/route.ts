@@ -16,6 +16,10 @@ const createSchema = z.object({
 	displayName: z.string().trim().min(1).max(80).default("ExamPull Tester"),
 	tier: z.enum(["free", "scholar", "guru"]).default("guru"),
 	credits: z.number().int().min(0).max(5000).default(500),
+	phoneNumber: z.string().trim().min(8).max(24).optional(),
+	authPhoneNumber: z.boolean().default(false),
+	writeUserDoc: z.boolean().default(true),
+	ageDays: z.number().int().min(0).max(3650).default(0),
 });
 
 const exchangeSchema = z.object({
@@ -60,6 +64,11 @@ export async function POST(request: Request) {
 
 	const uid = uidFromEmail(input.email);
 	const now = Timestamp.now();
+	const accountTimestamp =
+		input.ageDays > 0
+			? Timestamp.fromMillis(now.toMillis() - input.ageDays * 24 * 60 * 60 * 1000)
+			: now;
+	const phoneNumber = input.phoneNumber ?? phoneFromEmail(input.email);
 
 	try {
 		await adminAuth.getUser(uid);
@@ -69,30 +78,33 @@ export async function POST(request: Request) {
 			email: input.email,
 			emailVerified: true,
 			displayName: input.displayName,
+			phoneNumber: input.authPhoneNumber ? phoneNumber : undefined,
 			disabled: false,
 		});
 	}
+	if (input.authPhoneNumber) {
+		await adminAuth.updateUser(uid, { phoneNumber });
+	}
 
-	await adminDb
-		.collection("users")
-		.doc(uid)
-		.set(
+	if (input.writeUserDoc) {
+		const userRef = adminDb.collection("users").doc(uid);
+		await userRef.set(
 			{
 				email: input.email,
 				displayName: input.displayName,
-				phoneNumber: phoneFromEmail(input.email),
+				phoneNumber,
 				tier: input.tier,
 				credits: input.credits,
 				reservedCredits: 0,
 				totalCreditsConsumed: 0,
 				isTestAccount: true,
 				isTestData: true,
-				createdAt: now,
-				lastLoginAt: now,
-				updatedAt: now,
+				createdAt: accountTimestamp,
+				lastLoginAt: accountTimestamp,
+				updatedAt: accountTimestamp,
 				monthlyCreditGrant: {
 					credits: TIER_MONTHLY_CREDITS[input.tier],
-					grantedAt: now,
+					grantedAt: accountTimestamp,
 					tier: input.tier,
 				},
 				notificationPreferences: {
@@ -103,7 +115,18 @@ export async function POST(request: Request) {
 			},
 			{ merge: true },
 		);
-	await ensureReferralCode(uid);
+		await ensureReferralCode(uid);
+		if (input.ageDays > 0) {
+			await userRef.set(
+				{
+					createdAt: accountTimestamp,
+					lastLoginAt: accountTimestamp,
+					updatedAt: accountTimestamp,
+				},
+				{ merge: true },
+			);
+		}
+	}
 
 	const customToken = await adminAuth.createCustomToken(uid, {
 		isTestAccount: true,
