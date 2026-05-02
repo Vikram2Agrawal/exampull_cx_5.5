@@ -55,6 +55,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add notification-center unread badge, click-to-read navigation, individual delete, clear-all APIs/UI, and authenticated event-matrix E2E.
 - [x] Add runtime preview generation kill switch with admin CSRF + re-auth API/UI, landing-page paused state, preview-route enforcement, and audit logging.
 - [x] Add expired anonymous-preview purge worker with Storage artifact cleanup, preview rate-limit cleanup, and authenticated E2E coverage.
+- [x] Add and provision Cloud Scheduler automation for the expired-preview purge worker.
 - [x] Add wizard refresh-resilience E2E covering source details, manual topics, Power Mode controls, per-slot edits, successful queueing, and draft clearing.
 - [x] Add LaTeX 503 retry chaos E2E covering local-only transient compile failures, complete generation, single credit settlement, one QA iteration per artifact, and stored PDFs.
 - [x] Add Stripe tier-snapshot chaos E2E covering a signed cancellation during queued generation while the completed exam preserves Scholar entitlement and exact reserved-credit settlement.
@@ -237,6 +238,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after expired-preview purge worker passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 40 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after expired-preview purge worker passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after expired-preview purge deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
+- Cloud Scheduler automation for expired-preview purge provisioned with `pnpm setup:preview-purge-scheduler`; manual Scheduler invocation logged a `200` response for `/api/workers/purge-expired-previews`.
+- Static/script gate after scheduler provisioning passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 32 unit tests.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

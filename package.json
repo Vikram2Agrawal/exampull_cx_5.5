@@ -16,6 +16,7 @@
 		"test:e2e:prod": "playwright test --config=playwright.prod.config.ts",
 		"eval:run": "tsx eval/run.ts",
 		"eval:suite": "tsx eval/run.ts --suite",
+		"setup:preview-purge-scheduler": "tsx scripts/setup-preview-purge-scheduler.ts",
 		"setup:stripe": "tsx scripts/setup-stripe.ts",
 		"setup:project": "tsx scripts/setup-project.ts",
 		"deploy:latex": "tsx scripts/deploy-latex.ts",

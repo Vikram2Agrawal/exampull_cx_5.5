@@ -12,6 +12,7 @@ const apis = [
 	"firestore.googleapis.com",
 	"run.googleapis.com",
 	"cloudtasks.googleapis.com",
+	"cloudscheduler.googleapis.com",
 	"cloudfunctions.googleapis.com",
 	"cloudbuild.googleapis.com",
 	"storage.googleapis.com",

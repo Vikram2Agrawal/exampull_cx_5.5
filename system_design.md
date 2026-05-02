@@ -1024,7 +1024,7 @@ exampull-exports/
 
 ### Lifecycle Rules
 - Page images deleted after 24 hours
-- Anonymous-uploaded materials AND anonymous-generated exam artifacts deleted together after 30 days as a bundled unit (per main PRD §5.3 / §5.6). The lifecycle job keys on the anonymous UID and purges materials, generated exam PDFs, page images, and the exam metadata document atomically.
+- Anonymous-uploaded materials AND anonymous-generated exam artifacts deleted together after 30 days as a bundled unit (per main PRD §5.3 / §5.6). Cloud Scheduler invokes `/api/workers/purge-expired-previews` daily with the worker OIDC service account; the worker deletes expired preview metadata, associated generated PDFs/page images/source uploads in Storage, and expired preview rate-limit rows in bounded batches.
 - Materials in archived classes move to Nearline after 90 days
 - Account deletion cascade-deletes all user-owned files
 
