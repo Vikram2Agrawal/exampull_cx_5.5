@@ -592,6 +592,9 @@ test("guru user can upload an attempt and complete visual feedback worker", asyn
 				creditsConsumed?: number;
 				visualFeedbackPdfBase64?: string;
 				visualFeedbackPdfStoragePath?: string;
+				visualFeedbackLatex?: string;
+				visualFeedbackSourceMode?: string;
+				visualFeedbackSourceExcerpt?: string;
 			}[];
 		}[];
 	};
@@ -608,6 +611,10 @@ test("guru user can upload an attempt and complete visual feedback worker", asyn
 	expect(completedAttempt?.creditsConsumed).toBe(10);
 	expect(completedAttempt?.visualFeedbackPdfStoragePath).toContain("/visual-feedback.pdf");
 	expect(completedAttempt?.visualFeedbackPdfBase64?.length).toBeGreaterThan(100);
+	expect(completedAttempt?.visualFeedbackSourceMode).toBe("submission_overlay");
+	expect(completedAttempt?.visualFeedbackSourceExcerpt).toContain("Question 1");
+	expect(completedAttempt?.visualFeedbackLatex).toContain("Annotated submitted work");
+	expect(completedAttempt?.visualFeedbackLatex).toContain("Question 1");
 });
 
 test("free user can queue a 12-question Standard exam from manual topics", async ({ page }) => {

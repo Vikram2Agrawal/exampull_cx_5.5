@@ -65,6 +65,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Harden stopguard to block completion on open P0-P2 flows, open tracker items, dirty worktrees, unpushed commits, and behind-upstream branches.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
+- [x] Render Guru visual feedback as an annotated submitted-work PDF with source excerpt and margin-note overlay metadata.
 - [x] Add hash-chained admin audit entries, audit-log read meta-audit records, and audit hash unit coverage.
 - [x] Add build-phase destructive admin re-auth and audit archive replication plumbing for hash-chained audit entries.
 - [ ] Provision a separate deny-delete audit archive bucket/project and passkey/SMS operator re-auth; admin phone/passkey remains deferred by operator direction.
@@ -73,7 +74,6 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 
 - The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
-- Visual annotation now creates a Storage-backed rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
@@ -198,6 +198,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after destructive admin re-auth and audit archive replication passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after destructive admin re-auth and audit archive replication passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after destructive admin re-auth and audit archive deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
+- Focused Guru visual-feedback overlay E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"` with submitted-work overlay metadata, exported LaTeX, Storage-backed PDF, and credit settlement assertions.
+- Full local gate after Guru visual-feedback submitted-work overlay passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

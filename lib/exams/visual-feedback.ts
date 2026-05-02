@@ -1,7 +1,8 @@
 import { storeVisualFeedbackArtifact } from "@/lib/exams/artifacts";
-import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
 import { sanitizeLatex } from "@/lib/latex/sanitize";
+import { extractTextFromPdf } from "@/lib/materials/extract-text";
 
 export type VisualFeedbackInput = {
 	userId: string;
@@ -28,11 +29,13 @@ function buildVisualFeedbackLatex({
 	feedback,
 	score,
 	maxScore,
+	submissionText,
 }: {
 	filename: string;
 	feedback: string;
 	score: number | null;
 	maxScore: number | null;
+	submissionText: string;
 }) {
 	const lines = feedback
 		.split("\n")
@@ -45,6 +48,17 @@ function buildVisualFeedbackLatex({
 			: "\\item Review the missed reasoning steps and compare against the answer key.";
 	const scoreLine =
 		score !== null && maxScore !== null ? `Score: ${score}/${maxScore}` : "Score pending";
+	const submissionLines = submissionText
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.slice(0, 24);
+	const submittedWork =
+		submissionLines.length > 0
+			? submissionLines
+					.map((line) => `${latexEscape(line.slice(0, 120))}\\\\[0.045in]`)
+					.join("\n")
+			: `${latexEscape(`Uploaded answer file: ${filename}`)}\\\\[0.045in]`;
 
 	return sanitizeLatex(String.raw`
 \documentclass[11pt]{article}
@@ -57,18 +71,61 @@ function buildVisualFeedbackLatex({
 {\Large\bfseries ExamPull Visual Feedback}\\
 \vspace{0.08in}
 {\color{annotate}\textbf{${latexEscape(scoreLine)}}}\\
-\vspace{0.12in}
+\vspace{0.1in}
 \textbf{Attempt:} ${latexEscape(filename)}
-\vspace{0.2in}
-\section*{Margin Notes}
+\vspace{0.16in}
+
+\noindent\begin{minipage}[t]{0.66\textwidth}
+\setlength{\fboxsep}{9pt}
+\fcolorbox{annotate}{annotate!4}{%
+\begin{minipage}[t][7.15in][t]{0.92\linewidth}
+{\scriptsize\color{annotate}\textbf{Annotated submitted work}}\\[0.08in]
+{\small\raggedright
+${submittedWork}
+}
+\vfill
+{\scriptsize\color{annotate}Corrections are placed directly beside the work they refer to; use this copy while revising.}
+\end{minipage}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.28\textwidth}
+{\color{annotate}\bfseries Margin Notes}\\[0.08in]
+{\small
 \begin{itemize}[leftmargin=*]
 ${notes}
 \end{itemize}
-\vspace{0.2in}
-\section*{How to use this sheet}
-Mark these notes on the corresponding attempt pages before reworking the exam. Re-answer the highest-impact questions first, then compare against the generated answer key.
+}
+\vspace{0.12in}
+\fcolorbox{annotate}{annotate!8}{%
+\begin{minipage}{0.86\linewidth}
+{\small\color{annotate}\textbf{First fix}}\\
+{\scriptsize Compare the marked reasoning step with the generated answer key, then rewrite the solution below the original line.}
+\end{minipage}}
+\end{minipage}
 \end{document}
 `);
+}
+
+async function submissionTextFromAttempt(attempt: FirebaseFirestore.DocumentSnapshot) {
+	const filename = String(attempt.get("filename") ?? "attempt");
+	const contentType = String(attempt.get("contentType") ?? "");
+	const storagePath = String(attempt.get("storagePath") ?? "");
+
+	if (!storagePath) {
+		return `Uploaded answer file: ${filename}`;
+	}
+
+	if (contentType.startsWith("text/")) {
+		const [buffer] = await adminStorage.bucket().file(storagePath).download();
+		return buffer.toString("utf8").slice(0, 50000);
+	}
+
+	if (contentType === "application/pdf") {
+		const [buffer] = await adminStorage.bucket().file(storagePath).download();
+		return (await extractTextFromPdf(buffer)) || `Uploaded answer file: ${filename}`;
+	}
+
+	return `Uploaded answer file: ${filename}`;
 }
 
 export async function completeVisualFeedback(input: VisualFeedbackInput) {
@@ -98,6 +155,7 @@ export async function completeVisualFeedback(input: VisualFeedbackInput) {
 			typeof attempt.get("score") === "number" ? Number(attempt.get("score")) : null;
 		const maxScore =
 			typeof attempt.get("maxScore") === "number" ? Number(attempt.get("maxScore")) : null;
+		const submissionText = await submissionTextFromAttempt(attempt);
 		const annotations = [
 			{
 				page: 1,
@@ -114,6 +172,7 @@ export async function completeVisualFeedback(input: VisualFeedbackInput) {
 			feedback,
 			score,
 			maxScore,
+			submissionText,
 		});
 		const visualFeedback = await compileLatex({ latex: visualFeedbackLatex });
 		const visualArtifact = await storeVisualFeedbackArtifact({
@@ -137,6 +196,8 @@ export async function completeVisualFeedback(input: VisualFeedbackInput) {
 				visualAnnotationStatus: "complete",
 				visualAnnotationsData: annotations,
 				visualFeedbackLatex,
+				visualFeedbackSourceMode: "submission_overlay",
+				visualFeedbackSourceExcerpt: submissionText.slice(0, 1000),
 				visualFeedbackPdfStoragePath: visualArtifact.pdfStoragePath,
 				visualFeedbackRenderedPageStoragePaths: visualArtifact.pageStoragePaths,
 				visualFeedbackPdfBytes: visualArtifact.pdfBytes,
