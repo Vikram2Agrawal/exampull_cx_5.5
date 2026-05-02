@@ -47,6 +47,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add Mobile Safari Power Mode E2E covering tap reorder controls, range bulk edit, and queued mobile Power Mode creation.
 - [x] Add Scholar Boost two-tab E2E covering atomic once-per-account consumption, included grading, report-window refund, and recovered boost reuse.
 - [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
+- [x] Add referral fraud detection, admin reward override controls/API, and authenticated E2E covering clean rewards, suspicious alias review holds, manual grant, and manual revoke.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -145,6 +146,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Focused Scholar Boost two-tab E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Scholar Boost is atomically"`.
 - Focused signed Stripe billing E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"`.
 - TypeScript verification after signed Stripe billing E2E passed: `pnpm typecheck`.
+- Referral fraud policy unit tests passed: `pnpm exec vitest run tests/referral-policy.test.ts`.
+- Focused referral reward/fraud/admin override E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "referrals reward"`.
+- Full local gate after referral fraud/admin override implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 26 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

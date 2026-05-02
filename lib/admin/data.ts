@@ -59,6 +59,11 @@ export type AdminReferralRow = {
 	referredUserId: string | null;
 	status: string;
 	creditsGranted: number;
+	scholarMonthsGranted: number;
+	guruMonthsGranted: number;
+	suspicious: boolean;
+	suspiciousReasons: string[];
+	reviewStatus: string;
 	createdAt: string;
 };
 
@@ -245,6 +250,13 @@ export async function listAdminReferrals(limit = 100): Promise<AdminReferralRow[
 			typeof doc.get("referredUserId") === "string" ? doc.get("referredUserId") : null,
 		status: text(doc.get("status"), "pending"),
 		creditsGranted: Number(doc.get("creditsGranted") ?? 0),
+		scholarMonthsGranted: Number(doc.get("scholarMonthsGranted") ?? 0),
+		guruMonthsGranted: Number(doc.get("guruMonthsGranted") ?? 0),
+		suspicious: doc.get("suspicious") === true,
+		suspiciousReasons: Array.isArray(doc.get("suspiciousReasons"))
+			? doc.get("suspiciousReasons").filter((reason: unknown) => typeof reason === "string")
+			: [],
+		reviewStatus: text(doc.get("reviewStatus"), "none"),
 		createdAt: isoDate(doc.get("createdAt")),
 	}));
 }

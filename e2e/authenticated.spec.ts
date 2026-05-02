@@ -79,6 +79,61 @@ async function postSignedStripeEvent(page: Page, event: Record<string, unknown>)
 	});
 }
 
+async function resumeExistingTestUser(page: Page, email: string) {
+	const createPayload = await createTestAuthUser(page, email, {
+		writeUserDoc: false,
+	});
+	const idToken = await idTokenForCustomToken(createPayload);
+	const sessionResponse = await page.context().request.put("/api/test/session", {
+		data: { token: testSignupToken(), idToken },
+	});
+	expect(sessionResponse.status()).toBe(200);
+
+	return createPayload.uid;
+}
+
+async function signUpWithReferral(page: Page, email: string, referralCode: string) {
+	const createPayload = await createTestAuthUser(page, email, {
+		authPhoneNumber: true,
+		writeUserDoc: false,
+	});
+	const idToken = await idTokenForCustomToken(createPayload);
+	const response = await page.context().request.post("/api/auth/session", {
+		data: {
+			idToken,
+			mode: "signup",
+			displayName: "Referral Friend",
+			testSignupToken: testSignupToken(),
+			referralCode,
+		},
+	});
+	expect(response.status()).toBe(200);
+
+	return createPayload.uid;
+}
+
+async function signInAsAdminAgent(page: Page) {
+	const password = envValue("ADMIN_AGENT_PASSWORD");
+	expect(password, "ADMIN_AGENT_PASSWORD must be set for admin E2E").toBeTruthy();
+	const response = await page.context().request.post("/api/admin/auth/agent", {
+		data: { password },
+	});
+	expect(response.status()).toBe(200);
+}
+
+async function queueOneQuestionExam(page: Page, title: string) {
+	const response = await page.context().request.post("/api/exams", {
+		data: {
+			title,
+			className: "Referral Biology",
+			topics: ["Mitosis checkpoints"],
+			questionCount: 1,
+			mode: "standard",
+		},
+	});
+	expect(response.status()).toBe(201);
+}
+
 test.skip(
 	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
 	"Authenticated test-session API is disabled for this target.",
@@ -1344,6 +1399,159 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 			expect.objectContaining({ title: "Credits added", kind: "billing" }),
 			expect.objectContaining({ title: "Monthly credits refreshed", kind: "billing" }),
 			expect.objectContaining({ title: "Subscription updated", kind: "billing" }),
+		]),
+	);
+});
+
+test("referrals reward real conversions, flag suspicious aliases, and allow admin overrides", async ({
+	page,
+}) => {
+	const suffix = Date.now();
+	const aliasBase = `referral-alias-${suffix}`;
+	const referrerEmail = `${aliasBase}+owner@exampull.test`;
+	const { uid: referrerUid } = await signInAsTestUser(page, referrerEmail, {
+		tier: "free",
+		credits: 40,
+	});
+
+	const initialExportResponse = await page.context().request.get("/api/settings/export");
+	expect(initialExportResponse.status()).toBe(200);
+	const initialExport = (await initialExportResponse.json()) as {
+		profile: { referralCode?: string; credits?: number; tier?: string } | null;
+	};
+	const referralCode = initialExport.profile?.referralCode;
+	expect(referralCode).toBeTruthy();
+
+	const happyReferredUid = await signUpWithReferral(
+		page,
+		`referral-friend-${suffix}@exampull.test`,
+		referralCode ?? "",
+	);
+	await queueOneQuestionExam(page, "Referral first exam reward");
+	expect(
+		(
+			await postSignedStripeEvent(page, {
+				id: `evt_referral_paid_${suffix}`,
+				object: "event",
+				type: "checkout.session.completed",
+				data: {
+					object: {
+						id: `cs_referral_paid_${suffix}`,
+						object: "checkout.session",
+						customer: `cus_referral_${suffix}`,
+						subscription: `sub_referral_${suffix}`,
+						metadata: {
+							userId: happyReferredUid,
+							purchaseType: "subscription",
+							tier: "guru",
+							interval: "month",
+						},
+					},
+				},
+			})
+		).status(),
+	).toBe(200);
+
+	await resumeExistingTestUser(page, referrerEmail);
+	const rewardedExportResponse = await page.context().request.get("/api/settings/export");
+	expect(rewardedExportResponse.status()).toBe(200);
+	const rewardedExport = (await rewardedExportResponse.json()) as {
+		profile: {
+			credits?: number;
+			tier?: string;
+			referralScholarMonthsEarned?: number;
+			referralGuruMonthsEarned?: number;
+		} | null;
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(rewardedExport.profile?.tier).toBe("guru");
+	expect(rewardedExport.profile?.credits).toBe(4440);
+	expect(rewardedExport.profile?.referralScholarMonthsEarned).toBe(1);
+	expect(rewardedExport.profile?.referralGuruMonthsEarned).toBe(1);
+	expect(rewardedExport.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ title: "Referral signed up", kind: "referral" }),
+			expect.objectContaining({ title: "Referral reward earned", kind: "referral" }),
+			expect.objectContaining({ title: "Referral upgraded", kind: "referral" }),
+		]),
+	);
+
+	const suspiciousReferredUid = await signUpWithReferral(
+		page,
+		`${aliasBase}+friend@exampull.test`,
+		referralCode ?? "",
+	);
+	await queueOneQuestionExam(page, "Suspicious referral held for review");
+	await resumeExistingTestUser(page, referrerEmail);
+	const heldExportResponse = await page.context().request.get("/api/settings/export");
+	expect(heldExportResponse.status()).toBe(200);
+	const heldExport = (await heldExportResponse.json()) as {
+		profile: { credits?: number; referralScholarMonthsEarned?: number } | null;
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(heldExport.profile?.credits).toBe(4440);
+	expect(heldExport.profile?.referralScholarMonthsEarned).toBe(1);
+	expect(heldExport.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ title: "Referral under review", kind: "referral" }),
+		]),
+	);
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/referrals");
+	const suspiciousReferralRow = page.getByRole("row").filter({ hasText: suspiciousReferredUid });
+	await expect(suspiciousReferralRow).toBeVisible();
+	await expect(suspiciousReferralRow.getByText("same_email_alias")).toBeVisible();
+
+	const suspiciousReferralId = `${referrerUid}_${suspiciousReferredUid}`;
+	const grantResponse = await page
+		.context()
+		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
+			data: {
+				action: "grant_scholar",
+				reason: "Verified as a real classmate after review.",
+			},
+		});
+	expect(grantResponse.status()).toBe(200);
+	const grantedExportResponse = await page.context().request.get("/api/settings/export");
+	expect(grantedExportResponse.status()).toBe(200);
+	const grantedExport = (await grantedExportResponse.json()) as {
+		profile: { credits?: number; tier?: string; referralScholarMonthsEarned?: number } | null;
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(grantedExport.profile?.tier).toBe("guru");
+	expect(grantedExport.profile?.credits).toBe(4840);
+	expect(grantedExport.profile?.referralScholarMonthsEarned).toBe(2);
+	expect(grantedExport.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				title: "Referral reward manually granted",
+				kind: "referral",
+			}),
+		]),
+	);
+
+	const revokeResponse = await page
+		.context()
+		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
+			data: {
+				action: "revoke_scholar",
+				reason: "Confirmed referral abuse after manual review.",
+			},
+		});
+	expect(revokeResponse.status()).toBe(200);
+	const revokedExportResponse = await page.context().request.get("/api/settings/export");
+	expect(revokedExportResponse.status()).toBe(200);
+	const revokedExport = (await revokedExportResponse.json()) as {
+		profile: { credits?: number; tier?: string; referralScholarMonthsEarned?: number } | null;
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(revokedExport.profile?.tier).toBe("guru");
+	expect(revokedExport.profile?.credits).toBe(4440);
+	expect(revokedExport.profile?.referralScholarMonthsEarned).toBe(1);
+	expect(revokedExport.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ title: "Referral reward revoked", kind: "referral" }),
 		]),
 	);
 });

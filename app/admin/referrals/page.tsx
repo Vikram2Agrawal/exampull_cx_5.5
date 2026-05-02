@@ -1,4 +1,5 @@
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
+import { ReferralOverrideControls } from "@/components/admin/referral-override-controls";
 import { listAdminReferrals } from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,15 @@ export default async function AdminReferralsPage() {
 			<AdminTable
 				title="Referrals"
 				description="Referral funnel, reward grants, suspicious patterns, and manual overrides."
-				headers={["Referrer", "Referred", "Status", "Credits", "Created"]}
+				headers={[
+					"Referrer",
+					"Referred",
+					"Status",
+					"Rewards",
+					"Review",
+					"Created",
+					"Override",
+				]}
 				empty="No referrals yet."
 				rows={referrals.map((referral) => ({
 					key: referral.id,
@@ -28,8 +37,19 @@ export default async function AdminReferralsPage() {
 						referral.referrerUserId,
 						referral.referredUserId ?? "--",
 						referral.status,
-						referral.creditsGranted,
+						`${referral.creditsGranted} credits; ${referral.scholarMonthsGranted} Scholar; ${referral.guruMonthsGranted} Guru`,
+						referral.suspicious ? (
+							<span key={`${referral.id}-review`} className="text-amber-700">
+								{referral.reviewStatus}: {referral.suspiciousReasons.join(", ")}
+							</span>
+						) : (
+							referral.reviewStatus
+						),
 						dateLabel(referral.createdAt),
+						<ReferralOverrideControls
+							key={`${referral.id}-override`}
+							referralId={referral.id}
+						/>,
 					],
 				}))}
 			/>
