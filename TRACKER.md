@@ -306,6 +306,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after Featurebase/customer-voice deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 48 local-only authenticated/quality specs skipped.
 - Focused admin communications composer verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin communications composer"` with URL allowlist rejection, re-authenticated single-user email/in-app send, outbound rows, recipient notification, and bounded broadcast.
 - Full local gate after admin communications composer passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 47 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after admin communications composer passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after admin communications composer deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 49 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
