@@ -35,6 +35,19 @@ async function hmac(secret: string, data: string) {
 	return new Uint8Array(signature);
 }
 
+function constantTimeEqual(left: Uint8Array, right: Uint8Array) {
+	if (left.length !== right.length) {
+		return false;
+	}
+
+	let diff = 0;
+	for (let index = 0; index < left.length; index += 1) {
+		diff |= left[index] ^ right[index];
+	}
+
+	return diff === 0;
+}
+
 export function adminSecret() {
 	return (
 		process.env.ADMIN_SECRET || process.env.ADMIN_AGENT_PASSWORD || "build-phase-admin-secret"
@@ -55,6 +68,35 @@ export async function createAdminSessionToken(secret = adminSecret()) {
 	return `${encodedPayload}.${base64UrlEncode(signature)}`;
 }
 
+export async function createAdminCsrfToken(sessionToken: string, secret = adminSecret()) {
+	const signature = await hmac(secret, `admin-csrf:${sessionToken}`);
+
+	return base64UrlEncode(signature);
+}
+
+export async function verifyAdminCsrfToken({
+	sessionToken,
+	csrfToken,
+	secret = adminSecret(),
+}: {
+	sessionToken: string;
+	csrfToken: string | null;
+	secret?: string;
+}) {
+	if (!csrfToken) {
+		return false;
+	}
+
+	try {
+		const expected = await hmac(secret, `admin-csrf:${sessionToken}`);
+		const actual = base64UrlDecode(csrfToken);
+
+		return constantTimeEqual(expected, actual);
+	} catch {
+		return false;
+	}
+}
+
 export async function verifyAdminSessionToken(token: string | undefined, secret = adminSecret()) {
 	if (!token) {
 		return null;
@@ -73,12 +115,7 @@ export async function verifyAdminSessionToken(token: string | undefined, secret 
 		return null;
 	}
 
-	let diff = 0;
-	for (let index = 0; index < expected.length; index += 1) {
-		diff |= expected[index] ^ actual[index];
-	}
-
-	if (diff !== 0) {
+	if (!constantTimeEqual(expected, actual)) {
 		return null;
 	}
 

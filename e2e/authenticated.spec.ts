@@ -121,6 +121,16 @@ async function signInAsAdminAgent(page: Page) {
 	expect(response.status()).toBe(200);
 }
 
+async function adminCsrfTokenFromPage(page: Page) {
+	const token = await page
+		.locator("[data-admin-csrf-token]")
+		.first()
+		.getAttribute("data-admin-csrf-token");
+	expect(token, "Admin shell must expose a CSRF token for write APIs.").toBeTruthy();
+
+	return token ?? "";
+}
+
 async function queueOneQuestionExam(page: Page, title: string) {
 	const response = await page.context().request.post("/api/exams", {
 		data: {
@@ -220,6 +230,26 @@ test("settings shows synced linked auth sources without duplicate account state"
 			}),
 		]),
 	);
+});
+
+test("admin write APIs reject missing or invalid CSRF tokens", async ({ page }) => {
+	await signInAsAdminAgent(page);
+	const missingTokenResponse = await page
+		.context()
+		.request.patch("/api/admin/triage/feedback/csrf-probe", {
+			data: { status: "reviewing" },
+		});
+	expect(missingTokenResponse.status()).toBe(403);
+
+	await page.goto("/admin/abuse");
+	await adminCsrfTokenFromPage(page);
+	const invalidTokenResponse = await page
+		.context()
+		.request.patch("/api/admin/triage/feedback/csrf-probe", {
+			headers: { "x-admin-csrf-token": "invalid" },
+			data: { status: "reviewing" },
+		});
+	expect(invalidTokenResponse.status()).toBe(403);
 });
 
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
@@ -1747,6 +1777,7 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 
 	await signInAsAdminAgent(page);
 	await page.goto("/admin/referrals");
+	const adminCsrfToken = await adminCsrfTokenFromPage(page);
 	const suspiciousReferralRow = page.getByRole("row").filter({ hasText: suspiciousReferredUid });
 	await expect(suspiciousReferralRow).toBeVisible();
 	await expect(suspiciousReferralRow.getByText("same_email_alias")).toBeVisible();
@@ -1755,6 +1786,7 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 	const grantResponse = await page
 		.context()
 		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
+			headers: { "x-admin-csrf-token": adminCsrfToken },
 			data: {
 				action: "grant_scholar",
 				reason: "Verified as a real classmate after review.",
@@ -1782,6 +1814,7 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 	const revokeResponse = await page
 		.context()
 		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
+			headers: { "x-admin-csrf-token": adminCsrfToken },
 			data: {
 				action: "revoke_scholar",
 				reason: "Confirmed referral abuse after manual review.",

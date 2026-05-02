@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useAdminCsrfToken } from "@/components/admin/admin-csrf";
 import { Button } from "@/components/ui/button";
 
 export function CreditGrantForm() {
+	const csrfToken = useAdminCsrfToken();
 	const router = useRouter();
 	const [userId, setUserId] = useState("");
 	const [amount, setAmount] = useState("20");
@@ -18,7 +20,10 @@ export function CreditGrantForm() {
 				const parsedAmount = Number.parseInt(amount, 10);
 				const response = await fetch(`/api/admin/users/${userId}/credits`, {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"x-admin-csrf-token": csrfToken,
+					},
 					body: JSON.stringify({ amount: parsedAmount, reason }),
 				});
 				const body = (await response.json().catch(() => ({}))) as { error?: string };

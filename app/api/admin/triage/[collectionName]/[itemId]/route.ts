@@ -22,7 +22,7 @@ export async function PATCH(
 	request: Request,
 	{ params }: { params: Promise<{ collectionName: string; itemId: string }> },
 ) {
-	const authError = await requireAdminApiSession();
+	const authError = await requireAdminApiSession(request, { requireCsrf: true });
 	if (authError) {
 		return authError;
 	}

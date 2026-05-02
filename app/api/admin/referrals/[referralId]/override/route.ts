@@ -21,7 +21,7 @@ export async function PATCH(
 	request: Request,
 	{ params }: { params: Promise<{ referralId: string }> },
 ) {
-	const authError = await requireAdminApiSession();
+	const authError = await requireAdminApiSession(request, { requireCsrf: true });
 	if (authError) {
 		return authError;
 	}

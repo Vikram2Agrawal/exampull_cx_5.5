@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useAdminCsrfToken } from "@/components/admin/admin-csrf";
 import { Button } from "@/components/ui/button";
 
 const actions = [
@@ -14,6 +15,7 @@ const actions = [
 ] as const;
 
 export function ReferralOverrideControls({ referralId }: { referralId: string }) {
+	const csrfToken = useAdminCsrfToken();
 	const router = useRouter();
 	const [action, setAction] = useState<(typeof actions)[number]["value"]>("mark_reviewed");
 	const [reason, setReason] = useState("");
@@ -25,7 +27,10 @@ export function ReferralOverrideControls({ referralId }: { referralId: string })
 			try {
 				const response = await fetch(`/api/admin/referrals/${referralId}/override`, {
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"x-admin-csrf-token": csrfToken,
+					},
 					body: JSON.stringify({ action, reason }),
 				});
 				const body = (await response.json().catch(() => ({}))) as { error?: string };

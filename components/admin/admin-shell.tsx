@@ -11,6 +11,9 @@ import {
 	ShieldCheck,
 	Users,
 } from "lucide-react";
+import { cookies } from "next/headers";
+import { AdminCsrfProvider } from "@/components/admin/admin-csrf";
+import { createAdminCsrfToken } from "@/lib/admin/session";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -26,59 +29,79 @@ const nav = [
 	{ href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck },
 ] as const;
 
-export function AdminShell({ children, active }: { children: React.ReactNode; active: string }) {
-	return (
-		<div className="min-h-screen bg-slate-50 text-slate-950">
-			<aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
-				<div className="flex h-16 items-center gap-2 border-b border-slate-200 px-5 font-semibold">
-					<span className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-white">
-						E
-					</span>
-					Admin
-				</div>
-				<nav className="space-y-1 p-3" aria-label="Admin sections">
-					{nav.map((item) => {
-						const Icon = item.icon;
+async function currentAdminCsrfToken() {
+	const cookieStore = await cookies();
+	const sessionToken = cookieStore.get("admin_session")?.value;
 
-						return (
-							<a
-								key={item.href}
-								href={item.href}
-								className={cn(
-									"flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-									active === item.label && "bg-slate-100 text-slate-950",
-								)}
-							>
-								<Icon aria-hidden="true" size={16} />
-								{item.label}
-							</a>
-						);
-					})}
-				</nav>
-			</aside>
-			<div className="lg:pl-64">
-				<header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
-					<label className="relative w-full max-w-lg">
-						<Search
-							aria-hidden="true"
-							className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-							size={16}
-						/>
-						<input
-							aria-label="Admin search"
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-slate-950"
-							placeholder="Search users, exams, share links"
-						/>
-					</label>
-					<span className="ml-4 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
-						Agent session
-					</span>
-				</header>
-				<main id="main-content" className="p-4 lg:p-6">
-					{children}
-				</main>
+	return sessionToken ? createAdminCsrfToken(sessionToken) : "";
+}
+
+export async function AdminShell({
+	children,
+	active,
+}: {
+	children: React.ReactNode;
+	active: string;
+}) {
+	const csrfToken = await currentAdminCsrfToken();
+
+	return (
+		<AdminCsrfProvider token={csrfToken}>
+			<div
+				className="min-h-screen bg-slate-50 text-slate-950"
+				data-admin-csrf-token={csrfToken}
+			>
+				<aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
+					<div className="flex h-16 items-center gap-2 border-b border-slate-200 px-5 font-semibold">
+						<span className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-white">
+							E
+						</span>
+						Admin
+					</div>
+					<nav className="space-y-1 p-3" aria-label="Admin sections">
+						{nav.map((item) => {
+							const Icon = item.icon;
+
+							return (
+								<a
+									key={item.href}
+									href={item.href}
+									className={cn(
+										"flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+										active === item.label && "bg-slate-100 text-slate-950",
+									)}
+								>
+									<Icon aria-hidden="true" size={16} />
+									{item.label}
+								</a>
+							);
+						})}
+					</nav>
+				</aside>
+				<div className="lg:pl-64">
+					<header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+						<label className="relative w-full max-w-lg">
+							<Search
+								aria-hidden="true"
+								className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+								size={16}
+							/>
+							<input
+								aria-label="Admin search"
+								className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-slate-950"
+								placeholder="Search users, exams, share links"
+							/>
+						</label>
+						<span className="ml-4 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
+							Agent session
+						</span>
+					</header>
+					<main id="main-content" className="p-4 lg:p-6">
+						{children}
+					</main>
+				</div>
 			</div>
-		</div>
+		</AdminCsrfProvider>
 	);
 }
 

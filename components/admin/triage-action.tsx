@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useAdminCsrfToken } from "@/components/admin/admin-csrf";
 
 export function TriageAction({
 	collectionName,
@@ -12,6 +13,7 @@ export function TriageAction({
 	itemId: string;
 	currentStatus: string;
 }) {
+	const csrfToken = useAdminCsrfToken();
 	const router = useRouter();
 	const [status, setStatus] = useState(currentStatus);
 	const [isPending, startTransition] = useTransition();
@@ -21,7 +23,10 @@ export function TriageAction({
 		startTransition(async () => {
 			await fetch(`/api/admin/triage/${collectionName}/${itemId}`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					"x-admin-csrf-token": csrfToken,
+				},
 				body: JSON.stringify({ status: nextStatus }),
 			});
 			router.refresh();
