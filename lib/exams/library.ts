@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
+import { type EmailStatus, sendTransactionalEmail } from "@/lib/email/transactional";
 import { publicBaseUrl } from "@/lib/env";
 import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
@@ -10,6 +11,7 @@ import { createUserNotification } from "@/lib/user/data";
 
 const shareCollection = adminDb.collection("share_links");
 const abuseCollection = adminDb.collection("abuseReports");
+const shareAnswerKeyGraceMs = 7 * 24 * 60 * 60 * 1000;
 
 export const examUpdateSchema = z.object({
 	bookmarked: z.boolean().optional(),
@@ -129,6 +131,23 @@ async function ownerCanExposeAnswerKey(ownerUid: string) {
 	const ownerSnapshot = await adminDb.collection("users").doc(ownerUid).get();
 
 	return paidTier(ownerSnapshot.get("tier"));
+}
+
+async function shareCanExposeAnswerKey(
+	shareSnapshot: FirebaseFirestore.DocumentSnapshot,
+	ownerUid: string,
+) {
+	if (shareSnapshot.get("includeAnswerKey") !== true) {
+		return false;
+	}
+
+	if (await ownerCanExposeAnswerKey(ownerUid)) {
+		return true;
+	}
+
+	const graceUntil = shareSnapshot.get("answerKeyGraceUntil");
+
+	return graceUntil instanceof Timestamp && graceUntil.toMillis() > Date.now();
 }
 
 async function pdfBase64FromData(data: FirebaseFirestore.DocumentData, type: "exam" | "answer") {
@@ -661,9 +680,7 @@ export async function getSharedExam(shareId: string): Promise<SharedExam | null>
 
 	const data = snapshot.data() ?? {};
 	const answerKeyAvailable =
-		shareSnapshot.get("includeAnswerKey") === true &&
-		(await ownerCanExposeAnswerKey(ownerUid)) &&
-		pdfReady(data, "answer");
+		(await shareCanExposeAnswerKey(shareSnapshot, ownerUid)) && pdfReady(data, "answer");
 
 	return {
 		shareId,
@@ -702,11 +719,7 @@ export async function getSharedExamPdf(shareId: string, type: "exam" | "answer" 
 
 	const data = snapshot.data() ?? {};
 
-	if (
-		type === "answer" &&
-		(shareSnapshot.get("includeAnswerKey") !== true ||
-			!(await ownerCanExposeAnswerKey(ownerUid)))
-	) {
+	if (type === "answer" && !(await shareCanExposeAnswerKey(shareSnapshot, ownerUid))) {
 		return null;
 	}
 
@@ -825,6 +838,155 @@ export async function reportSharedExam(shareId: string, input: ShareReportInput)
 	});
 
 	return { reportId: reportRef.id };
+}
+
+function communicationBody({
+	graceUntil,
+	links,
+}: {
+	graceUntil: Date;
+	links: { title: string; url: string }[];
+}) {
+	const linkLines = links.map((link) => `- ${link.title}: ${link.url}`).join("\n");
+	const deadline = graceUntil.toISOString();
+
+	return `Your subscription changed to Free, so answer keys on shared exams will stop being available after ${deadline}.\n\nThe student-copy PDFs stay available. These share links are affected:\n${linkLines}\n\nUpgrade again before the deadline to keep answer-key access active on those links.`;
+}
+
+export async function startShareAnswerKeyDowngradeGrace({
+	userId,
+	noticeKey,
+}: {
+	userId: string;
+	noticeKey: string;
+}) {
+	const userRef = adminDb.collection("users").doc(userId);
+	const userSnapshot = await userRef.get();
+
+	if (!userSnapshot.exists) {
+		return { notified: false, shareCount: 0 };
+	}
+
+	const snapshot = await shareCollection
+		.where("ownerUid", "==", userId)
+		.where("includeAnswerKey", "==", true)
+		.where("revoked", "==", false)
+		.limit(100)
+		.get();
+	const graceUntil = new Date(Date.now() + shareAnswerKeyGraceMs);
+	const graceUntilTimestamp = Timestamp.fromDate(graceUntil);
+	const now = Timestamp.now();
+	const links: { id: string; title: string; url: string }[] = [];
+
+	for (const shareDoc of snapshot.docs) {
+		if (shareDoc.get("answerKeyDowngradeNoticeKey") === noticeKey) {
+			continue;
+		}
+
+		const existingGraceUntil = shareDoc.get("answerKeyGraceUntil");
+		if (existingGraceUntil instanceof Timestamp && existingGraceUntil.toMillis() > Date.now()) {
+			continue;
+		}
+
+		const examId = shareDoc.get("examId");
+		if (typeof examId !== "string") {
+			continue;
+		}
+
+		const examSnapshot = await examRef(userId, examId).get();
+		if (!examSnapshot.exists || !pdfReady(examSnapshot.data() ?? {}, "answer")) {
+			continue;
+		}
+
+		links.push({
+			id: shareDoc.id,
+			title:
+				typeof examSnapshot.get("title") === "string"
+					? examSnapshot.get("title")
+					: "Shared practice exam",
+			url: `${publicBaseUrl()}/share/${shareDoc.id}`,
+		});
+	}
+
+	if (links.length === 0) {
+		return { notified: false, shareCount: 0 };
+	}
+
+	const batch = adminDb.batch();
+
+	for (const link of links) {
+		batch.set(
+			shareCollection.doc(link.id),
+			{
+				answerKeyGraceUntil: graceUntilTimestamp,
+				answerKeyGraceStartedAt: now,
+				answerKeyDowngradeNoticeKey: noticeKey,
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+	}
+
+	batch.set(
+		userRef,
+		{
+			shareAnswerKeyGraceUntil: graceUntilTimestamp,
+			shareAnswerKeyGraceNoticeKey: noticeKey,
+			updatedAt: now,
+		},
+		{ merge: true },
+	);
+	await batch.commit();
+
+	const subject = "Share answer keys changing";
+	const body = communicationBody({ graceUntil, links });
+	const userEmail =
+		typeof userSnapshot.get("email") === "string" ? userSnapshot.get("email") : null;
+	const isTestData = userSnapshot.get("isTestAccount") === true;
+	let emailResult: { status: EmailStatus; providerId: string | null; errorMessage?: string };
+
+	try {
+		emailResult = await sendTransactionalEmail({
+			to: userEmail,
+			subject,
+			text: body,
+			testMode: isTestData,
+		});
+	} catch (error) {
+		emailResult = {
+			status: "failed",
+			providerId: null,
+			errorMessage: error instanceof Error ? error.message : "Email send failed.",
+		};
+	}
+
+	await Promise.all([
+		createUserNotification({
+			userId,
+			title: subject,
+			body: `${links.length} shared answer key${links.length === 1 ? "" : "s"} will stay available for 7 days after your downgrade.`,
+			kind: "share",
+			href: "/notifications",
+		}),
+		adminDb.collection("communications").add({
+			userId,
+			email: userEmail,
+			kind: "share_link_feature_change",
+			channel: "email",
+			subject,
+			body,
+			status: emailResult.status,
+			providerId: emailResult.providerId,
+			errorMessage: emailResult.errorMessage ?? null,
+			shareIds: links.map((link) => link.id),
+			shareCount: links.length,
+			isTestData,
+			createdAt: Timestamp.now(),
+			updatedAt: Timestamp.now(),
+		}),
+	]);
+
+	return { notified: true, shareCount: links.length };
 }
 
 export async function getExamPdfForUser({

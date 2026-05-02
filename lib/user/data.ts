@@ -300,6 +300,15 @@ async function collectionToJson(
 	}));
 }
 
+async function queryToJson(query: FirebaseFirestore.Query): Promise<ExportedDocument[]> {
+	const snapshot = await query.get();
+
+	return snapshot.docs.map((doc) => ({
+		...doc.data(),
+		id: doc.id,
+	}));
+}
+
 async function exportedPdfBase64(
 	exam: ExportedDocument,
 	inlineField: InlinePdfField,
@@ -348,13 +357,15 @@ async function attemptWithExportedArtifacts(attempt: ExportedDocument): Promise<
 
 export async function exportUserData(userId: string) {
 	const base = userRef(userId);
-	const [profile, rawExams, classes, examUploads, notifications] = await Promise.all([
-		base.get(),
-		collectionToJson(base.collection("exams")),
-		collectionToJson(base.collection("classes")),
-		collectionToJson(base.collection("examUploads")),
-		collectionToJson(base.collection("notifications")),
-	]);
+	const [profile, rawExams, classes, examUploads, notifications, communications] =
+		await Promise.all([
+			base.get(),
+			collectionToJson(base.collection("exams")),
+			collectionToJson(base.collection("classes")),
+			collectionToJson(base.collection("examUploads")),
+			collectionToJson(base.collection("notifications")),
+			queryToJson(adminDb.collection("communications").where("userId", "==", userId)),
+		]);
 	const exams = await Promise.all(rawExams.map(examWithExportedArtifacts));
 
 	const classMaterials = await Promise.all(
@@ -393,12 +404,31 @@ export async function exportUserData(userId: string) {
 		classMaterials,
 		examUploads,
 		notifications,
+		communications,
 	};
 }
 
 async function deleteCollection(collection: FirebaseFirestore.CollectionReference) {
 	for (;;) {
 		const snapshot = await collection.limit(450).get();
+
+		if (snapshot.empty) {
+			return;
+		}
+
+		const batch = adminDb.batch();
+
+		for (const doc of snapshot.docs) {
+			batch.delete(doc.ref);
+		}
+
+		await batch.commit();
+	}
+}
+
+async function deleteQuery(query: FirebaseFirestore.Query) {
+	for (;;) {
+		const snapshot = await query.limit(450).get();
 
 		if (snapshot.empty) {
 			return;
@@ -438,6 +468,7 @@ export async function deleteUserAccount(user: CurrentUser) {
 			deleteCollection(base.collection(collectionName)),
 		),
 	);
+	await deleteQuery(adminDb.collection("communications").where("userId", "==", user.uid));
 
 	await adminDb.collection("accountDeletions").add({
 		userId: user.uid,

@@ -50,6 +50,11 @@ const requestSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("expired_preview"),
 		previewId: z.string().trim().min(1).max(120).optional(),
 	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("expire_share_answer_key_grace"),
+		shareId: z.string().trim().min(1).max(160),
+	}),
 ]);
 
 function assertEnabled(token: string) {
@@ -239,6 +244,25 @@ export async function POST(request: Request) {
 			});
 
 		return NextResponse.json({ previewId });
+	}
+
+	if (input.kind === "expire_share_answer_key_grace") {
+		const shareRef = adminDb.collection("share_links").doc(input.shareId);
+		const shareSnapshot = await shareRef.get();
+
+		if (!shareSnapshot.exists || shareSnapshot.get("ownerUid") !== user.uid) {
+			return NextResponse.json({ error: "Share link not found." }, { status: 404 });
+		}
+
+		await shareRef.set(
+			{
+				answerKeyGraceUntil: Timestamp.fromMillis(Date.now() - 60_000),
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+
+		return NextResponse.json({ shareId: input.shareId });
 	}
 
 	const attemptId = randomUUID();

@@ -2073,6 +2073,16 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 		},
 	};
 	expect((await postSignedStripeEvent(page, downgrade)).status()).toBe(200);
+	const sharedExamId = await seedExam(page, `Downgrade grace shared exam ${suffix}`);
+	const shareResponse = await page.context().request.post(`/api/exams/${sharedExamId}/share`, {
+		data: { includeAnswerKey: true },
+	});
+	expect(shareResponse.status()).toBe(201);
+	const sharePayload = (await shareResponse.json()) as { shareId: string };
+	const answerKeyBeforeCancel = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerKeyBeforeCancel.status()).toBe(200);
 
 	const cancelled = {
 		id: `evt_sub_cancel_${suffix}`,
@@ -2091,6 +2101,22 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 		},
 	};
 	expect((await postSignedStripeEvent(page, cancelled)).status()).toBe(200);
+	const answerKeyDuringGrace = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerKeyDuringGrace.status()).toBe(200);
+	const expireGraceResponse = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "expire_share_answer_key_grace",
+			shareId: sharePayload.shareId,
+		},
+	});
+	expect(expireGraceResponse.status()).toBe(200);
+	const answerKeyAfterGrace = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerKeyAfterGrace.status()).toBe(404);
 
 	const exportResponse = await page.context().request.get("/api/settings/export");
 	expect(exportResponse.status()).toBe(200);
@@ -2103,6 +2129,7 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 			stripeSubscriptionId?: string;
 		} | null;
 		notifications: { title?: string; kind?: string }[];
+		communications: { kind?: string; status?: string; shareIds?: string[] }[];
 	};
 	expect(exportPayload.profile?.tier).toBe("free");
 	expect(exportPayload.profile?.credits).toBe(8100);
@@ -2115,6 +2142,16 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 			expect.objectContaining({ title: "Credits added", kind: "billing" }),
 			expect.objectContaining({ title: "Monthly credits refreshed", kind: "billing" }),
 			expect.objectContaining({ title: "Subscription updated", kind: "billing" }),
+			expect.objectContaining({ title: "Share answer keys changing", kind: "share" }),
+		]),
+	);
+	expect(exportPayload.communications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				kind: "share_link_feature_change",
+				status: "skipped_test",
+				shareIds: [sharePayload.shareId],
+			}),
 		]),
 	);
 });

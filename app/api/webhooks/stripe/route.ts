@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripeClient } from "@/lib/billing/stripe";
 import { env } from "@/lib/env";
+import { startShareAnswerKeyDowngradeGrace } from "@/lib/exams/library";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { TIER_MONTHLY_CREDITS, type Tier } from "@/lib/product/constants";
 import { applyReferralPaidReward } from "@/lib/referrals";
@@ -111,18 +112,19 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 		return;
 	}
 
-	await adminDb
-		.collection("users")
-		.doc(userId)
-		.set(
-			{
-				tier: subscription.status === "active" ? tier : "free",
-				subscriptionStatus: subscription.status,
-				stripeSubscriptionId: subscription.id,
-				updatedAt: Timestamp.now(),
-			},
-			{ merge: true },
-		);
+	const userRef = adminDb.collection("users").doc(userId);
+	const userSnapshot = await userRef.get();
+	const previousTier = userSnapshot.get("tier");
+	const nextTier = subscription.status === "active" ? tier : "free";
+	await userRef.set(
+		{
+			tier: nextTier,
+			subscriptionStatus: subscription.status,
+			stripeSubscriptionId: subscription.id,
+			updatedAt: Timestamp.now(),
+		},
+		{ merge: true },
+	);
 	await createUserNotification({
 		userId,
 		title: "Subscription updated",
@@ -133,6 +135,13 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 		kind: "billing",
 		href: "/billing",
 	});
+
+	if ((previousTier === "scholar" || previousTier === "guru") && nextTier === "free") {
+		await startShareAnswerKeyDowngradeGrace({
+			userId,
+			noticeKey: subscription.id,
+		});
+	}
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {

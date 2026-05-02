@@ -38,8 +38,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add paid-exam report recourse: one-time generation credit refund, refund metadata, user notification, abuse triage record, and no double-refund regression coverage.
 - [x] Complete exam rating recourse: completed-only inline rating form, optional text feedback, dismissal, server-side queued/failed gating, top-level admin feedback rows, export metadata, and E2E coverage.
 - [x] Gate exam reports to completed/reported exams so queued/generating work cannot be moved to review while credits are still reserved; E2E preserves paid and Scholar Boost completed-report recovery.
-- [x] Gate share-link creation to Scholar/Guru, support per-link answer-key inclusion, and remove shared answer-key access live after creator downgrade while preserving the student-copy PDF.
+- [x] Gate share-link creation to Scholar/Guru, support per-link answer-key inclusion, and preserve the student-copy PDF independently from answer-key entitlement.
 - [x] Add public share-viewer defect reports with unauthenticated share-page UI, abuse triage rows, per-exam/share counters, and creator notifications.
+- [x] Add PRD downgrade grace for answer-key share links: Stripe downgrade starts 7-day grace, notifies creator, records email communication, preserves answer-key downloads during grace, and removes answer-key access after grace expiry.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -277,6 +278,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after share-viewer report flow passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after share-viewer report flow passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after share-viewer report deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
+- Focused Stripe downgrade share-key grace regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"` with answer-key share grace on cancellation, creator share-link notification, exported communication record, and answer-key removal after simulated grace expiry.
+- Full local gate after share-key downgrade grace passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
