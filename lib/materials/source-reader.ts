@@ -1,5 +1,5 @@
 import { adminStorage } from "@/lib/firebase/admin";
-import { dataUrlFromBuffer, extractTextFromPdf } from "@/lib/materials/extract-text";
+import { dataUrlFromBuffer, extractTextFromPdfWithMetadata } from "@/lib/materials/extract-text";
 
 export type SourceDocumentDescriptor = {
 	filename: string;
@@ -12,6 +12,8 @@ export type ReadSourceDocumentResult = {
 	text: string;
 	fallback: string;
 	imageDataUrl?: string;
+	pageCount?: number;
+	pagesRead?: number;
 };
 
 export function parseTopicLines(content: string, fallback: string, limit = 12) {
@@ -59,8 +61,15 @@ export async function readSourceDocumentContent({
 
 	if (contentType === "application/pdf") {
 		const [buffer] = await adminStorage.bucket().file(storagePath).download();
-		const extractedText = await extractTextFromPdf(buffer);
-		text = `${text}\n\n${extractedText}`;
+		const extracted = await extractTextFromPdfWithMetadata(buffer);
+		text = `${text}\n\nPDF pages read: ${extracted.pagesRead} of ${extracted.pageCount}\n\n${extracted.text}`;
+		return {
+			text,
+			fallback,
+			imageDataUrl,
+			pageCount: extracted.pageCount,
+			pagesRead: extracted.pagesRead,
+		};
 	}
 
 	if (contentType.startsWith("image/")) {

@@ -43,6 +43,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated phone-conflict E2E covering active prior-auth-required rejection and dormant 180+ day phone reclaim into a clean account.
 - [x] Add authenticated topic-extraction failure E2E covering best-effort fallback topics, warning status, and fallback source reuse in exam creation.
 - [x] Implement linked auth-provider metadata, server-side duplicate-email session checks, Settings provider display, Google conflict recovery from sign-in, and preview claim handoff through sign-in.
+- [x] Implement long-PDF source upload extraction progress with TOC/headings stage, page-read metadata, focus-scoped topic prompts, and Next server PDF parser packaging.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -134,6 +135,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Linked-auth unit coverage passed in `pnpm test`, including provider normalization, malformed document parsing, and Google-only ownership tracking.
 - Full local gate after linked-auth implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 22 desktop Chrome tests.
 - Hosted smoke after linked-auth deployment passed on desktop Chrome with 2 public smoke tests and local-only authenticated specs skipped.
+- Focused long-PDF wizard E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "long PDF upload"`.
+- Full local gate after long-PDF wizard implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 23 desktop Chrome tests.
+- Hosted smoke after long-PDF wizard deployment passed on desktop Chrome with 2 public smoke tests and local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

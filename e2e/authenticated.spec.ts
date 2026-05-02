@@ -8,6 +8,57 @@ import {
 	testSignupToken,
 } from "./test-auth";
 
+function pdfText(value: string) {
+	return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+}
+
+function textPdfBuffer(pages: string[]) {
+	const objects = new Map<number, string>();
+	const pageObjectIds = pages.map((_, index) => 4 + index * 2);
+	objects.set(1, "<< /Type /Catalog /Pages 2 0 R >>");
+	objects.set(
+		2,
+		`<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`,
+	);
+	objects.set(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+
+	pages.forEach((page, index) => {
+		const pageObjectId = 4 + index * 2;
+		const contentObjectId = pageObjectId + 1;
+		const lines = page
+			.split("\n")
+			.map((line) => `(${pdfText(line)}) Tj T*`)
+			.join("\n");
+		const stream = `BT /F1 12 Tf 72 740 Td 16 TL\n${lines}\nET`;
+		objects.set(
+			pageObjectId,
+			`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`,
+		);
+		objects.set(
+			contentObjectId,
+			`<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
+		);
+	});
+
+	const orderedIds = [...objects.keys()].sort((left, right) => left - right);
+	let pdf = "%PDF-1.4\n";
+	const offsets = new Map<number, number>();
+
+	for (const objectId of orderedIds) {
+		offsets.set(objectId, Buffer.byteLength(pdf, "utf8"));
+		pdf += `${objectId} 0 obj\n${objects.get(objectId) ?? ""}\nendobj\n`;
+	}
+
+	const xrefOffset = Buffer.byteLength(pdf, "utf8");
+	pdf += `xref\n0 ${orderedIds.length + 1}\n0000000000 65535 f \n`;
+	for (const objectId of orderedIds) {
+		pdf += `${String(offsets.get(objectId) ?? 0).padStart(10, "0")} 00000 n \n`;
+	}
+	pdf += `trailer\n<< /Size ${orderedIds.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+	return Buffer.from(pdf, "utf8");
+}
+
 test.skip(
 	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
 	"Authenticated test-session API is disabled for this target.",
@@ -619,6 +670,124 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
 	await expect(page.getByText("rate-laws-notes.txt")).toBeVisible();
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
+});
+
+test("long PDF upload shows TOC progress and extracts focused topics", async ({ page }) => {
+	const { uid } = await signInAsTestUser(page, `long-pdf-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+	const focus = "synaptic plasticity";
+	const pages = [
+		"Table of Contents\n1 Neural signaling\n2 Synaptic plasticity\n3 Memory consolidation",
+		"Neural signaling overview\nAction potentials and neurotransmitter release",
+		"Synaptic plasticity\nLong-term potentiation\nHebbian learning\nAMPA receptor trafficking",
+		"Memory consolidation\nSystems consolidation and retrieval practice",
+		"Practice prompts\nExplain synaptic plasticity mechanisms with worked examples",
+	];
+	const pdf = textPdfBuffer(pages);
+	const startResponse = await page.context().request.post("/api/exam-uploads", {
+		data: {
+			filename: "neuroscience-long-unit.pdf",
+			contentType: "application/pdf",
+			sizeBytes: pdf.byteLength,
+			focus,
+			styleReference: false,
+		},
+	});
+	expect(startResponse.status()).toBe(201);
+	const startPayload = (await startResponse.json()) as { uploadId: string; uploadUrl: string };
+	const uploadResponse = await page.context().request.put(startPayload.uploadUrl, {
+		headers: { "Content-Type": "application/pdf" },
+		data: pdf.toString("utf8"),
+	});
+	expect(uploadResponse.status()).toBe(200);
+
+	const progressResponse = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "exam_upload_progress",
+			uploadId: startPayload.uploadId,
+			stage: "reading_toc",
+			detail: "Reading table of contents and document headings",
+			percent: 35,
+			pagesRead: 2,
+			totalPages: pages.length,
+		},
+	});
+	expect(progressResponse.status()).toBe(200);
+
+	await page.addInitScript(
+		({ uploadId, sizeBytes, uploadFocus }) => {
+			window.localStorage.setItem(
+				"exampull:new-exam-draft",
+				JSON.stringify({
+					title: "Long PDF focused exam",
+					className: "Neuroscience",
+					sourceUploads: [
+						{
+							id: uploadId,
+							filename: "neuroscience-long-unit.pdf",
+							contentType: "application/pdf",
+							sizeBytes,
+							focus: uploadFocus,
+							status: "extracting_topics",
+							styleReference: false,
+							extractedTopics: [],
+							extractionProgress: {
+								stage: "reading_toc",
+								detail: "Reading table of contents and document headings",
+								percent: 35,
+								pagesRead: 2,
+								totalPages: 5,
+							},
+							createdAt: new Date().toISOString(),
+							uploadedAt: new Date().toISOString(),
+						},
+					],
+					topicsText: "",
+					sourceNotes: "",
+					questionCount: 12,
+					mode: "standard",
+					powerSlots: [],
+					mirrorInstructorStyle: true,
+					useScholarBoost: false,
+				}),
+			);
+		},
+		{ uploadId: startPayload.uploadId, sizeBytes: pdf.byteLength, uploadFocus: focus },
+	);
+
+	await page.goto("/exams/new");
+	await expect(page.getByText("neuroscience-long-unit.pdf")).toBeVisible();
+	await expect(page.getByText("Reading table of contents and document headings")).toBeVisible();
+	await expect(page.getByText("2 of 5 pages read")).toBeVisible();
+	await expect(
+		page.getByRole("progressbar", { name: "neuroscience-long-unit.pdf extraction progress" }),
+	).toHaveAttribute("aria-valuenow", "35");
+
+	const workerResponse = await page.context().request.post("/api/workers/extract-upload-topics", {
+		data: { userId: uid, uploadId: startPayload.uploadId, tier: "guru" },
+	});
+	expect(workerResponse.status()).toBe(200);
+	const workerPayload = (await workerResponse.json()) as {
+		topics?: string[];
+		warning?: string;
+		error?: string;
+	};
+	expect(workerPayload.warning, workerPayload.error).toBeUndefined();
+	expect(workerPayload.topics).toEqual(
+		expect.arrayContaining([
+			focus,
+			`${focus} worked examples`,
+			`${focus} application problems`,
+		]),
+	);
+
+	await expect(page.getByText("Topic extraction complete")).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText("5 of 5 pages read")).toBeVisible();
+	await expect(page.getByText(/topics extracted/)).toBeVisible();
+	await expect(page.getByText("5 topics ready")).toBeVisible();
 });
 
 test("topic extraction failure keeps best-effort source topics available", async ({ page }) => {

@@ -2,7 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	reactStrictMode: true,
-	serverExternalPackages: ["@google-cloud/tasks", "google-gax", "protobufjs"],
+	serverExternalPackages: [
+		"@google-cloud/tasks",
+		"google-gax",
+		"pdf-parse",
+		"pdfjs-dist",
+		"protobufjs",
+	],
 	experimental: {
 		serverActions: {
 			bodySizeLimit: "100mb",

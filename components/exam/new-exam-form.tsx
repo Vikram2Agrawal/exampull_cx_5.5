@@ -46,8 +46,17 @@ type ExamSourceUpload = {
 	status: string;
 	styleReference: boolean;
 	extractedTopics: string[];
+	extractionProgress: SourceExtractionProgress | null;
 	createdAt: string;
 	uploadedAt: string | null;
+};
+
+type SourceExtractionProgress = {
+	stage: string;
+	detail: string;
+	percent: number;
+	pagesRead: number | null;
+	totalPages: number | null;
 };
 
 const draftStorageKey = "exampull:new-exam-draft";
@@ -132,6 +141,7 @@ function sourceUploadDrafts(value: unknown): ExamSourceUpload[] {
 		const status = typeof item.status === "string" ? item.status : "uploading";
 		const createdAt = typeof item.createdAt === "string" ? item.createdAt : "";
 		const uploadedAt = typeof item.uploadedAt === "string" ? item.uploadedAt : null;
+		const extractionProgress = extractionProgressDraft(item.extractionProgress);
 
 		if (!id || !filename) {
 			return [];
@@ -147,11 +157,34 @@ function sourceUploadDrafts(value: unknown): ExamSourceUpload[] {
 				status,
 				styleReference: Boolean(item.styleReference ?? false),
 				extractedTopics: stringArray(item.extractedTopics),
+				extractionProgress,
 				createdAt,
 				uploadedAt,
 			},
 		];
 	});
+}
+
+function extractionProgressDraft(value: unknown): SourceExtractionProgress | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const stage = typeof value.stage === "string" ? value.stage : "";
+	const detail = typeof value.detail === "string" ? value.detail : "";
+	const percent = typeof value.percent === "number" ? value.percent : 0;
+
+	if (!stage || !detail) {
+		return null;
+	}
+
+	return {
+		stage,
+		detail,
+		percent: Math.max(0, Math.min(100, Math.round(percent))),
+		pagesRead: typeof value.pagesRead === "number" ? value.pagesRead : null,
+		totalPages: typeof value.totalPages === "number" ? value.totalPages : null,
+	};
 }
 
 function mergeSourceUploads(current: ExamSourceUpload[], updates: ExamSourceUpload[]) {
@@ -170,6 +203,14 @@ function uploadStatusText(upload: ExamSourceUpload) {
 	if (upload.status === "extracting_topics") return "Extracting topics";
 	if (upload.status === "uploading") return "Uploading";
 	return upload.status.replaceAll("_", " ");
+}
+
+function uploadPageProgressText(progress: SourceExtractionProgress) {
+	if (progress.pagesRead === null || progress.totalPages === null) {
+		return null;
+	}
+
+	return `${progress.pagesRead} of ${progress.totalPages} pages read`;
 }
 
 type SourceClass = ClassSummary & {
@@ -749,6 +790,36 @@ export function NewExamForm({
 										<p className="mt-1 text-muted">
 											{upload.extractedTopics.length} topics extracted
 										</p>
+									) : null}
+									{upload.extractionProgress ? (
+										<div className="mt-2 max-w-xl">
+											<div className="flex items-center justify-between gap-3 text-xs text-muted">
+												<span>{upload.extractionProgress.detail}</span>
+												<span>{upload.extractionProgress.percent}%</span>
+											</div>
+											<div
+												className="mt-1 h-2 overflow-hidden rounded-full bg-glass"
+												role="progressbar"
+												aria-label={`${upload.filename} extraction progress`}
+												aria-valuenow={upload.extractionProgress.percent}
+												aria-valuemin={0}
+												aria-valuemax={100}
+											>
+												<div
+													className="h-full bg-secondary"
+													style={{
+														width: `${upload.extractionProgress.percent}%`,
+													}}
+												/>
+											</div>
+											{uploadPageProgressText(upload.extractionProgress) ? (
+												<p className="mt-1 text-xs text-muted">
+													{uploadPageProgressText(
+														upload.extractionProgress,
+													)}
+												</p>
+											) : null}
+										</div>
 									) : null}
 								</div>
 								<div className="flex items-center gap-2">

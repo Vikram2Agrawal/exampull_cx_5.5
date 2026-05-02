@@ -17,6 +17,14 @@ export const examSourceUploadSchema = z.object({
 
 export type ExamSourceUploadInput = z.infer<typeof examSourceUploadSchema>;
 
+export type SourceExtractionProgress = {
+	stage: string;
+	detail: string;
+	percent: number;
+	pagesRead: number | null;
+	totalPages: number | null;
+};
+
 export type ExamSourceUploadSummary = {
 	id: string;
 	filename: string;
@@ -26,6 +34,7 @@ export type ExamSourceUploadSummary = {
 	status: string;
 	styleReference: boolean;
 	extractedTopics: string[];
+	extractionProgress: SourceExtractionProgress | null;
 	createdAt: string;
 	uploadedAt: string | null;
 };
@@ -78,6 +87,31 @@ function stringList(value: unknown) {
 	return value.filter((item): item is string => typeof item === "string");
 }
 
+function extractionProgressFromValue(value: unknown): SourceExtractionProgress | null {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return null;
+	}
+
+	const record = value as Record<string, unknown>;
+	const stage = typeof record.stage === "string" ? record.stage : "";
+	const detail = typeof record.detail === "string" ? record.detail : "";
+	const percent = typeof record.percent === "number" ? record.percent : 0;
+	const pagesRead = typeof record.pagesRead === "number" ? record.pagesRead : null;
+	const totalPages = typeof record.totalPages === "number" ? record.totalPages : null;
+
+	if (!stage || !detail) {
+		return null;
+	}
+
+	return {
+		stage,
+		detail,
+		percent: Math.max(0, Math.min(100, Math.round(percent))),
+		pagesRead,
+		totalPages,
+	};
+}
+
 function uploadSummaryFromDoc(
 	id: string,
 	data: FirebaseFirestore.DocumentData,
@@ -92,6 +126,7 @@ function uploadSummaryFromDoc(
 		status: typeof data.status === "string" ? data.status : "uploading",
 		styleReference: Boolean(data.styleReference ?? false),
 		extractedTopics: stringList(data.extractedTopics),
+		extractionProgress: extractionProgressFromValue(data.extractionProgress),
 		createdAt: isoDate(data.createdAt),
 		uploadedAt: optionalIsoDate(data.uploadedAt),
 	};
@@ -182,6 +217,13 @@ export async function createExamSourceUpload({
 		storagePath,
 		status: "uploading",
 		extractedTopics: [],
+		extractionProgress: {
+			stage: "waiting_upload",
+			detail: "Waiting for file upload",
+			percent: 5,
+			pagesRead: null,
+			totalPages: null,
+		},
 		createdAt: now,
 		updatedAt: now,
 		uploadedAt: null,
@@ -211,6 +253,13 @@ export async function completeExamSourceUpload(user: CurrentUser, uploadId: stri
 
 	await uploadRef.update({
 		status: "extracting_topics",
+		extractionProgress: {
+			stage: "queued",
+			detail: "Queued for topic extraction",
+			percent: 10,
+			pagesRead: null,
+			totalPages: null,
+		},
 		uploadedAt: Timestamp.now(),
 		updatedAt: Timestamp.now(),
 	});
@@ -229,6 +278,13 @@ export async function completeExamSourceUpload(user: CurrentUser, uploadId: stri
 				status: "ready",
 				queueWarning: queueResult.reason,
 				extractedTopics: parseTopicLines("", `${filename} ${focus}`.trim()),
+				extractionProgress: {
+					stage: "complete",
+					detail: "Basic topic pass complete",
+					percent: 100,
+					pagesRead: null,
+					totalPages: null,
+				},
 				updatedAt: Timestamp.now(),
 			},
 			{ merge: true },

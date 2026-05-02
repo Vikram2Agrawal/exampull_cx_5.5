@@ -22,7 +22,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class.
 - [x] P1-CLASS-002 Instructor example upload charges 2 credits and produces a visible style guide; authenticated E2E verifies credit accounting and fallback style guide readiness.
 - [x] P1-WIZARD-001 Wizard combines class materials, ad hoc uploads, and manual topics; authenticated E2E verifies stored material IDs, ad hoc source retention, and manual topics on the queued exam.
-- [!] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; server-side text PDF/image extraction is implemented, but long-document progress E2E remains.
+- [x] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; authenticated E2E verifies PDF upload progress, page-read metadata, worker extraction, and focus-scoped topics.
 - [x] P1-WIZARD-003 Topic extraction failure offers best-effort/manual fallback; authenticated E2E verifies warning status, fallback topics, and use in exam creation.
 - [x] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; authenticated E2E covers slot edits, reorder, range bulk edit, queueing, and created metadata.
 - [!] P1-POWER-002 Mobile Power Mode uses tap reorder and bulk actions; explicit up/down controls and range bulk edits exist, tap-to-target E2E remains.
@@ -85,6 +85,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Full local gate after topic-extraction fallback E2E: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Focused linked-auth E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "linked auth sources"` with Settings provider display and export metadata assertions.
 - Full local gate after linked-auth implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 22 desktop Chrome tests.
+- Focused long-PDF wizard E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "long PDF upload"` with TOC progress, page counts, PDF text extraction, and focus-scoped topics.
+- Full local gate after long-PDF wizard implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 23 desktop Chrome tests.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
@@ -114,4 +116,5 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after anonymous-preview claim deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Hosted production smoke after phone-conflict E2E harness deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Hosted production smoke after linked-auth deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
+- Hosted production smoke after long-PDF wizard deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
 - Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T21-59-10-970Z`.

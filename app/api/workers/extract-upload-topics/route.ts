@@ -13,6 +13,34 @@ const requestSchema = z.object({
 	tier: z.enum(["free", "scholar", "guru"]).default("free"),
 });
 
+async function updateExtractionProgress({
+	uploadRef,
+	stage,
+	detail,
+	percent,
+	pagesRead = null,
+	totalPages = null,
+}: {
+	uploadRef: FirebaseFirestore.DocumentReference;
+	stage: string;
+	detail: string;
+	percent: number;
+	pagesRead?: number | null;
+	totalPages?: number | null;
+}) {
+	await uploadRef.update({
+		status: "extracting_topics",
+		extractionProgress: {
+			stage,
+			detail,
+			percent,
+			pagesRead,
+			totalPages,
+		},
+		updatedAt: Timestamp.now(),
+	});
+}
+
 export async function POST(request: Request) {
 	const authError = await requireWorkerRequest(request);
 	if (authError) {
@@ -37,11 +65,30 @@ export async function POST(request: Request) {
 	const storagePath = String(snapshot.get("storagePath") ?? "");
 
 	try {
+		await updateExtractionProgress({
+			uploadRef,
+			stage: "reading_toc",
+			detail:
+				contentType === "application/pdf"
+					? "Reading table of contents and document headings"
+					: "Reading source headings",
+			percent: 25,
+		});
 		const source = await readSourceDocumentContent({
 			filename,
 			focus,
 			contentType,
 			storagePath,
+		});
+		await updateExtractionProgress({
+			uploadRef,
+			stage: "scoping_topics",
+			detail: focus
+				? `Scoping extracted topics to ${focus}`
+				: "Selecting testable topics from source content",
+			percent: 70,
+			pagesRead: source.pagesRead ?? null,
+			totalPages: source.pageCount ?? null,
 		});
 		const result = await callLlm({
 			stage: "topicExtraction",
@@ -50,7 +97,7 @@ export async function POST(request: Request) {
 				{
 					role: "system",
 					content:
-						"Extract 5-12 concise, testable academic topics. Return one topic per line, no prose.",
+						"Extract 5-12 concise, testable academic topics. If a Focus line is provided, scope the topics to that focus while using the document table of contents and headings for context. Return one topic per line, no prose.",
 				},
 				{
 					role: "user",
@@ -73,20 +120,41 @@ export async function POST(request: Request) {
 				inputTokens: result.inputTokens,
 				outputTokens: result.outputTokens,
 				latencyMs: result.latencyMs,
+				pagesRead: source.pagesRead ?? null,
+				totalPages: source.pageCount ?? null,
+			},
+			extractionProgress: {
+				stage: "complete",
+				detail: "Topic extraction complete",
+				percent: 100,
+				pagesRead: source.pagesRead ?? null,
+				totalPages: source.pageCount ?? null,
 			},
 			updatedAt: Timestamp.now(),
 		});
 
 		return NextResponse.json({ topics, topicsText: result.content, model: result.model });
 	} catch (error) {
+		const message = error instanceof Error ? error.message : "Topic extraction failed.";
 		const fallbackTopics = parseTopicLines("", `${filename} ${focus}`.trim());
 		await uploadRef.update({
 			status: "ready_with_warnings",
 			extractedTopics: fallbackTopics,
-			extractionError: error instanceof Error ? error.message : "Topic extraction failed.",
+			extractionError: message,
+			extractionProgress: {
+				stage: "warning",
+				detail: "Best-effort fallback topics ready",
+				percent: 100,
+				pagesRead: null,
+				totalPages: null,
+			},
 			updatedAt: Timestamp.now(),
 		});
 
-		return NextResponse.json({ topics: fallbackTopics, warning: "best_effort" });
+		return NextResponse.json({
+			topics: fallbackTopics,
+			warning: "best_effort",
+			error: message,
+		});
 	}
 }

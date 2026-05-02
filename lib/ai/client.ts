@@ -61,11 +61,18 @@ function mockQuestionJson(messages: LlmMessage[]) {
 }
 
 function mockContent(stage: PipelineStage, messages: LlmMessage[]) {
+	const text = messages.map((message) => contentText(message.content)).join("\n");
+
 	if (stage === "questionGeneration") {
 		return mockQuestionJson(messages);
 	}
 
 	if (stage === "topicExtraction") {
+		const focus = text.match(/^Focus:\s*(.+)$/im)?.[1]?.trim();
+		if (focus && focus.toLowerCase() !== "none") {
+			return `${focus}\n${focus} worked examples\n${focus} application problems\nCommon misconceptions\nExam synthesis`;
+		}
+
 		return "Core concepts\nWorked examples\nApplication problems\nCommon misconceptions\nExam synthesis";
 	}
 

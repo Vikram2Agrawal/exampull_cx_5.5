@@ -19,6 +19,16 @@ const requestSchema = z.discriminatedUnion("kind", [
 		examId: z.string().min(1),
 		filename: z.string().trim().min(1).max(180).default("attempt.pdf"),
 	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("exam_upload_progress"),
+		uploadId: z.string().min(1),
+		stage: z.string().trim().min(1).max(80),
+		detail: z.string().trim().min(1).max(240),
+		percent: z.number().int().min(0).max(100),
+		pagesRead: z.number().int().min(0).max(10000).nullable().default(null),
+		totalPages: z.number().int().min(0).max(10000).nullable().default(null),
+	}),
 ]);
 
 function assertEnabled(token: string) {
@@ -85,6 +95,31 @@ export async function POST(request: Request) {
 			});
 
 		return NextResponse.json({ examId });
+	}
+
+	if (input.kind === "exam_upload_progress") {
+		await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("examUploads")
+			.doc(input.uploadId)
+			.set(
+				{
+					status: "extracting_topics",
+					extractionProgress: {
+						stage: input.stage,
+						detail: input.detail,
+						percent: input.percent,
+						pagesRead: input.pagesRead,
+						totalPages: input.totalPages,
+					},
+					uploadedAt: now,
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+
+		return NextResponse.json({ uploadId: input.uploadId });
 	}
 
 	const attemptId = randomUUID();
