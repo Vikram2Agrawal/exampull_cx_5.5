@@ -39,6 +39,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Guru attempt upload-to-worker E2E covering signed Storage upload, grading, visual feedback generation, credit settlement, PDF download, and data export.
 - [x] Implement no-account preview claim bundles with Storage-backed artifacts, session-time account claiming, and full-credit preservation.
 - [x] Add authenticated anonymous-preview claim E2E covering public preview UI, no-PDF preview response, sign-up CTA preview token, claim into a verified test account, PDF download, and data export.
+- [x] Add authenticated Scholar full-worker E2E covering paid-tier generation, answer-key access, answer-key download, credit settlement, and exported artifacts.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -118,6 +119,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Focused anonymous-preview claim E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "anonymous preview can be claimed"`.
 - Full local gate after anonymous-preview claim implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after anonymous-preview claim deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- Focused Scholar full-worker answer-key E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "scholar user can complete a full worker generation"`.
+- Full local gate after Scholar full-worker answer-key E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

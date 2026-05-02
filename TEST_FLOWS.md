@@ -10,7 +10,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [ ] P0-AUTH-002 Existing account linking handles email/provider conflict without creating duplicate accounts.
 - [!] P0-AUTH-003 Phone-number conflict requires prior auth source unless dormant 180+ days; server-side policy and unit coverage exist, Firebase credential-collision E2E remains.
 - [x] P0-EXAM-001 Free user queues and completes a 12-question Standard exam from manual topics through the worker; authenticated E2E verifies credit settlement, PDF download, and exported artifacts.
-- [!] P0-EXAM-002 Scholar user can access answer key on a completed paid exam in authenticated E2E; full worker generation E2E remains.
+- [x] P0-EXAM-002 Scholar user completes a paid-tier worker generation and can download the answer key; authenticated E2E verifies credit settlement and exported artifacts.
 - [x] P0-EXAM-003 Guru visual-feedback worker creates a downloadable PDF artifact; authenticated E2E covers signed attempt upload, grading worker, visual feedback generation, credit settlement, download, and data export.
 - [x] P0-CREDITS-001 Credit reservation is atomic across parallel requests; authenticated E2E verifies one full-cost Free request succeeds and the other returns 402.
 - [x] P0-DOWNLOAD-001 Completed exam and answer key download through authenticated server routes from private Storage-backed artifacts without client-side Storage reads.
@@ -73,10 +73,12 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome authenticated one-time source upload suite: `pnpm exec playwright test --project=desktop-chrome` passed with signed Storage upload, ready fallback extraction, exam queueing, and detail-page source retention.
 - Desktop Chrome authenticated class style-reference and combined-source wizard suite: `pnpm exec playwright test --project=desktop-chrome` passed with 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and queued exam export verification.
 - Desktop Chrome authenticated full-worker exam suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "full 12-question worker"` passed with Cloud Run LaTeX compilation, Storage-backed artifacts, credit settlement, PDF download, and exported base64 artifacts.
+- Desktop Chrome authenticated Scholar full-worker answer-key suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "scholar user can complete a full worker generation"` passed with answer-key access, download, credit settlement, and exported artifacts.
 - Desktop Chrome authenticated Guru visual-feedback worker suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"` passed with signed upload, grading, Storage-backed visual feedback artifact, credit settlement, PDF download, and exported base64 artifact.
 - Full local gate after full-worker E2E and Storage-backed exam artifacts: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Full local gate after Storage-backed visual-feedback artifacts: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Full local gate after anonymous-preview claim implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
+- Full local gate after Scholar full-worker answer-key E2E: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
