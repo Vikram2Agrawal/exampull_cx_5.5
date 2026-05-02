@@ -331,6 +331,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after admin tier overrides deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 53 local-only authenticated/quality specs skipped.
 - Focused admin suspension verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin suspension"` with missing re-auth rejection, suspend/reinstate API/UI, server-side exam-generation block, paused create-exam page, account notifications, restored generation, and export coverage.
 - Full local gate after admin account suspension passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 52 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after admin account suspension passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after admin account suspension deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 54 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
