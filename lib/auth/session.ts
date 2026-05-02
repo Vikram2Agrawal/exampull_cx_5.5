@@ -14,6 +14,8 @@ export type CurrentUser = {
 	tier: Tier;
 	credits: number;
 	reservedCredits: number;
+	subscriptionStatus: string | null;
+	paymentFailureGraceUntil: string | null;
 	unreadNotificationCount: number;
 	isTestAccount: boolean;
 	linkedAuthProviders: LinkedAuthProvider[];
@@ -73,6 +75,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			tier: data.tier === "scholar" || data.tier === "guru" ? data.tier : "free",
 			credits: Number(data.credits ?? 0),
 			reservedCredits: Number(data.reservedCredits ?? 0),
+			subscriptionStatus:
+				typeof data.subscriptionStatus === "string" ? data.subscriptionStatus : null,
+			paymentFailureGraceUntil: optionalTimestampIso(data.paymentFailureGraceUntil),
 			unreadNotificationCount: Number(data.unreadNotificationCount ?? 0),
 			isTestAccount: Boolean(data.isTestAccount ?? false),
 			linkedAuthProviders: linkedAuthProvidersFromDocument(data.linkedAuthProviders),

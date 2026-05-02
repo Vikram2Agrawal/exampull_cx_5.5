@@ -2079,10 +2079,83 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 	});
 	expect(shareResponse.status()).toBe(201);
 	const sharePayload = (await shareResponse.json()) as { shareId: string };
-	const answerKeyBeforeCancel = await page
+	const answerKeyBeforePaymentFailure = await page
 		.context()
 		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
-	expect(answerKeyBeforeCancel.status()).toBe(200);
+	expect(answerKeyBeforePaymentFailure.status()).toBe(200);
+
+	const paymentFailed = {
+		id: `evt_sub_past_due_${suffix}`,
+		object: "event",
+		type: "customer.subscription.updated",
+		data: {
+			object: {
+				id: `sub_${suffix}`,
+				object: "subscription",
+				status: "past_due",
+				latest_invoice: `in_failed_${suffix}`,
+				metadata: {
+					userId: uid,
+					tier: "scholar",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, paymentFailed)).status()).toBe(200);
+	await page.goto("/billing");
+	await expect(page.getByText("Payment needs attention before")).toBeVisible();
+	const answerKeyDuringPaymentGrace = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerKeyDuringPaymentGrace.status()).toBe(200);
+	const graceExportResponse = await page.context().request.get("/api/settings/export");
+	expect(graceExportResponse.status()).toBe(200);
+	const graceExportPayload = (await graceExportResponse.json()) as {
+		profile: {
+			tier?: string;
+			subscriptionStatus?: string;
+			paymentFailureGraceUntil?: unknown;
+		} | null;
+		communications: { kind?: string; status?: string; channel?: string }[];
+	};
+	expect(graceExportPayload.profile?.tier).toBe("scholar");
+	expect(graceExportPayload.profile?.subscriptionStatus).toBe("grace_period");
+	expect(graceExportPayload.profile?.paymentFailureGraceUntil).toBeTruthy();
+	expect(graceExportPayload.communications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				kind: "payment_failure",
+				channel: "email",
+				status: "skipped_test",
+			}),
+			expect.objectContaining({
+				kind: "payment_failure",
+				channel: "sms",
+				status: "skipped_test",
+			}),
+		]),
+	);
+
+	const expirePaymentGraceResponse = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "expire_payment_failure_grace",
+		},
+	});
+	expect(expirePaymentGraceResponse.status()).toBe(200);
+	const expireWorkerResponse = await page
+		.context()
+		.request.post("/api/workers/expire-payment-grace", { data: { limit: 100 } });
+	expect(expireWorkerResponse.status()).toBe(200);
+	const expireWorkerPayload = (await expireWorkerResponse.json()) as {
+		expired?: number;
+		reminded?: number;
+	};
+	expect(expireWorkerPayload.expired).toBe(1);
+	const answerKeyDuringShareGrace = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerKeyDuringShareGrace.status()).toBe(200);
 
 	const cancelled = {
 		id: `evt_sub_cancel_${suffix}`,
@@ -2101,10 +2174,6 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 		},
 	};
 	expect((await postSignedStripeEvent(page, cancelled)).status()).toBe(200);
-	const answerKeyDuringGrace = await page
-		.context()
-		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
-	expect(answerKeyDuringGrace.status()).toBe(200);
 	const expireGraceResponse = await page.context().request.post("/api/test/seed", {
 		data: {
 			token: testSignupToken(),
@@ -2127,21 +2196,33 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 			subscriptionStatus?: string;
 			stripeCustomerId?: string;
 			stripeSubscriptionId?: string;
+			paymentFailureDowngradedAt?: unknown;
 		} | null;
 		notifications: { title?: string; kind?: string }[];
-		communications: { kind?: string; status?: string; shareIds?: string[] }[];
+		communications: {
+			kind?: string;
+			status?: string;
+			shareIds?: string[];
+			channel?: string;
+		}[];
 	};
 	expect(exportPayload.profile?.tier).toBe("free");
 	expect(exportPayload.profile?.credits).toBe(8100);
 	expect(exportPayload.profile?.subscriptionStatus).toBe("canceled");
 	expect(exportPayload.profile?.stripeCustomerId).toBe(`cus_${suffix}`);
 	expect(exportPayload.profile?.stripeSubscriptionId).toBe(`sub_${suffix}`);
+	expect(exportPayload.profile?.paymentFailureDowngradedAt).toBeTruthy();
 	expect(exportPayload.notifications).toEqual(
 		expect.arrayContaining([
 			expect.objectContaining({ title: "guru is active", kind: "billing" }),
 			expect.objectContaining({ title: "Credits added", kind: "billing" }),
 			expect.objectContaining({ title: "Monthly credits refreshed", kind: "billing" }),
 			expect.objectContaining({ title: "Subscription updated", kind: "billing" }),
+			expect.objectContaining({
+				title: "Payment issue - grace period started",
+				kind: "billing",
+			}),
+			expect.objectContaining({ title: "Payment grace expired", kind: "billing" }),
 			expect.objectContaining({ title: "Share answer keys changing", kind: "share" }),
 		]),
 	);
@@ -2151,6 +2232,26 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 				kind: "share_link_feature_change",
 				status: "skipped_test",
 				shareIds: [sharePayload.shareId],
+			}),
+			expect.objectContaining({
+				kind: "payment_failure",
+				channel: "email",
+				status: "skipped_test",
+			}),
+			expect.objectContaining({
+				kind: "payment_failure",
+				channel: "sms",
+				status: "skipped_test",
+			}),
+			expect.objectContaining({
+				kind: "payment_failure_grace_expired",
+				channel: "email",
+				status: "skipped_test",
+			}),
+			expect.objectContaining({
+				kind: "payment_failure_grace_expired",
+				channel: "sms",
+				status: "skipped_test",
 			}),
 		]),
 	);

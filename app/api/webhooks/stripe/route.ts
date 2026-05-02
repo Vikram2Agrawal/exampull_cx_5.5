@@ -1,10 +1,14 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import {
+	resolvePaymentFailureGrace,
+	startPaymentFailureGrace,
+} from "@/lib/billing/payment-failure-grace";
 import { stripeClient } from "@/lib/billing/stripe";
 import { env } from "@/lib/env";
 import { startShareAnswerKeyDowngradeGrace } from "@/lib/exams/library";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { TIER_MONTHLY_CREDITS, type Tier } from "@/lib/product/constants";
 import { applyReferralPaidReward } from "@/lib/referrals";
 import { createUserNotification } from "@/lib/user/data";
@@ -17,6 +21,18 @@ function tierFromMetadata(value: string | undefined): Tier | null {
 	}
 
 	return null;
+}
+
+function expandableId(value: string | { id: string } | null | undefined) {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	return value?.id ?? null;
+}
+
+function subscriptionIsPaidAccess(status: Stripe.Subscription.Status) {
+	return status === "active" || status === "trialing";
 }
 
 async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
@@ -115,12 +131,29 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 	const userRef = adminDb.collection("users").doc(userId);
 	const userSnapshot = await userRef.get();
 	const previousTier = userSnapshot.get("tier");
-	const nextTier = subscription.status === "active" ? tier : "free";
+	if (subscription.status === "past_due") {
+		await startPaymentFailureGrace({
+			userId,
+			tier,
+			subscriptionId: subscription.id,
+			invoiceId: expandableId(subscription.latest_invoice),
+		});
+		return;
+	}
+
+	if (subscriptionIsPaidAccess(subscription.status)) {
+		await resolvePaymentFailureGrace({ userId, tier, subscriptionId: subscription.id });
+	}
+
+	const nextTier = subscriptionIsPaidAccess(subscription.status) ? tier : "free";
 	await userRef.set(
 		{
 			tier: nextTier,
 			subscriptionStatus: subscription.status,
 			stripeSubscriptionId: subscription.id,
+			...(nextTier === "free"
+				? { stripeSubscriptionPaymentStatus: FieldValue.delete() }
+				: {}),
 			updatedAt: Timestamp.now(),
 		},
 		{ merge: true },
@@ -174,6 +207,15 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 			tier,
 			credits: Number(userSnapshot.get("credits") ?? 0) + credits,
 			subscriptionStatus: "active",
+			stripeSubscriptionId: expandableId(invoice.parent?.subscription_details?.subscription),
+			stripeSubscriptionPaymentStatus: FieldValue.delete(),
+			paymentFailureGraceStartedAt: FieldValue.delete(),
+			paymentFailureGraceUntil: FieldValue.delete(),
+			paymentFailureGraceNoticeKey: FieldValue.delete(),
+			paymentFailureLastReminderAt: FieldValue.delete(),
+			paymentFailureLastReminderNoticeKey: FieldValue.delete(),
+			paymentFailureReminderCount: FieldValue.delete(),
+			paymentFailureDowngradedAt: FieldValue.delete(),
 			updatedAt: Timestamp.now(),
 		});
 		transaction.create(ledgerRef, {
@@ -195,6 +237,29 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 			href: "/billing",
 		});
 	}
+}
+
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+	if (invoice.billing_reason !== "subscription_cycle") {
+		return;
+	}
+
+	const subscriptionDetails = invoice.parent?.subscription_details;
+	const metadata = subscriptionDetails?.metadata;
+	const userId = metadata?.userId;
+	const tier = tierFromMetadata(metadata?.tier);
+	const subscriptionId = expandableId(subscriptionDetails?.subscription);
+
+	if (!userId || !tier || !subscriptionId) {
+		return;
+	}
+
+	await startPaymentFailureGrace({
+		userId,
+		tier,
+		subscriptionId,
+		invoiceId: invoice.id,
+	});
 }
 
 export async function POST(request: Request) {
@@ -232,6 +297,10 @@ export async function POST(request: Request) {
 
 	if (event.type === "invoice.paid") {
 		await handleInvoicePaid(event.data.object);
+	}
+
+	if (event.type === "invoice.payment_failed") {
+		await handleInvoicePaymentFailed(event.data.object);
 	}
 
 	return NextResponse.json({ received: true });

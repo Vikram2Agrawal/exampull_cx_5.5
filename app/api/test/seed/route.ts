@@ -55,6 +55,10 @@ const requestSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("expire_share_answer_key_grace"),
 		shareId: z.string().trim().min(1).max(160),
 	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("expire_payment_failure_grace"),
+	}),
 ]);
 
 function assertEnabled(token: string) {
@@ -263,6 +267,22 @@ export async function POST(request: Request) {
 		);
 
 		return NextResponse.json({ shareId: input.shareId });
+	}
+
+	if (input.kind === "expire_payment_failure_grace") {
+		await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.set(
+				{
+					paymentFailureGraceUntil: Timestamp.fromMillis(Date.now() - 60_000),
+					paymentFailureLastReminderAt: Timestamp.fromMillis(Date.now() - 60_000),
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+
+		return NextResponse.json({ userId: user.uid });
 	}
 
 	const attemptId = randomUUID();

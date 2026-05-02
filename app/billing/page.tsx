@@ -27,6 +27,18 @@ export default async function BillingPage() {
 						Current tier: <span className="capitalize">{user.tier}</span>. Balance:{" "}
 						{user.credits} credits.
 					</p>
+					{user.subscriptionStatus === "grace_period" && user.paymentFailureGraceUntil ? (
+						<p className="text-error">
+							Payment needs attention before{" "}
+							{new Intl.DateTimeFormat("en", {
+								month: "short",
+								day: "numeric",
+								hour: "numeric",
+								minute: "2-digit",
+							}).format(new Date(user.paymentFailureGraceUntil))}
+							. Paid features remain active during this grace period.
+						</p>
+					) : null}
 				</SectionHeader>
 				<div className="grid gap-4 lg:grid-cols-3">
 					<GlassPanel className="p-6">
