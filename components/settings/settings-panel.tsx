@@ -1,18 +1,34 @@
 "use client";
 
-import { Bell, Copy, CreditCard, Download, Link2, Moon, Network, Shield } from "lucide-react";
+import { FirebaseError } from "firebase/app";
+import { GoogleAuthProvider, linkWithPopup, signOut } from "firebase/auth";
+import {
+	Bell,
+	Copy,
+	CreditCard,
+	Download,
+	KeyRound,
+	Link2,
+	Moon,
+	Network,
+	Shield,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import type { LinkedAuthProvider } from "@/lib/auth/providers";
+import { firebaseAuth } from "@/lib/firebase/client";
 
 export function SettingsPanel({
 	displayName,
 	email,
+	linkedAuthProviders,
 	referralCode,
 	referralUrl,
 }: {
 	displayName: string;
 	email: string | null;
+	linkedAuthProviders: LinkedAuthProvider[];
 	referralCode: string;
 	referralUrl: string;
 }) {
@@ -23,6 +39,60 @@ export function SettingsPanel({
 	const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
+	const hasGoogle = linkedAuthProviders.some((provider) => provider.type === "google");
+
+	async function refreshSession(idToken: string) {
+		const response = await fetch("/api/auth/session", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ idToken, mode: "signin" }),
+		});
+		const body = (await response.json().catch(() => ({}))) as { error?: string };
+
+		if (!response.ok) {
+			await signOut(firebaseAuth);
+			throw new Error(body.error ?? "ExamPull could not refresh linked account data.");
+		}
+	}
+
+	function linkGoogle() {
+		startTransition(async () => {
+			setStatus("");
+
+			try {
+				const user = firebaseAuth.currentUser;
+				if (!user) {
+					throw new Error("Sign in again before linking a new source.");
+				}
+
+				await linkWithPopup(user, new GoogleAuthProvider());
+				await refreshSession(await user.getIdToken(true));
+				setStatus("Google sign-in linked.");
+				router.refresh();
+			} catch (error) {
+				if (error instanceof FirebaseError) {
+					if (error.code === "auth/provider-already-linked") {
+						setStatus("Google sign-in is already linked.");
+						return;
+					}
+
+					if (error.code === "auth/credential-already-in-use") {
+						setStatus(
+							"That Google account is already linked to another ExamPull account. Sign in with that account first to connect sources.",
+						);
+						return;
+					}
+
+					if (error.code === "auth/popup-closed-by-user") {
+						setStatus("The Google link window was closed.");
+						return;
+					}
+				}
+
+				setStatus(error instanceof Error ? error.message : "Google linking failed.");
+			}
+		});
+	}
 
 	function saveProfile() {
 		startTransition(async () => {
@@ -79,6 +149,37 @@ export function SettingsPanel({
 				<Link2 aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Profile and linked accounts</h2>
 				<p className="mt-2 text-sm text-muted">{email ?? "Email address unavailable"}</p>
+				<div className="mt-5 space-y-2">
+					<p className="text-sm font-medium">Linked sign-in sources</p>
+					<div className="space-y-2">
+						{linkedAuthProviders.length > 0 ? (
+							linkedAuthProviders.map((provider) => (
+								<div
+									key={`${provider.type}:${provider.identifier}`}
+									className="flex items-center justify-between rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm"
+								>
+									<span className="font-medium">{provider.label}</span>
+									<span className="break-all text-right text-muted">
+										{provider.identifier}
+									</span>
+								</div>
+							))
+						) : (
+							<p className="rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm text-muted">
+								Sign in again to sync linked sources.
+							</p>
+						)}
+					</div>
+					<Button
+						type="button"
+						className="mt-3"
+						disabled={isPending || hasGoogle}
+						onClick={linkGoogle}
+					>
+						<KeyRound aria-hidden="true" size={16} />
+						{hasGoogle ? "Google linked" : "Link Google"}
+					</Button>
+				</div>
 				<label className="mt-5 block text-sm font-medium">
 					Display name
 					<input

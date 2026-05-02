@@ -42,6 +42,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Scholar full-worker E2E covering paid-tier generation, answer-key access, answer-key download, credit settlement, and exported artifacts.
 - [x] Add authenticated phone-conflict E2E covering active prior-auth-required rejection and dormant 180+ day phone reclaim into a clean account.
 - [x] Add authenticated topic-extraction failure E2E covering best-effort fallback topics, warning status, and fallback source reuse in exam creation.
+- [x] Implement linked auth-provider metadata, server-side duplicate-email session checks, Settings provider display, Google conflict recovery from sign-in, and preview claim handoff through sign-in.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -59,7 +60,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Visual annotation now creates a Storage-backed rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
-- Anonymous preview claim-to-account preservation is covered through the verified test-session path; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
+- Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
+- Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
 
 ## Latest Verification
 
@@ -128,6 +130,10 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after phone-conflict E2E harness deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - Focused topic-extraction fallback E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "topic extraction failure"`.
 - Full local gate after topic-extraction fallback E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Focused linked-auth E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "linked auth sources"`.
+- Linked-auth unit coverage passed in `pnpm test`, including provider normalization, malformed document parsing, and Google-only ownership tracking.
+- Full local gate after linked-auth implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 22 desktop Chrome tests.
+- Hosted smoke after linked-auth deployment passed on desktop Chrome with 2 public smoke tests and local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

@@ -26,6 +26,7 @@ export default async function SettingsPage() {
 				<SettingsPanel
 					displayName={user.displayName}
 					email={user.email}
+					linkedAuthProviders={user.linkedAuthProviders}
 					referralCode={code}
 					referralUrl={referralUrl(code)}
 				/>

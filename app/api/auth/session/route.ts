@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { decidePhoneConflict, latestAccountActivityMillis } from "@/lib/auth/phone-conflicts";
+import {
+	emailIdentifiersFromProviders,
+	linkedAuthProviderKey,
+	linkedAuthProvidersFromDocument,
+	linkedAuthProvidersFromFirebase,
+	normalizeAuthEmail,
+} from "@/lib/auth/providers";
 import { userSessionCookieName, userSessionMaxAgeSeconds } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { adminAuth, adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { claimAnonymousPreview } from "@/lib/preview/claim";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 import { createReferralSignup, ensureReferralCode } from "@/lib/referrals";
+import { createUserNotification } from "@/lib/user/data";
 
 export const runtime = "nodejs";
 
@@ -18,6 +26,37 @@ const requestSchema = z.object({
 	referralCode: z.string().trim().max(80).optional(),
 	previewId: z.string().trim().max(120).optional(),
 });
+
+async function findExistingEmailOwner(email: string | null, incomingUid: string) {
+	const normalizedEmail = normalizeAuthEmail(email);
+
+	if (!normalizedEmail) {
+		return null;
+	}
+
+	const users = adminDb.collection("users");
+	const snapshots = await Promise.all([
+		users.where("emails", "array-contains", normalizedEmail).limit(2).get(),
+		users.where("email", "==", normalizedEmail).limit(2).get(),
+	]);
+
+	for (const snapshot of snapshots) {
+		const conflict = snapshot.docs.find((doc) => doc.id !== incomingUid);
+		if (conflict) {
+			return conflict;
+		}
+	}
+
+	return null;
+}
+
+function documentProviderKeys(snapshot: FirebaseFirestore.DocumentSnapshot) {
+	return new Set(
+		linkedAuthProvidersFromDocument(snapshot.get("linkedAuthProviders")).map(
+			linkedAuthProviderKey,
+		),
+	);
+}
 
 async function releaseDormantPhoneOwner({
 	ownerRef,
@@ -80,6 +119,7 @@ async function releaseDormantPhoneOwner({
 export async function POST(request: Request) {
 	const input = requestSchema.parse(await request.json());
 	const decoded = await adminAuth.verifyIdToken(input.idToken, true);
+	const authUser = await adminAuth.getUser(decoded.uid);
 	const phoneNumber = decoded.phone_number;
 	const now = Timestamp.now();
 
@@ -87,6 +127,32 @@ export async function POST(request: Request) {
 		return NextResponse.json(
 			{ error: "Phone verification is required before account creation." },
 			{ status: 400 },
+		);
+	}
+
+	const linkedAuthProviders = linkedAuthProvidersFromFirebase({
+		providerData: authUser.providerData,
+		email: decoded.email ?? authUser.email ?? null,
+		phoneNumber,
+		signInProvider: decoded.firebase.sign_in_provider,
+	});
+	const emails = emailIdentifiersFromProviders(
+		linkedAuthProviders,
+		decoded.email ?? authUser.email ?? null,
+	);
+	const emailConflicts = await Promise.all(
+		emails.map((email) => findExistingEmailOwner(email, decoded.uid)),
+	);
+	const emailConflict = emailConflicts.find((conflict) => conflict !== null);
+
+	if (emailConflict) {
+		return NextResponse.json(
+			{
+				error: "We found an ExamPull account with this email. Sign in to that account before linking a new sign-in source.",
+				code: "account_provider_conflict",
+				existingUid: emailConflict.id,
+			},
+			{ status: 409 },
 		);
 	}
 
@@ -144,6 +210,9 @@ export async function POST(request: Request) {
 
 	const userRef = adminDb.collection("users").doc(decoded.uid);
 	const snapshot = await userRef.get();
+	const previousProviderKeys = snapshot.exists
+		? documentProviderKeys(snapshot)
+		: new Set<string>();
 	const isTestAccount =
 		Boolean(env.TEST_SIGNUP_TOKEN) && input.testSignupToken === env.TEST_SIGNUP_TOKEN;
 	const displayName =
@@ -153,9 +222,12 @@ export async function POST(request: Request) {
 
 	if (!snapshot.exists) {
 		await userRef.create({
-			email: decoded.email ?? null,
+			email: emails[0] ?? decoded.email ?? null,
+			emails,
 			displayName,
 			phoneNumber,
+			phoneVerifiedAt: now,
+			linkedAuthProviders,
 			tier: "free",
 			credits: TIER_MONTHLY_CREDITS.free,
 			reservedCredits: 0,
@@ -184,15 +256,32 @@ export async function POST(request: Request) {
 	} else {
 		await userRef.set(
 			{
-				email: decoded.email ?? snapshot.get("email") ?? null,
+				email: emails[0] ?? decoded.email ?? snapshot.get("email") ?? null,
+				emails,
 				displayName,
 				phoneNumber,
+				phoneVerifiedAt: snapshot.get("phoneVerifiedAt") ?? now,
+				linkedAuthProviders,
 				lastLoginAt: now,
 				updatedAt: now,
 			},
 			{ merge: true },
 		);
 		await ensureReferralCode(decoded.uid);
+	}
+
+	const newProviderKeys = linkedAuthProviders
+		.map(linkedAuthProviderKey)
+		.filter((key) => !previousProviderKeys.has(key));
+
+	if (snapshot.exists && newProviderKeys.length > 0) {
+		await createUserNotification({
+			userId: decoded.uid,
+			title: "Sign-in source linked",
+			body: "A new sign-in source was added to your ExamPull account.",
+			kind: "account",
+			href: "/settings",
+		});
 	}
 
 	const claimedPreview = await claimAnonymousPreview({

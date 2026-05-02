@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { type LinkedAuthProvider, linkedAuthProvidersFromDocument } from "@/lib/auth/providers";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { Tier } from "@/lib/product/constants";
 
@@ -14,6 +15,7 @@ export type CurrentUser = {
 	credits: number;
 	reservedCredits: number;
 	isTestAccount: boolean;
+	linkedAuthProviders: LinkedAuthProvider[];
 	boostUsedAt: string | null;
 	boostGradingUsedAt: string | null;
 };
@@ -70,6 +72,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			credits: Number(data.credits ?? 0),
 			reservedCredits: Number(data.reservedCredits ?? 0),
 			isTestAccount: Boolean(data.isTestAccount ?? false),
+			linkedAuthProviders: linkedAuthProvidersFromDocument(data.linkedAuthProviders),
 			boostUsedAt: optionalTimestampIso(data.boostUsedAt),
 			boostGradingUsedAt: optionalTimestampIso(data.boostGradingUsedAt),
 		};

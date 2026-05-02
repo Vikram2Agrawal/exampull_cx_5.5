@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+	emailIdentifiersFromProviders,
+	linkedAuthProvidersFromFirebase,
+} from "@/lib/auth/providers";
 import { userSessionCookieName, userSessionMaxAgeSeconds } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -88,11 +92,20 @@ export async function POST(request: Request) {
 
 	if (input.writeUserDoc) {
 		const userRef = adminDb.collection("users").doc(uid);
+		const linkedAuthProviders = linkedAuthProvidersFromFirebase({
+			providerData: [],
+			email: input.email,
+			phoneNumber,
+			signInProvider: "password",
+		});
 		await userRef.set(
 			{
 				email: input.email,
+				emails: emailIdentifiersFromProviders(linkedAuthProviders, input.email),
 				displayName: input.displayName,
 				phoneNumber,
+				phoneVerifiedAt: accountTimestamp,
+				linkedAuthProviders,
 				tier: input.tier,
 				credits: input.credits,
 				reservedCredits: 0,
@@ -147,8 +160,30 @@ export async function PUT(request: Request) {
 	}
 
 	const decoded = await adminAuth.verifyIdToken(input.idToken, true);
-	await adminDb.collection("users").doc(decoded.uid).set(
+	const authUser = await adminAuth.getUser(decoded.uid);
+	const userRef = adminDb.collection("users").doc(decoded.uid);
+	const snapshot = await userRef.get();
+	const storedPhoneNumber = snapshot.get("phoneNumber");
+	const phoneNumber =
+		decoded.phone_number ??
+		authUser.phoneNumber ??
+		(typeof storedPhoneNumber === "string" ? storedPhoneNumber : null);
+	const linkedAuthProviders = linkedAuthProvidersFromFirebase({
+		providerData: authUser.providerData,
+		email: decoded.email ?? authUser.email ?? null,
+		phoneNumber,
+		signInProvider: decoded.firebase.sign_in_provider,
+	});
+	await userRef.set(
 		{
+			email: decoded.email ?? authUser.email ?? null,
+			emails: emailIdentifiersFromProviders(
+				linkedAuthProviders,
+				decoded.email ?? authUser.email ?? null,
+			),
+			phoneNumber,
+			phoneVerifiedAt: Timestamp.now(),
+			linkedAuthProviders,
 			lastLoginAt: Timestamp.now(),
 			updatedAt: Timestamp.now(),
 			isTestAccount: true,

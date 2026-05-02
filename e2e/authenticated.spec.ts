@@ -22,6 +22,53 @@ test("authenticated test user can view own seeded exam", async ({ page }) => {
 	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
 });
 
+test("settings shows synced linked auth sources without duplicate account state", async ({
+	page,
+}) => {
+	const email = `linked-sources-${Date.now()}@exampull.test`;
+	await signInAsTestUser(page, email, {
+		tier: "free",
+		credits: 40,
+	});
+
+	await page.goto("/settings");
+	await expect(page.getByRole("heading", { name: "Profile and linked accounts" })).toBeVisible();
+	await expect(page.getByText("Linked sign-in sources")).toBeVisible();
+	await expect(page.getByText("Email/password")).toBeVisible();
+	await expect(page.getByText(email).first()).toBeVisible();
+	await expect(page.getByText("Phone")).toBeVisible();
+	await expect(page.getByRole("button", { name: "Link Google" })).toBeVisible();
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			email?: string | null;
+			emails?: string[];
+			linkedAuthProviders?: {
+				type?: string;
+				identifier?: string;
+				label?: string;
+			}[];
+		} | null;
+	};
+	expect(exportPayload.profile?.email).toBe(email);
+	expect(exportPayload.profile?.emails).toEqual([email]);
+	expect(exportPayload.profile?.linkedAuthProviders).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				type: "email",
+				identifier: email,
+				label: "Email/password",
+			}),
+			expect.objectContaining({
+				type: "phone",
+				label: "Phone",
+			}),
+		]),
+	);
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;

@@ -23,7 +23,7 @@ type Phase = "details" | "code";
 function signupMessage(error: unknown) {
 	if (error instanceof FirebaseError) {
 		if (error.code === "auth/email-already-in-use") {
-			return "That email is already registered. Sign in instead.";
+			return "That email is already registered. Sign in to the existing account instead.";
 		}
 
 		if (error.code === "auth/credential-already-in-use") {
@@ -33,6 +33,10 @@ function signupMessage(error: unknown) {
 		if (error.code === "auth/invalid-verification-code") {
 			return "The verification code is not correct.";
 		}
+	}
+
+	if (error instanceof Error) {
+		return error.message;
 	}
 
 	return "Signup failed. Check the details and try again.";
@@ -138,7 +142,7 @@ export function SignUpForm() {
 
 			await sendCode(credential.user);
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : signupMessage(cause));
+			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -150,12 +154,35 @@ export function SignUpForm() {
 
 		try {
 			const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
+			const hasVerifiedPhone = credential.user.providerData.some(
+				(provider) => provider.providerId === "phone",
+			);
+
 			if (displayName.trim()) {
 				await updateProfile(credential.user, { displayName: displayName.trim() });
 			}
+
+			if (hasVerifiedPhone) {
+				const session = await createSession({
+					idToken: await credential.user.getIdToken(true),
+					displayName,
+					testSignupToken,
+					referralCode,
+					previewId,
+				});
+				if (session.claimedExamId) {
+					window.localStorage.removeItem("exampull_preview_id");
+				}
+				router.push(
+					session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard",
+				);
+				router.refresh();
+				return;
+			}
+
 			await sendCode(credential.user);
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : signupMessage(cause));
+			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -188,7 +215,7 @@ export function SignUpForm() {
 			router.push(session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard");
 			router.refresh();
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : signupMessage(cause));
+			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -269,7 +296,17 @@ export function SignUpForm() {
 						/>
 					</div>
 					{error ? (
-						<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
+						<div className="rounded-lg bg-error/10 p-3 text-sm text-error">
+							<p>{error}</p>
+							{error.includes("already registered") ? (
+								<a
+									className="mt-2 block text-secondary"
+									href={`/sign-in${previewId ? `?preview=${encodeURIComponent(previewId)}` : ""}`}
+								>
+									Sign in to this account
+								</a>
+							) : null}
+						</div>
 					) : null}
 					<div id="signup-recaptcha" />
 					<Button
