@@ -280,6 +280,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after share-viewer report deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - Focused Stripe downgrade share-key grace regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"` with answer-key share grace on cancellation, creator share-link notification, exported communication record, and answer-key removal after simulated grace expiry.
 - Full local gate after share-key downgrade grace passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after share-key downgrade grace passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after share-key downgrade grace deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
