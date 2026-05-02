@@ -1,8 +1,9 @@
+import { AccountSuspensionForm } from "@/components/admin/account-suspension-form";
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
 import { BulkCreditGrantForm } from "@/components/admin/bulk-credit-grant-form";
 import { RefundActionForm } from "@/components/admin/refund-action-form";
 import { listBulkCreditGrants } from "@/lib/admin/credits";
-import { listAdminQueueItems } from "@/lib/admin/data";
+import { listAdminQueueItems, listSuspendedUsers } from "@/lib/admin/data";
 import { listAdminRefundHistory, listAdminRefundRequests } from "@/lib/admin/refunds";
 import { formatCurrency } from "@/lib/utils";
 
@@ -18,17 +19,20 @@ function dateLabel(value: string) {
 }
 
 export default async function AdminOperationsPage() {
-	const [queueItems, refundRequests, refundHistory, bulkGrants] = await Promise.all([
-		listAdminQueueItems(),
-		listAdminRefundRequests(),
-		listAdminRefundHistory(),
-		listBulkCreditGrants(),
-	]);
+	const [queueItems, refundRequests, refundHistory, bulkGrants, suspendedUsers] =
+		await Promise.all([
+			listAdminQueueItems(),
+			listAdminRefundRequests(),
+			listAdminRefundHistory(),
+			listBulkCreditGrants(),
+			listSuspendedUsers(),
+		]);
 
 	return (
 		<AdminShell active="Operations">
 			<div className="space-y-6">
 				<BulkCreditGrantForm />
+				<AccountSuspensionForm />
 				<AdminTable
 					title="Refund requests"
 					description="Open refund and chargeback-adjacent requests from support, exam reports, and recovery flows."
@@ -91,6 +95,26 @@ export default async function AdminOperationsPage() {
 						re-authenticated admin APIs and appear in the audit log as they are used.
 					</p>
 				</section>
+				<AdminTable
+					title="Suspended accounts"
+					description="Accounts that can still sign in and view their library but cannot generate new exams."
+					headers={["User", "Reason", "Suspended by", "Suspended at"]}
+					empty="No suspended accounts."
+					rows={suspendedUsers.map((user) => ({
+						key: user.id,
+						cells: [
+							<div key="user" className="space-y-1 text-xs text-slate-500">
+								<p className="font-medium text-slate-950">{user.email}</p>
+								<p>{user.id}</p>
+							</div>,
+							<p key="reason" className="line-clamp-3 text-slate-600">
+								{user.reason}
+							</p>,
+							user.suspendedBy,
+							dateLabel(user.suspendedAt),
+						],
+					}))}
+				/>
 				<AdminTable
 					title="Refund history"
 					description="Completed and escalated refund outcomes with credit/cash split and user-visible records."

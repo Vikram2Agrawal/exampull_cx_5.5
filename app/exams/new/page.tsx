@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { NewExamForm } from "@/components/exam/new-exam-form";
 import { AppShell } from "@/components/layout/site-nav";
+import { ButtonLink } from "@/components/ui/button";
 import { GlassPanel, SectionHeader } from "@/components/ui/surface";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listClassMaterials, listUserClasses } from "@/lib/classes/data";
@@ -14,6 +15,35 @@ export default async function NewExamPage() {
 
 	if (!user) {
 		redirect("/sign-in");
+	}
+
+	if (user.accountStatus === "suspended") {
+		return (
+			<AppShell
+				active="exams"
+				unreadNotificationCount={user.unreadNotificationCount}
+				theme={user.theme}
+			>
+				<div className="space-y-8">
+					<SectionHeader title="Create an exam">
+						<p>Your existing library stays available while generation is paused.</p>
+					</SectionHeader>
+					<GlassPanel className="p-6">
+						<h2 className="text-2xl font-semibold">Exam generation paused</h2>
+						<p className="mt-2 max-w-2xl text-sm text-muted">
+							Your account can still view and download existing exams, but new exam
+							generation is disabled while an operator reviews the account.
+						</p>
+						<div className="mt-5 flex flex-wrap gap-3">
+							<ButtonLink href="/exams">View library</ButtonLink>
+							<ButtonLink href="/support" variant="ghost">
+								Contact support
+							</ButtonLink>
+						</div>
+					</GlassPanel>
+				</div>
+			</AppShell>
+		);
 	}
 
 	const [classes, priorExams] = await Promise.all([

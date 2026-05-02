@@ -10,12 +10,17 @@ import {
 export const userSessionCookieName = "session";
 export const userSessionMaxAgeSeconds = 60 * 60 * 24 * 5;
 
+export type AccountStatus = "clean" | "flagged" | "under_review" | "suspended";
+
 export type CurrentUser = {
 	uid: string;
 	email: string | null;
 	displayName: string;
 	phoneNumber: string;
 	tier: Tier;
+	accountStatus: AccountStatus;
+	suspendedAt: string | null;
+	suspensionReason: string | null;
 	credits: number;
 	reservedCredits: number;
 	subscriptionStatus: string | null;
@@ -50,6 +55,14 @@ function optionalTimestampIso(value: unknown) {
 	return null;
 }
 
+function accountStatus(value: unknown): AccountStatus {
+	if (value === "flagged" || value === "under_review" || value === "suspended") {
+		return value;
+	}
+
+	return "clean";
+}
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
 	const token = await readUserSessionCookie();
 	if (!token) {
@@ -78,6 +91,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 					? data.phoneNumber
 					: (decoded.phone_number ?? ""),
 			tier: data.tier === "scholar" || data.tier === "guru" ? data.tier : "free",
+			accountStatus: accountStatus(data.accountStatus),
+			suspendedAt: optionalTimestampIso(data.suspendedAt),
+			suspensionReason:
+				typeof data.suspensionReason === "string" ? data.suspensionReason : null,
 			credits: Number(data.credits ?? 0),
 			reservedCredits: Number(data.reservedCredits ?? 0),
 			subscriptionStatus:

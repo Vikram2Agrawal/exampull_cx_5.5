@@ -1,3 +1,4 @@
+import { AccountSuspensionForm } from "@/components/admin/account-suspension-form";
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
 import { CreditGrantForm } from "@/components/admin/credit-grant-form";
 import { TierOverrideForm } from "@/components/admin/tier-override-form";
@@ -22,12 +23,14 @@ export default async function AdminUsersPage() {
 			<div className="space-y-6">
 				<CreditGrantForm />
 				<TierOverrideForm />
+				<AccountSuspensionForm />
 				<AdminTable
 					title="Users"
 					description="Organic and test accounts, credits, spend, and activity."
 					headers={[
 						"Email",
 						"Tier",
+						"Status",
 						"Credits",
 						"Reserved",
 						"Consumed",
@@ -50,6 +53,22 @@ export default async function AdminUsersPage() {
 									</span>
 								) : null}
 							</span>,
+							<div key="status" className="space-y-1">
+								<span
+									className={
+										user.accountStatus === "suspended"
+											? "rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700"
+											: "rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+									}
+								>
+									{user.accountStatus.replaceAll("_", " ")}
+								</span>
+								{user.suspensionReason ? (
+									<p className="max-w-48 text-xs text-slate-500">
+										{user.suspensionReason}
+									</p>
+								) : null}
+							</div>,
 							user.credits,
 							user.reservedCredits,
 							user.totalCreditsConsumed,

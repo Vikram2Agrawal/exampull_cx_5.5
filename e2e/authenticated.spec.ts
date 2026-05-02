@@ -804,6 +804,110 @@ test("admin tier override updates a user with reauth audit and notification", as
 	expect(exportPayload.profile?.tierOverrideReason).toBe(`Tier override ${suffix}`);
 });
 
+test("admin suspension blocks exam generation until reinstated", async ({ page }) => {
+	const suffix = Date.now().toString();
+	const email = `suspension-${suffix}@exampull.test`;
+	const { uid } = await signInAsTestUser(page, email, {
+		tier: "scholar",
+		credits: 30,
+	});
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/users");
+	await expect(page.getByRole("heading", { name: "Account suspension" })).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const deniedResponse = await page.context().request.post(`/api/admin/users/${uid}/suspension`, {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+		},
+		data: {
+			action: "suspend",
+			reason: `Suspension ${suffix}`,
+		},
+	});
+	expect(deniedResponse.status()).toBe(403);
+
+	await page.getByLabel("Suspension user ID").fill(uid);
+	await page.getByLabel("Suspension action").selectOption("suspend");
+	await page.getByLabel("Suspension reason").fill(`Suspension ${suffix}`);
+	await page.getByLabel("Suspension re-auth password").fill(adminAgentPassword());
+	await page.getByRole("button", { name: "Apply" }).click();
+	await expect(page.getByRole("status")).toHaveText("Account suspended.");
+	await expect(page.locator("tr").filter({ hasText: uid })).toContainText("suspended");
+
+	const blockedGeneration = await page.context().request.post("/api/exams", {
+		data: {
+			title: `Blocked suspension exam ${suffix}`,
+			className: "Suspension regression",
+			topics: ["Kinematics"],
+			questionCount: 1,
+			mode: "standard",
+		},
+	});
+	expect(blockedGeneration.status()).toBe(403);
+	const blockedPayload = (await blockedGeneration.json()) as { error?: string };
+	expect(blockedPayload.error).toContain("suspended");
+
+	await page.goto("/exams/new");
+	await expect(page.getByRole("heading", { name: "Exam generation paused" })).toBeVisible();
+	await page.goto("/notifications");
+	await expect(page.getByText("Account suspended")).toBeVisible();
+
+	const reinstatedResponse = await page
+		.context()
+		.request.post(`/api/admin/users/${uid}/suspension`, {
+			headers: {
+				"x-admin-csrf-token": csrfToken,
+				"x-admin-reauth-password": adminAgentPassword(),
+			},
+			data: {
+				action: "unsuspend",
+				reason: `Reinstated ${suffix}`,
+			},
+		});
+	expect(reinstatedResponse.status()).toBe(200);
+	const reinstatedPayload = (await reinstatedResponse.json()) as { accountStatus?: string };
+	expect(reinstatedPayload.accountStatus).toBe("clean");
+
+	const generationResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title: `Reinstated suspension exam ${suffix}`,
+			className: "Suspension regression",
+			topics: ["Kinematics"],
+			questionCount: 1,
+			mode: "standard",
+		},
+	});
+	expect(generationResponse.status()).toBe(201);
+	const generationPayload = (await generationResponse.json()) as { examId?: string };
+	expect(generationPayload.examId).toBeTruthy();
+	await page.goto("/notifications");
+	await expect(page.getByText("Account reinstated")).toBeVisible();
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			accountStatus?: string;
+			unsuspensionReason?: string;
+			suspensionHistory?: Array<{ action?: string; reason?: string }>;
+		} | null;
+	};
+	expect(exportPayload.profile?.accountStatus).toBe("clean");
+	expect(exportPayload.profile?.unsuspensionReason).toBe(`Reinstated ${suffix}`);
+	expect(exportPayload.profile?.suspensionHistory).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				action: "suspend",
+				reason: `Suspension ${suffix}`,
+			}),
+			expect.objectContaining({
+				action: "unsuspend",
+				reason: `Reinstated ${suffix}`,
+			}),
+		]),
+	);
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;

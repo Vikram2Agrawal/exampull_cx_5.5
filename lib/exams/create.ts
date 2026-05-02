@@ -29,6 +29,10 @@ export async function createExamForUser({
 	const useScholarBoost = parsed.useScholarBoost && user.tier === "free";
 	const generationTier = useScholarBoost ? "scholar" : user.tier;
 
+	if (user.accountStatus === "suspended") {
+		throw new Error("Your account is suspended from creating new exams.");
+	}
+
 	if (parsed.mode === "power" && generationTier === "free") {
 		throw new Error("Power Mode is available on Scholar and Guru.");
 	}
@@ -61,8 +65,13 @@ export async function createExamForUser({
 
 	await adminDb.runTransaction(async (transaction) => {
 		const userSnapshot = await transaction.get(userRef);
+		const accountStatus = userSnapshot.get("accountStatus");
 		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
 		const reservedCredits = Number(userSnapshot.get("reservedCredits") ?? 0);
+
+		if (accountStatus === "suspended") {
+			throw new Error("Your account is suspended from creating new exams.");
+		}
 
 		if (useScholarBoost && userSnapshot.get("boostUsedAt")) {
 			throw new Error("Scholar Boost has already been used.");

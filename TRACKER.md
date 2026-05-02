@@ -48,6 +48,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add admin refund operations: queue aggregation from support/exam reports, re-authenticated approve/decline/escalate API, credit/cash refund records, audit logging, user notification/email, billing refund history, and export inclusion.
 - [x] Add admin bulk credit grants: mandatory dry-run previews, segmented audience filters, re-authenticated execution, per-user ledger/notifications, audit logging, grant history, and rollback-window metadata.
 - [x] Add admin tier overrides: re-authenticated user-tier override API/UI, optional expiry metadata, audit logging, user notification, and visible admin-row override marker.
+- [x] Add admin account suspension/reinstatement: re-authenticated API/UI, Users/Operations visibility, audit logging, user notifications, server-side generation blocking, paused generation page, and unsuspend recovery.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
 - [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
@@ -328,6 +329,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after admin tier overrides passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 51 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after admin tier overrides passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after admin tier overrides deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 53 local-only authenticated/quality specs skipped.
+- Focused admin suspension verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin suspension"` with missing re-auth rejection, suspend/reinstate API/UI, server-side exam-generation block, paused create-exam page, account notifications, restored generation, and export coverage.
+- Full local gate after admin account suspension passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 52 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

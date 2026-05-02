@@ -23,7 +23,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ex
 		return NextResponse.json(result, { status: 201 });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Exam clone failed.";
-		const status = message.includes("Insufficient") ? 402 : 400;
+		const status = message.includes("suspended")
+			? 403
+			: message.includes("Insufficient")
+				? 402
+				: 400;
 
 		return NextResponse.json({ error: message }, { status });
 	}

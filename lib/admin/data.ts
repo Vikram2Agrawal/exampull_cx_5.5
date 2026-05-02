@@ -8,12 +8,23 @@ export type AdminUserRow = {
 	email: string;
 	tier: string;
 	tierOverride: string | null;
+	accountStatus: string;
+	suspendedAt: string | null;
+	suspensionReason: string | null;
 	credits: number;
 	reservedCredits: number;
 	totalCreditsConsumed: number;
 	isTestAccount: boolean;
 	createdAt: string;
 	lastActiveAt: string;
+};
+
+export type AdminSuspendedUserRow = {
+	id: string;
+	email: string;
+	reason: string;
+	suspendedAt: string;
+	suspendedBy: string;
 };
 
 export type AdminExamRow = {
@@ -120,6 +131,10 @@ function text(value: unknown, fallback = "") {
 	return typeof value === "string" && value.trim() ? value : fallback;
 }
 
+function optionalIsoDate(value: unknown) {
+	return value instanceof Timestamp || value instanceof Date ? isoDate(value) : null;
+}
+
 function userIdFromCollectionGroupDoc(doc: FirebaseFirestore.QueryDocumentSnapshot) {
 	return doc.ref.parent.parent?.id ?? "unknown";
 }
@@ -180,6 +195,10 @@ export async function listAdminUsers(limit = 100): Promise<AdminUserRow[]> {
 			typeof doc.get("tierOverrideReason") === "string"
 				? doc.get("tierOverrideReason")
 				: null,
+		accountStatus: text(doc.get("accountStatus"), "clean"),
+		suspendedAt: optionalIsoDate(doc.get("suspendedAt")),
+		suspensionReason:
+			typeof doc.get("suspensionReason") === "string" ? doc.get("suspensionReason") : null,
 		credits: Number(doc.get("credits") ?? 0),
 		reservedCredits: Number(doc.get("reservedCredits") ?? 0),
 		totalCreditsConsumed: Number(doc.get("totalCreditsConsumed") ?? 0),
@@ -187,6 +206,24 @@ export async function listAdminUsers(limit = 100): Promise<AdminUserRow[]> {
 		createdAt: isoDate(doc.get("createdAt")),
 		lastActiveAt: isoDate(doc.get("lastActiveAt") ?? doc.get("updatedAt")),
 	}));
+}
+
+export async function listSuspendedUsers(limit = 100): Promise<AdminSuspendedUserRow[]> {
+	const snapshot = await adminDb
+		.collection("users")
+		.where("accountStatus", "==", "suspended")
+		.limit(limit)
+		.get();
+
+	return snapshot.docs
+		.map((doc) => ({
+			id: doc.id,
+			email: text(doc.get("email"), "unknown"),
+			reason: text(doc.get("suspensionReason"), "No reason recorded"),
+			suspendedAt: isoDate(doc.get("suspendedAt")),
+			suspendedBy: text(doc.get("suspendedBy"), "agent"),
+		}))
+		.sort((left, right) => Date.parse(right.suspendedAt) - Date.parse(left.suspendedAt));
 }
 
 export async function listAdminExams(limit = 100): Promise<AdminExamRow[]> {
@@ -489,6 +526,94 @@ export async function overrideUserTier({
 	});
 
 	return { tier };
+}
+
+export async function setUserSuspension({
+	userId,
+	action,
+	reason,
+}: {
+	userId: string;
+	action: "suspend" | "unsuspend";
+	reason: string;
+}) {
+	const userRef = adminDb.collection("users").doc(userId);
+	const snapshot = await userRef.get();
+
+	if (!snapshot.exists) {
+		throw new Error("User not found.");
+	}
+
+	const now = Timestamp.now();
+
+	if (action === "suspend") {
+		await userRef.set(
+			{
+				accountStatus: "suspended",
+				suspended: true,
+				suspendedAt: now,
+				suspendedBy: "agent",
+				suspensionReason: reason,
+				suspensionHistory: FieldValue.arrayUnion({
+					action: "suspend",
+					reason,
+					by: "agent",
+					at: now,
+				}),
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+		await createUserNotification({
+			userId,
+			title: "Account suspended",
+			body: "You can still view your library, but new exam generation is paused while this is reviewed.",
+			kind: "account",
+			href: "/support",
+		});
+		await writeAdminAudit({
+			action: "suspend_user",
+			target: `users/${userId}`,
+			details: reason,
+		});
+
+		return { accountStatus: "suspended" };
+	}
+
+	await userRef.set(
+		{
+			accountStatus: "clean",
+			suspended: false,
+			suspendedAt: FieldValue.delete(),
+			suspendedBy: FieldValue.delete(),
+			suspensionReason: FieldValue.delete(),
+			unsuspendedAt: now,
+			unsuspendedBy: "agent",
+			unsuspensionReason: reason,
+			suspensionHistory: FieldValue.arrayUnion({
+				action: "unsuspend",
+				reason,
+				by: "agent",
+				at: now,
+			}),
+			updatedAt: now,
+		},
+		{ merge: true },
+	);
+	await createUserNotification({
+		userId,
+		title: "Account reinstated",
+		body: "You can generate exams again.",
+		kind: "account",
+		href: "/exams/new",
+	});
+	await writeAdminAudit({
+		action: "unsuspend_user",
+		target: `users/${userId}`,
+		details: reason,
+	});
+
+	return { accountStatus: "clean" };
 }
 
 export async function updateTriageStatus({
