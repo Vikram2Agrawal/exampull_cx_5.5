@@ -61,6 +61,30 @@ function textPdfBuffer(pages: string[]) {
 	return Buffer.from(pdf, "utf8");
 }
 
+function blankPdfBuffer() {
+	return Buffer.from(`%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>
+endobj
+xref
+0 4
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+trailer
+<< /Root 1 0 R /Size 4 >>
+startxref
+186
+%%EOF`);
+}
+
 async function postSignedStripeEvent(page: Page, event: Record<string, unknown>) {
 	const secret = envValue("STRIPE_WEBHOOK_SECRET");
 	expect(secret, "STRIPE_WEBHOOK_SECRET must be set for billing E2E").toBeTruthy();
@@ -1088,6 +1112,75 @@ test("long PDF upload shows TOC progress and extracts focused topics", async ({ 
 	await expect(page.getByText("5 of 5 pages read")).toBeVisible();
 	await expect(page.getByText(/topics extracted/)).toBeVisible();
 	await expect(page.getByText("5 topics ready")).toBeVisible();
+});
+
+test("scanned PDF upload renders page images for multimodal topic extraction", async ({ page }) => {
+	const { uid } = await signInAsTestUser(page, `scanned-pdf-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+	const focus = "histology slide interpretation";
+	const pdf = blankPdfBuffer();
+	const startResponse = await page.context().request.post("/api/exam-uploads", {
+		data: {
+			filename: "scanned-histology-notes.pdf",
+			contentType: "application/pdf",
+			sizeBytes: pdf.byteLength,
+			focus,
+			styleReference: false,
+		},
+	});
+	expect(startResponse.status()).toBe(201);
+	const startPayload = (await startResponse.json()) as { uploadId: string; uploadUrl: string };
+	const uploadResponse = await page.context().request.put(startPayload.uploadUrl, {
+		headers: { "Content-Type": "application/pdf" },
+		data: pdf,
+	});
+	expect(uploadResponse.status()).toBe(200);
+	const completeResponse = await page
+		.context()
+		.request.patch(`/api/exam-uploads/${startPayload.uploadId}`, {
+			data: { status: "uploaded" },
+		});
+	expect(completeResponse.status()).toBe(200);
+
+	const workerResponse = await page.context().request.post("/api/workers/extract-upload-topics", {
+		data: { userId: uid, uploadId: startPayload.uploadId, tier: "guru" },
+	});
+	expect(workerResponse.status()).toBe(200);
+	const workerPayload = (await workerResponse.json()) as {
+		topics?: string[];
+		warning?: string;
+	};
+	expect(workerPayload.warning).toBeUndefined();
+	expect(workerPayload.topics).toEqual(
+		expect.arrayContaining([
+			focus,
+			`${focus} worked examples`,
+			`${focus} application problems`,
+		]),
+	);
+
+	const uploadsResponse = await page
+		.context()
+		.request.get(`/api/exam-uploads?ids=${startPayload.uploadId}`);
+	expect(uploadsResponse.status()).toBe(200);
+	const uploadsPayload = (await uploadsResponse.json()) as {
+		uploads: {
+			id: string;
+			status?: string;
+			renderedImagePageCount?: number | null;
+			extractionProgress?: {
+				pagesRead?: number | null;
+				totalPages?: number | null;
+			} | null;
+		}[];
+	};
+	const upload = uploadsPayload.uploads.find((item) => item.id === startPayload.uploadId);
+	expect(upload?.status).toBe("ready");
+	expect(upload?.renderedImagePageCount).toBe(1);
+	expect(upload?.extractionProgress?.pagesRead).toBe(1);
+	expect(upload?.extractionProgress?.totalPages).toBe(1);
 });
 
 test("new exam wizard preserves source topic and configure drafts across refresh", async ({

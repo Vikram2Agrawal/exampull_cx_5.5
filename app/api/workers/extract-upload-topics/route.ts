@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { parseTopicLines, readSourceDocumentContent } from "@/lib/materials/source-reader";
+import {
+	parseTopicLines,
+	readSourceDocumentContent,
+	sourceDocumentContentParts,
+} from "@/lib/materials/source-reader";
 import { requireWorkerRequest } from "@/lib/tasks/auth";
 
 export const runtime = "nodejs";
@@ -101,12 +105,7 @@ export async function POST(request: Request) {
 				},
 				{
 					role: "user",
-					content: source.imageDataUrl
-						? [
-								{ type: "text", text: source.text },
-								{ type: "image_url", image_url: { url: source.imageDataUrl } },
-							]
-						: source.text,
+					content: sourceDocumentContentParts(source),
 				},
 			],
 		});
@@ -122,6 +121,7 @@ export async function POST(request: Request) {
 				latencyMs: result.latencyMs,
 				pagesRead: source.pagesRead ?? null,
 				totalPages: source.pageCount ?? null,
+				renderedImagePageCount: source.renderedImagePageCount ?? 0,
 			},
 			extractionProgress: {
 				stage: "complete",

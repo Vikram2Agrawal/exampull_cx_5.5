@@ -26,6 +26,7 @@
 		"@google-cloud/storage": "^7.16.0",
 		"@google-cloud/tasks": "^5.5.2",
 		"@hookform/resolvers": "^5.2.2",
+		"@napi-rs/canvas": "^0.1.80",
 		"@react-pdf-viewer/core": "^3.12.0",
 		"@simplewebauthn/browser": "^13.2.2",
 		"@simplewebauthn/server": "^13.2.2",

@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	serverExternalPackages: [
+		"@napi-rs/canvas",
 		"@google-cloud/tasks",
 		"google-gax",
 		"pdf-parse",

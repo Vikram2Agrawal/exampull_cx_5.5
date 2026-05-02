@@ -35,6 +35,7 @@ export type ExamSourceUploadSummary = {
 	styleReference: boolean;
 	extractedTopics: string[];
 	extractionProgress: SourceExtractionProgress | null;
+	renderedImagePageCount: number | null;
 	createdAt: string;
 	uploadedAt: string | null;
 };
@@ -127,6 +128,10 @@ function uploadSummaryFromDoc(
 		styleReference: Boolean(data.styleReference ?? false),
 		extractedTopics: stringList(data.extractedTopics),
 		extractionProgress: extractionProgressFromValue(data.extractionProgress),
+		renderedImagePageCount:
+			typeof data.extractionMetadata?.renderedImagePageCount === "number"
+				? data.extractionMetadata.renderedImagePageCount
+				: null,
 		createdAt: isoDate(data.createdAt),
 		uploadedAt: optionalIsoDate(data.uploadedAt),
 	};
