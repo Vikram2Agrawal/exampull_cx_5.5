@@ -70,6 +70,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
 - [x] Add authenticated class lifecycle E2E covering create, edit, archive, restore, delete, and missing-after-delete.
+- [x] Add authenticated class deletion blocker E2E proving queued class-backed exams prevent destructive class deletion.
 - [x] Add authenticated exam library E2E covering search, filters, grid/list, bookmark, archive/restore, move-to-class, and delete.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [x] Harden stopguard to block completion on open P0-P2 flows, open tracker items, dirty worktrees, unpushed commits, and behind-upstream branches.
@@ -244,6 +245,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Production deterministic fallback hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 34 unit tests covering AI/LaTeX production fallback gates.
 - App Hosting deploy after deterministic fallback hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after deterministic fallback hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
+- Focused in-flight class deletion regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "class deletion is blocked"` with 34 unit tests and a queued class-backed exam 409 assertion.
+- Full local gate after in-flight class deletion coverage passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

@@ -20,7 +20,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P1 Product Flows
 
-- [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class.
+- [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class; authenticated E2E also verifies deletion is blocked while a queued exam still references the class.
 - [x] P1-CLASS-002 Instructor example upload charges 2 credits and produces a visible style guide; authenticated E2E verifies credit accounting and fallback style guide readiness.
 - [x] P1-WIZARD-001 Wizard combines class materials, ad hoc uploads, and manual topics; authenticated E2E verifies stored material IDs, ad hoc source retention, and manual topics on the queued exam.
 - [x] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; authenticated E2E verifies PDF upload progress, page-read metadata, worker extraction, and focus-scoped topics.
@@ -160,6 +160,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Cloud Scheduler automation for expired-preview purge provisioned with `pnpm setup:preview-purge-scheduler`; manual Scheduler invocation logged a `200` response for `/api/workers/purge-expired-previews`.
 - Production deterministic fallback hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 34 unit tests covering AI/LaTeX production fallback gates.
 - Hosted production smoke after deterministic fallback hardening deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
+- Focused in-flight class deletion regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "class deletion is blocked"` with 34 unit tests and a queued class-backed exam 409 assertion.
+- Full local gate after in-flight class deletion coverage: `pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

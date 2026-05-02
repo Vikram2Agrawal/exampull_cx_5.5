@@ -2354,6 +2354,44 @@ test("authenticated user can create edit archive restore and delete a class", as
 	expect(missingResponse.status()).toBe(404);
 });
 
+test("class deletion is blocked while a queued exam references it", async ({ page }) => {
+	await signInAsTestUser(page, `class-delete-block-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 40,
+	});
+	const createResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: "In-flight Class",
+			institution: "ExamPull",
+			educationLevel: 70,
+			description: "Deletion should wait for queued work.",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { classId: string };
+	const examResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title: "Queued class-backed exam",
+			classId: createPayload.classId,
+			className: "In-flight Class",
+			topics: ["Continuity", "Derivatives"],
+			questionCount: 2,
+			mode: "standard",
+		},
+	});
+	expect(examResponse.status()).toBe(201);
+
+	const deleteResponse = await page
+		.context()
+		.request.delete(`/api/classes/${createPayload.classId}`);
+	expect(deleteResponse.status()).toBe(409);
+	const deletePayload = (await deleteResponse.json()) as { error?: string };
+	expect(deletePayload.error).toContain("still generating");
+
+	const classResponse = await page.context().request.get(`/api/classes/${createPayload.classId}`);
+	expect(classResponse.status()).toBe(200);
+});
+
 test("authenticated user can search and bulk manage the exam library", async ({ page }) => {
 	await signInAsTestUser(page, `library-${Date.now()}@exampull.test`);
 	await seedExam(page, "Library entropy exam");
