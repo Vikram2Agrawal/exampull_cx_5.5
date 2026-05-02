@@ -15,7 +15,7 @@ export default async function NotificationsPage() {
 	const notifications = await listUserNotifications(user.uid);
 
 	return (
-		<AppShell active="alerts">
+		<AppShell active="alerts" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="space-y-8">
 				<SectionHeader title="Notifications">
 					<p>

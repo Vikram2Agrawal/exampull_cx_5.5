@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 
@@ -28,6 +28,15 @@ const requestSchema = z.discriminatedUnion("kind", [
 		percent: z.number().int().min(0).max(100),
 		pagesRead: z.number().int().min(0).max(10000).nullable().default(null),
 		totalPages: z.number().int().min(0).max(10000).nullable().default(null),
+	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("notification"),
+		title: z.string().trim().min(1).max(140),
+		body: z.string().trim().min(1).max(1000),
+		notificationKind: z.string().trim().min(1).max(40),
+		href: z.string().trim().max(240).nullable().default(null),
+		read: z.boolean().default(false),
 	}),
 ]);
 
@@ -120,6 +129,38 @@ export async function POST(request: Request) {
 			);
 
 		return NextResponse.json({ uploadId: input.uploadId });
+	}
+
+	if (input.kind === "notification") {
+		const notificationRef = await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("notifications")
+			.add({
+				title: input.title,
+				body: input.body,
+				kind: input.notificationKind,
+				href: input.href,
+				read: input.read,
+				createdAt: now,
+				updatedAt: now,
+				isTestData: true,
+			});
+
+		if (!input.read) {
+			await adminDb
+				.collection("users")
+				.doc(user.uid)
+				.set(
+					{
+						unreadNotificationCount: FieldValue.increment(1),
+						updatedAt: now,
+					},
+					{ merge: true },
+				);
+		}
+
+		return NextResponse.json({ notificationId: notificationRef.id });
 	}
 
 	const attemptId = randomUUID();

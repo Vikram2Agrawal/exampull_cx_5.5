@@ -31,7 +31,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
 - [x] P1-BOOST-001 Free user Scholar Boost is offered from second exam, atomically consumed across two tabs, includes one free grading round, and is restored by the 24-hour report regret flow.
 - [x] P1-BILLING-001 Upgrade, downgrade, cancellation, credit packs, monthly subscription grants, and receipts flow through signed Stripe webhook events; authenticated E2E verifies signature rejection, tier changes, credit packs, monthly grants, billing notifications, and idempotency.
-- [!] P1-NOTIFY-001 In-app notification center handles exam, grading, billing, referral, feedback, and account events; full event-matrix E2E remains.
+- [x] P1-NOTIFY-001 In-app notification center handles exam, grading, billing, referral, share, feedback, and account events; authenticated E2E verifies unread badge, click-to-read navigation, individual delete, mark-all-read, and clear-all.
 - [x] P1-REFERRAL-001 Referral links attribute signups and grant Scholar/Guru rewards on first exam and paid conversion; authenticated E2E verifies suspicious alias review holds, admin review visibility, manual grant, and manual revoke.
 - [x] P1-FEEDBACK-001 Product feedback widget routes feature requests, bugs, and general feedback to Firestore triage.
 - [x] P1-ADMIN-002 Admin Users, Exams, Analytics, Operations, Communications, Abuse, Referrals, Configuration, Audit Log surfaces load.
@@ -93,6 +93,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused referral reward/fraud/admin override E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "referrals reward"` with clean first-exam Scholar reward, paid Guru reward, suspicious alias hold, admin review visibility, manual grant, and manual revoke.
 - Full local gate after referral fraud/admin override implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 26 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after referral fraud/admin override deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
+- Focused notification center E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "notification center"` with event-matrix seed data, unread badge, click-to-read navigation, individual delete, mark-all-read, and clear-all.
+- Full local gate after notification center implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 27 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

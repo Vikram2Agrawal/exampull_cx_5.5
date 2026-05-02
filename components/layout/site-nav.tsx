@@ -52,7 +52,18 @@ export function PublicNav() {
 	);
 }
 
-export function AppShell({ children, active }: { children: React.ReactNode; active?: string }) {
+export function AppShell({
+	children,
+	active,
+	unreadNotificationCount = 0,
+}: {
+	children: React.ReactNode;
+	active?: string;
+	unreadNotificationCount?: number;
+}) {
+	const unreadLabel =
+		unreadNotificationCount > 99 ? "99+" : String(Math.max(0, unreadNotificationCount));
+
 	return (
 		<div className="min-h-screen bg-background text-foreground">
 			<header className="sticky top-0 z-40 border-b border-glass-border bg-background/85 backdrop-blur-xl">
@@ -71,14 +82,24 @@ export function AppShell({ children, active }: { children: React.ReactNode; acti
 								<a
 									key={link.href}
 									href={link.href}
+									aria-label={
+										link.label === "Alerts" && unreadNotificationCount > 0
+											? `Alerts, ${unreadLabel} unread notifications`
+											: undefined
+									}
 									className={cn(
-										"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-glass hover:text-foreground",
+										"relative inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-glass hover:text-foreground",
 										active === link.label.toLowerCase() &&
 											"bg-glass-strong text-foreground",
 									)}
 								>
 									<Icon aria-hidden="true" size={16} />
 									{link.label}
+									{link.label === "Alerts" && unreadNotificationCount > 0 ? (
+										<span className="ml-1 min-w-5 rounded-full bg-premium px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-premium-foreground">
+											{unreadLabel}
+										</span>
+									) : null}
 								</a>
 							);
 						})}

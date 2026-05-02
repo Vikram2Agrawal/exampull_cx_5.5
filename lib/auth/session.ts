@@ -14,6 +14,7 @@ export type CurrentUser = {
 	tier: Tier;
 	credits: number;
 	reservedCredits: number;
+	unreadNotificationCount: number;
 	isTestAccount: boolean;
 	linkedAuthProviders: LinkedAuthProvider[];
 	boostUsedAt: string | null;
@@ -71,6 +72,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			tier: data.tier === "scholar" || data.tier === "guru" ? data.tier : "free",
 			credits: Number(data.credits ?? 0),
 			reservedCredits: Number(data.reservedCredits ?? 0),
+			unreadNotificationCount: Number(data.unreadNotificationCount ?? 0),
 			isTestAccount: Boolean(data.isTestAccount ?? false),
 			linkedAuthProviders: linkedAuthProvidersFromDocument(data.linkedAuthProviders),
 			boostUsedAt: optionalTimestampIso(data.boostUsedAt),

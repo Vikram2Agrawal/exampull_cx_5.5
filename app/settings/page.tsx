@@ -15,7 +15,7 @@ export default async function SettingsPage() {
 	const code = await ensureReferralCode(user.uid);
 
 	return (
-		<AppShell active="settings">
+		<AppShell active="settings" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="space-y-8">
 				<SectionHeader title="Settings">
 					<p>

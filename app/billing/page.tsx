@@ -16,7 +16,7 @@ export default async function BillingPage() {
 	}
 
 	return (
-		<AppShell active="settings">
+		<AppShell active="settings" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="space-y-8">
 				<SectionHeader title="Billing">
 					<p>

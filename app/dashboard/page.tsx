@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 	);
 
 	return (
-		<AppShell active="dashboard">
+		<AppShell active="dashboard" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="space-y-8">
 				<div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
 					<SectionHeader title="Your exam atelier">

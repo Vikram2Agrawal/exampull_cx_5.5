@@ -20,7 +20,7 @@ export default async function ExamsPage() {
 	]);
 
 	return (
-		<AppShell active="exams">
+		<AppShell active="exams" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="space-y-8">
 				<div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
 					<SectionHeader title="Exam library">

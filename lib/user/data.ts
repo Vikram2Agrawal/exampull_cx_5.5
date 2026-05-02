@@ -112,7 +112,7 @@ export async function createUserNotification({
 	kind: string;
 	href?: string;
 }) {
-	await userRef(userId)
+	const ref = await userRef(userId)
 		.collection("notifications")
 		.add({
 			title,
@@ -129,6 +129,8 @@ export async function createUserNotification({
 		},
 		{ merge: true },
 	);
+
+	return { notificationId: ref.id };
 }
 
 export async function markAllNotificationsRead(userId: string) {
@@ -155,6 +157,104 @@ export async function markAllNotificationsRead(userId: string) {
 	await batch.commit();
 
 	return { marked: snapshot.size };
+}
+
+export async function markNotificationRead(userId: string, notificationId: string) {
+	const base = userRef(userId);
+	const notificationRef = base.collection("notifications").doc(notificationId);
+	const now = Timestamp.now();
+
+	await adminDb.runTransaction(async (transaction) => {
+		const [profileSnapshot, notificationSnapshot] = await Promise.all([
+			transaction.get(base),
+			transaction.get(notificationRef),
+		]);
+
+		if (!notificationSnapshot.exists) {
+			throw new Error("Notification not found.");
+		}
+
+		const wasUnread = notificationSnapshot.get("read") !== true;
+		transaction.update(notificationRef, {
+			read: true,
+			readAt: notificationSnapshot.get("readAt") ?? now,
+			updatedAt: now,
+		});
+
+		if (wasUnread) {
+			transaction.set(
+				base,
+				{
+					unreadNotificationCount: Math.max(
+						0,
+						Number(profileSnapshot.get("unreadNotificationCount") ?? 0) - 1,
+					),
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+		}
+	});
+
+	return { updated: true };
+}
+
+export async function deleteNotification(userId: string, notificationId: string) {
+	const base = userRef(userId);
+	const notificationRef = base.collection("notifications").doc(notificationId);
+	const now = Timestamp.now();
+
+	await adminDb.runTransaction(async (transaction) => {
+		const [profileSnapshot, notificationSnapshot] = await Promise.all([
+			transaction.get(base),
+			transaction.get(notificationRef),
+		]);
+
+		if (!notificationSnapshot.exists) {
+			throw new Error("Notification not found.");
+		}
+
+		const wasUnread = notificationSnapshot.get("read") !== true;
+		transaction.delete(notificationRef);
+
+		if (wasUnread) {
+			transaction.set(
+				base,
+				{
+					unreadNotificationCount: Math.max(
+						0,
+						Number(profileSnapshot.get("unreadNotificationCount") ?? 0) - 1,
+					),
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+		}
+	});
+
+	return { deleted: true };
+}
+
+export async function clearNotifications(userId: string) {
+	const base = userRef(userId);
+	const snapshot = await base.collection("notifications").limit(450).get();
+	const batch = adminDb.batch();
+
+	for (const notification of snapshot.docs) {
+		batch.delete(notification.ref);
+	}
+
+	batch.set(
+		base,
+		{
+			unreadNotificationCount: 0,
+			updatedAt: Timestamp.now(),
+		},
+		{ merge: true },
+	);
+	await batch.commit();
+
+	return { deleted: snapshot.size };
 }
 
 export async function updateProfileSettings(user: CurrentUser, input: ProfileSettingsInput) {

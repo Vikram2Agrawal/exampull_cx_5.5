@@ -12,7 +12,7 @@ export default async function NewClassPage() {
 	}
 
 	return (
-		<AppShell active="classes">
+		<AppShell active="classes" unreadNotificationCount={user.unreadNotificationCount}>
 			<div className="max-w-3xl space-y-8">
 				<SectionHeader title="Add a class">
 					<p>Education level sets the baseline difficulty for generated exams.</p>

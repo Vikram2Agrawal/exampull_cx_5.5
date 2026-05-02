@@ -134,6 +134,33 @@ async function queueOneQuestionExam(page: Page, title: string) {
 	expect(response.status()).toBe(201);
 }
 
+async function seedNotification(
+	page: Page,
+	input: {
+		title: string;
+		body: string;
+		kind: string;
+		href: string | null;
+		read?: boolean;
+	},
+) {
+	const response = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "notification",
+			title: input.title,
+			body: input.body,
+			notificationKind: input.kind,
+			href: input.href,
+			read: input.read ?? false,
+		},
+	});
+	expect(response.status()).toBe(200);
+	const payload = (await response.json()) as { notificationId: string };
+
+	return payload.notificationId;
+}
+
 test.skip(
 	Boolean(process.env.TEST_BASE_URL) && process.env.TEST_SESSION_API_ENABLED !== "true",
 	"Authenticated test-session API is disabled for this target.",
@@ -1554,6 +1581,124 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 			expect.objectContaining({ title: "Referral reward revoked", kind: "referral" }),
 		]),
 	);
+});
+
+test("notification center handles event matrix read delete and clear actions", async ({ page }) => {
+	await signInAsTestUser(page, `notification-matrix-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 500,
+	});
+	const fixtures = [
+		{
+			title: "Exam ready notification",
+			body: "Your generated exam is ready.",
+			kind: "exam",
+			href: "/exams",
+		},
+		{
+			title: "Grading complete notification",
+			body: "Your attempt feedback is ready.",
+			kind: "grading",
+			href: "/exams",
+		},
+		{
+			title: "Payment receipt notification",
+			body: "Your billing receipt is available.",
+			kind: "billing",
+			href: "/billing",
+		},
+		{
+			title: "Referral milestone notification",
+			body: "A referred friend generated an exam.",
+			kind: "referral",
+			href: "/settings",
+		},
+		{
+			title: "Share-link flag notification",
+			body: "A shared exam was reported by a viewer.",
+			kind: "share",
+			href: "/exams",
+		},
+		{
+			title: "Account security notification",
+			body: "A new sign-in source was linked.",
+			kind: "account",
+			href: "/settings",
+		},
+		{
+			title: "Feedback reply notification",
+			body: "The operator replied to your feedback.",
+			kind: "feedback",
+			href: "/feedback",
+		},
+	];
+
+	for (const fixture of fixtures) {
+		await seedNotification(page, fixture);
+	}
+
+	await page.goto("/dashboard");
+	await expect(page.getByRole("link", { name: "Alerts, 7 unread notifications" })).toBeVisible();
+
+	await page.goto("/notifications");
+	for (const fixture of fixtures) {
+		await expect(page.getByText(fixture.title)).toBeVisible();
+	}
+
+	await page.getByText("Exam ready notification").click();
+	await expect(page).toHaveURL(/\/exams$/);
+	let exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	let exportPayload = (await exportResponse.json()) as {
+		profile: { unreadNotificationCount?: number } | null;
+		notifications: { title?: string; read?: boolean }[];
+	};
+	expect(exportPayload.profile?.unreadNotificationCount).toBe(6);
+	expect(
+		exportPayload.notifications.find(
+			(notification) => notification.title === "Exam ready notification",
+		)?.read,
+	).toBe(true);
+
+	await page.goto("/notifications");
+	await page.getByRole("button", { name: "Delete Referral milestone notification" }).click();
+	await expect(page.getByText("Referral milestone notification")).toBeHidden();
+	exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	exportPayload = (await exportResponse.json()) as {
+		profile: { unreadNotificationCount?: number } | null;
+		notifications: { title?: string; read?: boolean }[];
+	};
+	expect(exportPayload.profile?.unreadNotificationCount).toBe(5);
+	expect(
+		exportPayload.notifications.some(
+			(notification) => notification.title === "Referral milestone notification",
+		),
+	).toBe(false);
+
+	await page.getByRole("button", { name: "Mark all as read" }).click();
+	await expect(page.getByText("Notifications marked read.")).toBeVisible();
+	exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	exportPayload = (await exportResponse.json()) as {
+		profile: { unreadNotificationCount?: number } | null;
+		notifications: { title?: string; read?: boolean }[];
+	};
+	expect(exportPayload.profile?.unreadNotificationCount).toBe(0);
+	expect(exportPayload.notifications.every((notification) => notification.read === true)).toBe(
+		true,
+	);
+
+	await page.getByRole("button", { name: "Clear all" }).click();
+	await expect(page.getByText("No notifications")).toBeVisible();
+	exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	exportPayload = (await exportResponse.json()) as {
+		profile: { unreadNotificationCount?: number } | null;
+		notifications: { title?: string; read?: boolean }[];
+	};
+	expect(exportPayload.profile?.unreadNotificationCount).toBe(0);
+	expect(exportPayload.notifications).toEqual([]);
 });
 
 test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {
