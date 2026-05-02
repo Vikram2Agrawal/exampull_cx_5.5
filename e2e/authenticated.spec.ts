@@ -1054,6 +1054,139 @@ test("credit reservation is atomic across parallel exam requests", async ({ page
 	expect(statuses).toEqual([201, 402]);
 });
 
+test("Scholar Boost is atomically consumed across two tabs and restored on report", async ({
+	page,
+}) => {
+	await signInAsTestUser(page, `boost-race-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 40,
+	});
+	await seedExam(page, "Prior exam unlocks boost");
+	const secondTab = await page.context().newPage();
+	const boostPayload = {
+		title: "Two-tab Scholar Boost exam",
+		className: "Boost Race",
+		topics: ["Limits", "Continuity", "Derivatives"],
+		questionCount: 25,
+		mode: "standard",
+		useScholarBoost: true,
+	};
+
+	await page.goto("/exams/new");
+	await secondTab.goto("/exams/new");
+	await expect(page.getByText("Boost this exam to Scholar for free")).toBeVisible();
+	await expect(secondTab.getByText("Boost this exam to Scholar for free")).toBeVisible();
+
+	const [firstResponse, secondResponse] = await Promise.all([
+		page.context().request.post("/api/exams", { data: boostPayload }),
+		secondTab.context().request.post("/api/exams", { data: boostPayload }),
+	]);
+	const responses = [
+		{ status: firstResponse.status(), payload: await firstResponse.json() },
+		{ status: secondResponse.status(), payload: await secondResponse.json() },
+	] as {
+		status: number;
+		payload: { examId?: string; error?: string };
+	}[];
+	const winning = responses.find((response) => response.status === 201);
+	const rejected = responses.find((response) => response.status !== 201);
+
+	expect(winning?.payload.examId).toBeTruthy();
+	expect(rejected?.status).toBe(400);
+	expect(rejected?.payload.error).toContain("Scholar Boost has already been used");
+
+	const examId = winning?.payload.examId ?? "";
+	const startAttempt = await page.context().request.post(`/api/exams/${examId}/attempts`, {
+		data: {
+			filename: "boost-covered-attempt.txt",
+			contentType: "text/plain",
+			sizeBytes: 64,
+			visualAnnotations: false,
+		},
+	});
+	expect(startAttempt.status()).toBe(201);
+	const attemptPayload = (await startAttempt.json()) as { attemptId: string; uploadUrl: string };
+	const uploadAttempt = await page.context().request.put(attemptPayload.uploadUrl, {
+		headers: { "Content-Type": "text/plain" },
+		data: "I attempted each question and showed the main derivative steps.",
+	});
+	expect(uploadAttempt.status()).toBe(200);
+	const completeAttempt = await page
+		.context()
+		.request.patch(`/api/exams/${examId}/attempts/${attemptPayload.attemptId}`, {
+			data: { status: "uploaded" },
+		});
+	expect(completeAttempt.status()).toBe(200);
+	const completeAttemptPayload = (await completeAttempt.json()) as { creditsReserved?: number };
+	expect(completeAttemptPayload.creditsReserved).toBe(0);
+
+	const exportBeforeReport = await page.context().request.get("/api/settings/export");
+	expect(exportBeforeReport.status()).toBe(200);
+	const beforePayload = (await exportBeforeReport.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			boostExamId?: string;
+			boostGradingAttemptId?: string;
+		} | null;
+		exams: {
+			id: string;
+			boostedScholar?: boolean;
+			answerKeyUnlocked?: boolean;
+			boostGradingIncluded?: boolean;
+			creditsReserved?: number;
+		}[];
+	};
+	expect(beforePayload.profile?.credits).toBe(40);
+	expect(beforePayload.profile?.reservedCredits).toBe(0);
+	expect(beforePayload.profile?.boostExamId).toBe(examId);
+	expect(beforePayload.profile?.boostGradingAttemptId).toBe(attemptPayload.attemptId);
+	const boostedExam = beforePayload.exams.find((exam) => exam.id === examId);
+	expect(boostedExam?.boostedScholar).toBe(true);
+	expect(boostedExam?.answerKeyUnlocked).toBe(true);
+	expect(boostedExam?.boostGradingIncluded).toBe(true);
+	expect(boostedExam?.creditsReserved).toBe(0);
+
+	const reportResponse = await page.context().request.patch(`/api/exams/${examId}`, {
+		data: { reportReason: "Boost regret recovery E2E report reason." },
+	});
+	expect(reportResponse.status()).toBe(200);
+
+	const retryBoost = await page.context().request.post("/api/exams", {
+		data: {
+			...boostPayload,
+			title: "Recovered Scholar Boost exam",
+			topics: ["Integrals", "Area", "Accumulation"],
+		},
+	});
+	expect(retryBoost.status()).toBe(201);
+	const retryPayload = (await retryBoost.json()) as { examId: string };
+
+	const exportAfterReport = await page.context().request.get("/api/settings/export");
+	expect(exportAfterReport.status()).toBe(200);
+	const afterPayload = (await exportAfterReport.json()) as {
+		profile: {
+			credits?: number;
+			boostExamId?: string;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			boostRefundedAt?: unknown;
+			boostedScholar?: boolean;
+		}[];
+	};
+	expect(afterPayload.profile?.credits).toBe(40);
+	expect(afterPayload.profile?.boostExamId).toBe(retryPayload.examId);
+	const reportedExam = afterPayload.exams.find((exam) => exam.id === examId);
+	const recoveredExam = afterPayload.exams.find((exam) => exam.id === retryPayload.examId);
+	expect(reportedExam?.status).toBe("reported");
+	expect(reportedExam?.boostRefundedAt).toBeTruthy();
+	expect(recoveredExam?.boostedScholar).toBe(true);
+
+	await secondTab.close();
+});
+
 test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {
 	const ownerContext = await browser.newContext();
 	const ownerPage = await ownerContext.newPage();

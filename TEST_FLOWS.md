@@ -29,7 +29,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-LIBRARY-001 Library search, filter, bookmark, archive, restore, delete, move-to-class, grid/list, and bulk actions pass authenticated E2E.
 - [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
-- [!] P1-BOOST-001 Free user Scholar Boost is offered from second exam and atomically consumed; implementation exists, full authenticated two-tab E2E remains.
+- [x] P1-BOOST-001 Free user Scholar Boost is offered from second exam, atomically consumed across two tabs, includes one free grading round, and is restored by the 24-hour report regret flow.
 - [!] P1-BILLING-001 Upgrade, downgrade, cancellation, credit packs, monthly subscription grants, and receipts flow through Stripe test mode; webhook idempotency is implemented, full Stripe CLI E2E remains.
 - [!] P1-NOTIFY-001 In-app notification center handles exam, grading, billing, referral, feedback, and account events; full event-matrix E2E remains.
 - [!] P1-REFERRAL-001 Referral links attribute signups and grant Scholar/Guru rewards on first exam and paid conversion; fraud/manual override E2E remains.
@@ -88,6 +88,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused long-PDF wizard E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "long PDF upload"` with TOC progress, page counts, PDF text extraction, and focus-scoped topics.
 - Full local gate after long-PDF wizard implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 23 desktop Chrome tests.
 - Mobile Safari Power Mode E2E passed: `pnpm exec playwright test --project=mobile-safari e2e/authenticated.spec.ts -g "mobile user can tap reorder"` with tap reorder, range bulk edit, and queued Power Mode exam.
+- Focused Scholar Boost two-tab E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Scholar Boost is atomically"` with concurrent consumption, included grading, report refund, and recovered boost reuse.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
