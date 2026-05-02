@@ -10,6 +10,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P0-AUTH-002 Existing account linking handles email/provider conflict without creating duplicate accounts; authenticated E2E verifies synced linked-source state and export metadata, with client recovery for Google-vs-password conflicts.
 - [x] P0-AUTH-003 Phone-number conflict requires prior auth source unless dormant 180+ days; authenticated E2E covers active conflict rejection and dormant reclaim without inherited account data.
 - [x] P0-AUTH-004 Signup requires a verified phone before durable session creation; authenticated E2E rejects phone-less auth tokens, and the public signup form keeps email/password account creation behind the OTP step without exposing internal test-token controls.
+- [x] P0-AUTH-005 Hosted browser auth origin is verified without test-session shortcuts; production smoke fills the real Firebase sign-in form with a nonexistent account and fails on `auth/unauthorized-domain`, while `pnpm verify:auth-domain` checks the App Hosting hostname against Firebase Auth `authorizedDomains`.
 - [x] P0-EXAM-001 Free user queues and completes a 12-question Standard exam from manual topics through the worker; authenticated E2E verifies credit settlement, PDF download, and exported artifacts.
 - [x] P0-EXAM-002 Scholar user completes a paid-tier worker generation and can download the answer key; authenticated E2E verifies credit settlement and exported artifacts.
 - [x] P0-EXAM-003 Guru visual-feedback worker creates a downloadable annotated-submission PDF artifact; authenticated E2E covers signed attempt upload, grading worker, submitted-work overlay generation, credit settlement, download, and data export.
@@ -40,6 +41,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-ADMIN-002 Admin Users, Exams, Analytics, Operations, Communications, Abuse, Referrals, Configuration, Audit Log surfaces load; Communications includes top-level outbound email/SMS history, support inbox, URL-allowlisted composer sends, single-user email/SMS/in-app messages, and bounded segmented broadcast execution.
 - [x] P1-ADMIN-003 Preview generation kill switch is configurable from admin with CSRF and destructive re-auth; landing page hides the preview tool when disabled, and authenticated E2E verifies protected admin writes while normal preview claim still passes.
 - [x] P1-ADMIN-004 Admin account suspension/reinstatement is re-authenticated, audited, visible in Users and Operations, notifies the user, preserves library access, blocks new exam generation server-side, and restores generation on unsuspend.
+- [x] P1-ADMIN-005 Admin force-regeneration repairs a completed exam without charging the student again; authenticated E2E verifies re-auth, CSRF rejection, zero reserved credits on rerun, preserved consumed credits, user notifications, and export metadata.
 
 ## P2 Resilience And Quality Flows
 
@@ -50,6 +52,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation; accessibility E2E tabs through signup fields, queues an exam from the wizard, exercises the library delete alert dialog focus trap, and navigates admin sections/search without pointer input.
 - [x] P2-A11Y-002 Screen-reader labels and live regions for generation tracker and forms; generation tracker is a labeled region, wizard/library form status updates use polite live regions, destructive modal is an alert dialog, and admin/library search controls have explicit names.
 - [x] P2-VISUAL-001 Primary screens pass dark/light/mobile/desktop design soft oracle; quality E2E captures dashboard, library, wizard, detail, and settings screenshots in dark/light across desktop and mobile, and asserts theme application, mobile nav, no horizontal overflow, glass/paper material discipline, and mobile touch targets.
+- [x] P2-VISUAL-002 Public landing and auth entry surfaces honor the artifact-first dark atelier; smoke E2E asserts desktop artifact hero, mobile first-viewport paper signal, dark default, no horizontal overflow, and real Firebase sign-in form availability.
 - [x] P2-PERF-001 Primary flows meet LCP, INP, CLS, and action-feedback latency budgets; quality E2E records dashboard, library, wizard, and detail paint/CLS metrics plus library list-view action feedback under `artifacts/quality`.
 - [x] P2-CONFIG-001 Production AI and LaTeX deterministic fallbacks are blocked unless an explicit local/test mock gate is active; unit coverage verifies production cannot silently emit fake AI content or fallback PDFs when required service env is missing.
 - [x] P2-ADMIN-SEC-001 Admin write APIs require per-session CSRF tokens; authenticated E2E verifies missing/invalid tokens are rejected and referral override writes succeed only with the admin shell token.
@@ -64,6 +67,9 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 
 ## Latest Artifacts
 
+- Full local gate after hosted-auth/process hardening, public artifact redesign, and admin force regeneration: `pnpm format && pnpm lint && pnpm typecheck && pnpm test`, `pnpm verify:auth-domain`, `pnpm build`, and `pnpm exec playwright test --project=desktop-chrome` passed with 55 desktop Chrome tests and four intended cross-browser/mobile skips.
+- Hosted production smoke after hosted-auth/process hardening, public artifact redesign, and admin force regeneration: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 4 public smoke tests and 55 local-only authenticated/quality specs skipped.
+- Public visual artifacts captured under `artifacts/manual-local-landing-v5.png`, `artifacts/manual-local-landing-mobile-v3.png`, and `artifacts/manual-local-sign-in.png` after Playwright and Computer Use inspection.
 - Desktop Chrome smoke: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after Power Mode/library management: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after class lifecycle controls: `pnpm exec playwright test --project=desktop-chrome` passed.

@@ -172,6 +172,17 @@ async function queueOneQuestionExam(page: Page, title: string) {
 		},
 	});
 	expect(response.status()).toBe(201);
+
+	const payload = (await response.json()) as { examId: string };
+
+	return payload.examId;
+}
+
+async function runGenerationWorker(page: Page, userId: string, examId: string) {
+	const response = await page.context().request.post("/api/workers/generate-exam", {
+		data: { userId, examId },
+	});
+	expect(response.status()).toBe(200);
 }
 
 async function seedNotification(
@@ -906,6 +917,92 @@ test("admin suspension blocks exam generation until reinstated", async ({ page }
 			}),
 		]),
 	);
+});
+
+test("admin force regeneration repairs an exam without charging the user again", async ({
+	page,
+}) => {
+	test.setTimeout(180_000);
+	const suffix = Date.now().toString();
+	const { uid } = await signInAsTestUser(page, `regen-${suffix}@exampull.test`, {
+		tier: "scholar",
+		credits: 20,
+	});
+	const examId = await queueOneQuestionExam(page, `Regenerate exam ${suffix}`);
+	await runGenerationWorker(page, uid, examId);
+
+	let exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	let exportPayload = (await exportResponse.json()) as {
+		profile: { credits?: number; totalCreditsConsumed?: number } | null;
+		exams: Array<{
+			id?: string;
+			status?: string;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+		}>;
+	};
+	let generatedExam = exportPayload.exams.find((exam) => exam.id === examId);
+	expect(exportPayload.profile?.credits).toBe(18);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(2);
+	expect(generatedExam?.status).toBe("complete");
+	expect(generatedExam?.creditsConsumed).toBe(2);
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/exams");
+	await expect(page.getByRole("heading", { name: "Force regenerate exam" })).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const deniedResponse = await page
+		.context()
+		.request.post(`/api/admin/exams/${uid}/${examId}/regenerate`, {
+			headers: {
+				"x-admin-csrf-token": csrfToken,
+			},
+			data: {
+				reason: `Regenerate ${suffix}`,
+			},
+		});
+	expect(deniedResponse.status()).toBe(403);
+
+	await page.getByLabel("Regenerate user ID").fill(uid);
+	await page.getByLabel("Regenerate exam ID").fill(examId);
+	await page.getByLabel("Regenerate reason").fill(`Regenerate ${suffix}`);
+	await page.getByLabel("Regenerate re-auth password").fill(adminAgentPassword());
+	await page.getByRole("button", { name: "Regenerate" }).click();
+	await expect(page.getByRole("status")).toHaveText("Regeneration queued.");
+
+	exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	exportPayload = (await exportResponse.json()) as typeof exportPayload;
+	generatedExam = exportPayload.exams.find((exam) => exam.id === examId);
+	expect(generatedExam?.creditsReserved).toBe(0);
+
+	await runGenerationWorker(page, uid, examId);
+	await page.goto("/notifications");
+	await expect(page.getByText("Exam repair started")).toBeVisible();
+	await expect(page.getByText(`Regenerate exam ${suffix} is ready`).first()).toBeVisible();
+
+	exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const finalExport = (await exportResponse.json()) as {
+		profile: { credits?: number; totalCreditsConsumed?: number } | null;
+		exams: Array<{
+			id?: string;
+			status?: string;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+			adminRegenerationCount?: number;
+			adminRegenerationReason?: string;
+		}>;
+	};
+	const repairedExam = finalExport.exams.find((exam) => exam.id === examId);
+	expect(finalExport.profile?.credits).toBe(18);
+	expect(finalExport.profile?.totalCreditsConsumed).toBe(2);
+	expect(repairedExam?.status).toBe("complete");
+	expect(repairedExam?.creditsReserved).toBe(0);
+	expect(repairedExam?.creditsConsumed).toBe(2);
+	expect(repairedExam?.adminRegenerationCount).toBe(1);
+	expect(repairedExam?.adminRegenerationReason).toBe(`Regenerate ${suffix}`);
 });
 
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {

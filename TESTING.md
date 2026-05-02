@@ -23,6 +23,12 @@ We test not just that features work, but that they work **well** — fast, smoot
 
 Visual and perceptual quality are judged against `DESIGN_PHILOSOPHY.md` using soft oracles (LLM-with-vision against the rubric). A flow that functionally passes but fails the design rubric is a failed flow, severity proportional to the violation.
 
+## Anti-Cheat Production Gates
+
+Production smoke must include at least one browser-level Firebase Auth call from the current deployed origin. The test intentionally uses a nonexistent account and expects the normal invalid-credential response; `auth/unauthorized-domain` is a deployment failure. Run `pnpm verify:auth-domain` before deploy and `pnpm setup:firebase-auth-domain` only when a new App Hosting hostname must be added.
+
+Public and auth surfaces are not covered by authenticated test-session helpers. Smoke must visually exercise the landing page on desktop and mobile, assert the dark atelier default, assert the paper artifact is visible in the first viewport, and check horizontal overflow. Authenticated E2E helpers remain valid for server behavior and data isolation, but they cannot be the only proof that login/signup works or that the first-run public experience honors `DESIGN_PHILOSOPHY.md`.
+
 ## Flow Enumeration Formula
 
 For each **feature** (not page — one page may have many features), systematically enumerate flows by applying these dimensions. Coverage is risk-weighted, not exhaustive — apply judgment about which combinations are worth running. A primary flow at minimum covers dimensions 1, 2, 3, 9, and 10.

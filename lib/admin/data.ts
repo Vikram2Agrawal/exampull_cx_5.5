@@ -1,6 +1,7 @@
 import { appendAdminAudit, recordAdminAuditAccess } from "@/lib/admin/audit";
 import { env } from "@/lib/env";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 import { createUserNotification } from "@/lib/user/data";
 
 export type AdminUserRow = {
@@ -227,23 +228,42 @@ export async function listSuspendedUsers(limit = 100): Promise<AdminSuspendedUse
 }
 
 export async function listAdminExams(limit = 100): Promise<AdminExamRow[]> {
-	const snapshot = await adminDb
-		.collectionGroup("exams")
-		.orderBy("createdAt", "desc")
-		.limit(limit)
-		.get();
+	let snapshot: FirebaseFirestore.QuerySnapshot;
 
-	return snapshot.docs.map((doc) => ({
-		id: doc.id,
-		userId: userIdFromCollectionGroupDoc(doc),
-		title: text(doc.get("title"), "Untitled exam"),
-		status: text(doc.get("status"), "queued"),
-		tier: text(doc.get("tierAtGen"), "free"),
-		questionCount: Number(doc.get("questionCount") ?? 0),
-		creditsConsumed: Number(doc.get("creditsConsumed") ?? 0),
-		rating: typeof doc.get("rating") === "number" ? Number(doc.get("rating")) : null,
-		createdAt: isoDate(doc.get("createdAt")),
-	}));
+	try {
+		snapshot = await adminDb
+			.collectionGroup("exams")
+			.orderBy("createdAt", "desc")
+			.limit(limit)
+			.get();
+	} catch (error) {
+		if (firestoreCode(error) !== 9) {
+			throw error;
+		}
+
+		snapshot = await adminDb
+			.collectionGroup("exams")
+			.limit(Math.max(limit, limit * 3))
+			.get();
+	}
+
+	return snapshot.docs
+		.sort(
+			(left, right) =>
+				timestampMillis(right.get("createdAt")) - timestampMillis(left.get("createdAt")),
+		)
+		.slice(0, limit)
+		.map((doc) => ({
+			id: doc.id,
+			userId: userIdFromCollectionGroupDoc(doc),
+			title: text(doc.get("title"), "Untitled exam"),
+			status: text(doc.get("status"), "queued"),
+			tier: text(doc.get("tierAtGen"), "free"),
+			questionCount: Number(doc.get("questionCount") ?? 0),
+			creditsConsumed: Number(doc.get("creditsConsumed") ?? 0),
+			rating: typeof doc.get("rating") === "number" ? Number(doc.get("rating")) : null,
+			createdAt: isoDate(doc.get("createdAt")),
+		}));
 }
 
 export async function listAdminQueueItems(limit = 100): Promise<AdminQueueItem[]> {
@@ -614,6 +634,64 @@ export async function setUserSuspension({
 	});
 
 	return { accountStatus: "clean" };
+}
+
+export async function forceRegenerateExam({
+	userId,
+	examId,
+	reason,
+}: {
+	userId: string;
+	examId: string;
+	reason: string;
+}) {
+	const examRef = adminDb.collection("users").doc(userId).collection("exams").doc(examId);
+	const snapshot = await examRef.get();
+
+	if (!snapshot.exists) {
+		throw new Error("Exam not found.");
+	}
+
+	const status = text(snapshot.get("status"), "queued");
+	if (status === "generating" || status === "qa_in_progress") {
+		throw new Error("This exam is already generating.");
+	}
+
+	const now = Timestamp.now();
+	const queueResult = await enqueueWorkerTask({
+		route: "/api/workers/generate-exam",
+		payload: { userId, examId },
+	});
+
+	await examRef.set(
+		{
+			status: "queued",
+			adminRegenerationCount: FieldValue.increment(1),
+			adminRegenerationRequestedAt: now,
+			adminRegenerationReason: reason,
+			adminRegenerationPreviousStatus: status,
+			adminRegenerationQueueWarning: queueResult.queued ? null : queueResult.reason,
+			creditsReserved: 0,
+			failureReason: FieldValue.delete(),
+			queueWarning: queueResult.queued ? FieldValue.delete() : queueResult.reason,
+			updatedAt: now,
+		},
+		{ merge: true },
+	);
+	await createUserNotification({
+		userId,
+		title: "Exam repair started",
+		body: "An operator queued a no-cost regeneration for one of your exams.",
+		kind: "exam",
+		href: `/exams/${examId}`,
+	});
+	await writeAdminAudit({
+		action: "force_regenerate_exam",
+		target: `users/${userId}/exams/${examId}`,
+		details: reason,
+	});
+
+	return { examId, queueResult };
 }
 
 export async function updateTriageStatus({

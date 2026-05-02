@@ -228,6 +228,7 @@ export async function POST(request: Request) {
 	const config = configResult.success ? configResult.data : null;
 	const powerSlots = config?.mode === "power" ? config.powerSlots : undefined;
 	const creditsReserved = Number(snapshot.get("creditsReserved") ?? 0);
+	const priorCreditsConsumed = Number(snapshot.get("creditsConsumed") ?? 0);
 	const userRef = adminDb.collection("users").doc(input.userId);
 
 	try {
@@ -367,7 +368,7 @@ export async function POST(request: Request) {
 				answerKeyPdfBase64: FieldValue.delete(),
 				examRenderedPages: FieldValue.delete(),
 				answerKeyRenderedPages: FieldValue.delete(),
-				creditsConsumed: creditsReserved,
+				creditsConsumed: priorCreditsConsumed + creditsReserved,
 				creditsReserved: 0,
 				qaIterations: { exam: 1, answerKey: 1 },
 				generationMetadata: {

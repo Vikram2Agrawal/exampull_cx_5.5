@@ -49,6 +49,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add admin bulk credit grants: mandatory dry-run previews, segmented audience filters, re-authenticated execution, per-user ledger/notifications, audit logging, grant history, and rollback-window metadata.
 - [x] Add admin tier overrides: re-authenticated user-tier override API/UI, optional expiry metadata, audit logging, user notification, and visible admin-row override marker.
 - [x] Add admin account suspension/reinstatement: re-authenticated API/UI, Users/Operations visibility, audit logging, user notifications, server-side generation blocking, paused generation page, and unsuspend recovery.
+- [x] Add admin force-regeneration repair: re-authenticated API/UI, CSRF enforcement, queued no-cost rerun, preserved consumed-credit accounting, user notifications, audit logging, and authenticated E2E coverage.
+- [x] Harden hosted auth and public design verification: Firebase Auth hosted domain verifier/setup script, real browser-origin Firebase smoke, artifact-first public/auth redesign, dark atelier default, desktop/mobile public visual smoke, and manual screenshot artifacts.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
 - [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
@@ -104,6 +106,12 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 - Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
 
+## Process Corrections
+
+- Post-mortem: hosted smoke was too shallow because it only loaded public read pages and admin 404, while authenticated E2E used local test-session helpers for speed and data isolation. That proved server behavior but did not prove the deployed Firebase Auth origin. Permanent correction: production smoke now performs a real Firebase sign-in attempt with fake credentials and `pnpm verify:auth-domain` checks App Hosting against Firebase Auth `authorizedDomains`.
+- Post-mortem: visual quality E2E focused on authenticated app screens, not the public landing/auth first impression, and the global CSS let OS light mode override the documented dark atelier identity. Permanent correction: public smoke now asserts dark default plus desktop/mobile paper-artifact visibility, and manual Playwright/Computer Use inspection artifacts are recorded when public surfaces change.
+- Post-mortem: the admin regeneration test briefly relied on a broad admin table row, which could hide valid behavior behind sorting/limits. Permanent correction: the flow now asserts authoritative user export state, credit accounting, worker completion, and notifications instead of trusting a table appearance.
+
 ## Latest Verification
 
 - `pnpm lint` passing.
@@ -111,6 +119,10 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - `pnpm test` passing.
 - `pnpm build` passing.
 - `pnpm exec playwright test --project=desktop-chrome` passing.
+- `pnpm verify:auth-domain` passing for `exampull-web--exampull-gpt-5-5.us-central1.hosted.app`.
+- Local smoke includes real Firebase browser auth from `/sign-in`, desktop artifact hero, and mobile first-viewport paper signal.
+- App Hosting deploy after hosted-auth/process hardening, public artifact redesign, and admin force regeneration passed.
+- Hosted smoke after hosted-auth/process hardening, public artifact redesign, and admin force regeneration passed with 4 public smoke tests and 55 local-only authenticated/quality specs skipped.
 - `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passing.
 - Hosted smoke against `https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app` passing on desktop Chrome.
 - Hosted smoke re-run after visual feedback deployment passed on desktop Chrome.

@@ -1,6 +1,7 @@
 import { AccountSuspensionForm } from "@/components/admin/account-suspension-form";
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
 import { BulkCreditGrantForm } from "@/components/admin/bulk-credit-grant-form";
+import { ExamRegenerateForm } from "@/components/admin/exam-regenerate-form";
 import { RefundActionForm } from "@/components/admin/refund-action-form";
 import { listBulkCreditGrants } from "@/lib/admin/credits";
 import { listAdminQueueItems, listSuspendedUsers } from "@/lib/admin/data";
@@ -33,6 +34,7 @@ export default async function AdminOperationsPage() {
 			<div className="space-y-6">
 				<BulkCreditGrantForm />
 				<AccountSuspensionForm />
+				<ExamRegenerateForm />
 				<AdminTable
 					title="Refund requests"
 					description="Open refund and chargeback-adjacent requests from support, exam reports, and recovery flows."
