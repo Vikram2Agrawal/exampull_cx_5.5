@@ -270,6 +270,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after queued-report guard deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 45 local-only authenticated/quality specs skipped.
 - Focused answer-key share-link regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "share link can include answer key"` with paid-tier creation, answer-key page/download visibility, live creator-downgrade removal, Free-tier 403, and preserved student-copy PDF download.
 - Full local gate after answer-key share links passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 44 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after answer-key share links passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after answer-key share-link deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 46 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
