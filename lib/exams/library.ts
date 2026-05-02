@@ -215,7 +215,11 @@ export async function deleteExamForUser(user: CurrentUser, examId: string) {
 	const userRef = adminDb.collection("users").doc(user.uid);
 	const attempts = await ref.collection("attempts").get();
 	const attemptStoragePaths = attempts.docs
-		.map((doc) => doc.get("storagePath"))
+		.flatMap((doc) => [
+			doc.get("storagePath"),
+			doc.get("visualFeedbackPdfStoragePath"),
+			...storagePathList(doc.get("visualFeedbackRenderedPageStoragePaths")),
+		])
 		.filter((value): value is string => typeof value === "string" && value.length > 0);
 	const adHocUploadIds = stringList(snapshot.get("adHocUploadIds"));
 	const adHocUploads = await Promise.all(

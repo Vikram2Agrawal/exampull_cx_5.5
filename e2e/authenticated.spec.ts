@@ -46,6 +46,99 @@ test("guru user can download completed visual feedback PDF", async ({ page }) =>
 	expect(response.headers()["content-type"]).toContain("application/pdf");
 });
 
+test("guru user can upload an attempt and complete visual feedback worker", async ({ page }) => {
+	test.setTimeout(180_000);
+	const { uid } = await signInAsTestUser(page, `guru-worker-visual-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 100,
+	});
+	const examId = await seedExam(page, "Guru worker visual feedback exam");
+	const attemptBody = Buffer.from(
+		"Question 1: I set up the derivative and solved the critical point. Question 2: I checked the endpoints and estimate this earns 82%.",
+	);
+
+	const startResponse = await page.context().request.post(`/api/exams/${examId}/attempts`, {
+		data: {
+			filename: "guru-worker-attempt.txt",
+			contentType: "text/plain",
+			sizeBytes: attemptBody.byteLength,
+			visualAnnotations: true,
+		},
+	});
+	expect(startResponse.status()).toBe(201);
+	const startPayload = (await startResponse.json()) as {
+		attemptId: string;
+		uploadUrl: string;
+	};
+
+	const uploadResponse = await page.context().request.put(startPayload.uploadUrl, {
+		headers: { "Content-Type": "text/plain" },
+		data: attemptBody,
+	});
+	expect(uploadResponse.status()).toBe(200);
+
+	const completeResponse = await page
+		.context()
+		.request.patch(`/api/exams/${examId}/attempts/${startPayload.attemptId}`, {
+			data: { status: "uploaded" },
+		});
+	expect(completeResponse.status()).toBe(200);
+
+	const gradeResponse = await page.context().request.post("/api/workers/grade-attempt", {
+		data: { userId: uid, examId, attemptId: startPayload.attemptId },
+	});
+	expect(gradeResponse.status()).toBe(200);
+
+	await page.goto(`/exams/${examId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Guru worker visual feedback exam" }),
+	).toBeVisible();
+	await expect(page.getByText("guru-worker-attempt.txt")).toBeVisible();
+	await expect(page.getByText("Visual annotations: complete")).toBeVisible();
+	const download = page.getByRole("link", { name: "Download visual feedback" });
+	await expect(download).toBeVisible();
+	const feedbackResponse = await page
+		.context()
+		.request.get((await download.getAttribute("href")) ?? "");
+	expect(feedbackResponse.status()).toBe(200);
+	expect(feedbackResponse.headers()["content-type"]).toContain("application/pdf");
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+		} | null;
+		attempts: {
+			examId: string;
+			attempts: {
+				id: string;
+				status?: string;
+				visualAnnotationStatus?: string;
+				creditsReserved?: number;
+				creditsConsumed?: number;
+				visualFeedbackPdfBase64?: string;
+				visualFeedbackPdfStoragePath?: string;
+			}[];
+		}[];
+	};
+	expect(exportPayload.profile?.credits).toBe(90);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(10);
+	const attemptGroup = exportPayload.attempts.find((group) => group.examId === examId);
+	const completedAttempt = attemptGroup?.attempts.find(
+		(attempt) => attempt.id === startPayload.attemptId,
+	);
+	expect(completedAttempt?.status).toBe("graded");
+	expect(completedAttempt?.visualAnnotationStatus).toBe("complete");
+	expect(completedAttempt?.creditsReserved).toBe(0);
+	expect(completedAttempt?.creditsConsumed).toBe(10);
+	expect(completedAttempt?.visualFeedbackPdfStoragePath).toContain("/visual-feedback.pdf");
+	expect(completedAttempt?.visualFeedbackPdfBase64?.length).toBeGreaterThan(100);
+});
+
 test("free user can queue a 12-question Standard exam from manual topics", async ({ page }) => {
 	await signInAsTestUser(page, `free-manual-${Date.now()}@exampull.test`, {
 		tier: "free",

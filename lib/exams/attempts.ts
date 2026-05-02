@@ -76,7 +76,9 @@ function attemptFromDoc(id: string, data: FirebaseFirestore.DocumentData): Attem
 		visualAnnotations: Boolean(data.visualAnnotations ?? false),
 		visualAnnotationStatus:
 			typeof data.visualAnnotationStatus === "string" ? data.visualAnnotationStatus : null,
-		visualFeedbackReady: typeof data.visualFeedbackPdfBase64 === "string",
+		visualFeedbackReady:
+			typeof data.visualFeedbackPdfBase64 === "string" ||
+			typeof data.visualFeedbackPdfStoragePath === "string",
 		createdAt: isoDate(data.createdAt),
 		gradedAt: optionalIsoDate(data.gradedAt),
 	};

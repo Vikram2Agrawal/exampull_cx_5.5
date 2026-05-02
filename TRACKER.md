@@ -35,6 +35,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated full-worker Free exam E2E covering 12-question generation, LaTeX compilation, Storage-backed PDF artifacts, credit settlement, download, and data export.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
+- [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
+- [x] Add authenticated Guru attempt upload-to-worker E2E covering signed Storage upload, grading, visual feedback generation, credit settlement, PDF download, and data export.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -49,11 +51,10 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 
 - The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
-- Visual annotation now creates a rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
+- Visual annotation now creates a Storage-backed rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
 - Anonymous preview claim-to-account preservation still needs full Firebase anonymous-linking E2E; preview delivery itself no longer exposes the source PDF.
-- Generated exam artifacts now use Storage-backed PDFs/pages; visual feedback attempt artifacts still use inline base64 and should receive the same storage treatment before large upload stress testing.
 
 ## Latest Verification
 
@@ -109,6 +110,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Focused full-worker E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "full 12-question worker"`.
 - Full local gate after full-worker E2E and Storage-backed exam artifacts passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after Storage-backed exam artifact deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- Focused Guru visual-feedback worker E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"`.
+- Full local gate after Storage-backed visual-feedback artifacts passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after Storage-backed visual-feedback artifact deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

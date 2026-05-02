@@ -13,7 +13,50 @@ export type StoredExamArtifact = {
 	pdfBytes: number;
 };
 
-function artifactPrefix({
+async function storeCompiledArtifact({
+	pdfStoragePath,
+	pagePrefix,
+	compiled,
+}: {
+	pdfStoragePath: string;
+	pagePrefix: string;
+	compiled: CompiledLatex;
+}) {
+	const bucket = adminStorage.bucket();
+	const pdfBuffer = Buffer.from(compiled.pdfBase64, "base64");
+
+	await bucket.file(pdfStoragePath).save(pdfBuffer, {
+		contentType: "application/pdf",
+		metadata: {
+			cacheControl: "private, max-age=300",
+		},
+	});
+
+	const pageStoragePaths = compiled.pages.map(
+		(_page, index) => `${pagePrefix}/page-${String(index + 1).padStart(3, "0")}.png`,
+	);
+
+	await Promise.all(
+		compiled.pages.map((page, index) => {
+			const pageStoragePath = pageStoragePaths[index];
+
+			return bucket.file(pageStoragePath).save(Buffer.from(page, "base64"), {
+				contentType: "image/png",
+				metadata: {
+					cacheControl: "private, max-age=300",
+				},
+			});
+		}),
+	);
+
+	return {
+		pdfStoragePath,
+		pageStoragePaths,
+		pdfBytes: pdfBuffer.byteLength,
+	};
+}
+
+function examArtifactPrefix({
 	userId,
 	examId,
 	kind,
@@ -36,38 +79,31 @@ export async function storeExamArtifact({
 	kind: ExamArtifactKind;
 	compiled: CompiledLatex;
 }): Promise<StoredExamArtifact> {
-	const bucket = adminStorage.bucket();
-	const prefix = artifactPrefix({ userId, examId, kind });
-	const pdfStoragePath = `${prefix}.pdf`;
-	const pdfBuffer = Buffer.from(compiled.pdfBase64, "base64");
+	const prefix = examArtifactPrefix({ userId, examId, kind });
 
-	await bucket.file(pdfStoragePath).save(pdfBuffer, {
-		contentType: "application/pdf",
-		metadata: {
-			cacheControl: "private, max-age=300",
-		},
+	return storeCompiledArtifact({
+		pdfStoragePath: `${prefix}.pdf`,
+		pagePrefix: `${prefix}-pages`,
+		compiled,
 	});
+}
 
-	const pageStoragePaths = compiled.pages.map(
-		(_page, index) => `${prefix}-pages/page-${String(index + 1).padStart(3, "0")}.png`,
-	);
+export async function storeVisualFeedbackArtifact({
+	userId,
+	attemptId,
+	compiled,
+}: {
+	userId: string;
+	attemptId: string;
+	compiled: CompiledLatex;
+}): Promise<StoredExamArtifact> {
+	const prefix = `users/${userId}/attempts/${attemptId}/visual-feedback`;
 
-	await Promise.all(
-		compiled.pages.map((page, index) =>
-			bucket.file(pageStoragePaths[index]).save(Buffer.from(page, "base64"), {
-				contentType: "image/png",
-				metadata: {
-					cacheControl: "private, max-age=300",
-				},
-			}),
-		),
-	);
-
-	return {
-		pdfStoragePath,
-		pageStoragePaths,
-		pdfBytes: pdfBuffer.byteLength,
-	};
+	return storeCompiledArtifact({
+		pdfStoragePath: `${prefix}.pdf`,
+		pagePrefix: `${prefix}-pages`,
+		compiled,
+	});
 }
 
 export async function readStorageBase64(storagePath: string) {

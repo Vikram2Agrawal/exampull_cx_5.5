@@ -183,6 +183,12 @@ type ExportedDocument = FirebaseFirestore.DocumentData & {
 	id: string;
 };
 
+type InlinePdfField = "examPdfBase64" | "answerKeyPdfBase64" | "visualFeedbackPdfBase64";
+type StoragePdfField =
+	| "examPdfStoragePath"
+	| "answerKeyPdfStoragePath"
+	| "visualFeedbackPdfStoragePath";
+
 async function collectionToJson(
 	collection: FirebaseFirestore.CollectionReference,
 ): Promise<ExportedDocument[]> {
@@ -196,8 +202,8 @@ async function collectionToJson(
 
 async function exportedPdfBase64(
 	exam: ExportedDocument,
-	inlineField: "examPdfBase64" | "answerKeyPdfBase64",
-	storageField: "examPdfStoragePath" | "answerKeyPdfStoragePath",
+	inlineField: InlinePdfField,
+	storageField: StoragePdfField,
 ) {
 	const inlinePdf = exam[inlineField];
 
@@ -227,6 +233,19 @@ async function examWithExportedArtifacts(exam: ExportedDocument): Promise<Export
 	};
 }
 
+async function attemptWithExportedArtifacts(attempt: ExportedDocument): Promise<ExportedDocument> {
+	const visualFeedbackPdfBase64 = await exportedPdfBase64(
+		attempt,
+		"visualFeedbackPdfBase64",
+		"visualFeedbackPdfStoragePath",
+	);
+
+	return {
+		...attempt,
+		visualFeedbackPdfBase64,
+	};
+}
+
 export async function exportUserData(userId: string) {
 	const base = userRef(userId);
 	const [profile, rawExams, classes, notifications] = await Promise.all([
@@ -253,8 +272,12 @@ export async function exportUserData(userId: string) {
 			const examId = typeof exam.id === "string" ? exam.id : "";
 			return {
 				examId,
-				attempts: await collectionToJson(
-					base.collection("exams").doc(examId).collection("attempts"),
+				attempts: await Promise.all(
+					(
+						await collectionToJson(
+							base.collection("exams").doc(examId).collection("attempts"),
+						)
+					).map(attemptWithExportedArtifacts),
 				),
 			};
 		}),

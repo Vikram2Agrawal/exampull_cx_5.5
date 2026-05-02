@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
+import { completeVisualFeedback } from "@/lib/exams/visual-feedback";
 import { adminDb, adminStorage, Timestamp } from "@/lib/firebase/admin";
 import { extractTextFromPdf } from "@/lib/materials/extract-text";
 import { CREDIT_COSTS } from "@/lib/product/constants";
@@ -115,12 +116,14 @@ export async function POST(request: Request) {
 		const attempt = await attemptRef.get();
 		const visualAnnotations = Boolean(attempt.get("visualAnnotations") ?? false);
 		const creditsReserved = Number(attempt.get("creditsReserved") ?? 0);
+		let shouldRunVisualFeedbackInline = false;
 
 		if (visualAnnotations) {
 			const queueResult = await enqueueWorkerTask({
 				route: "/api/workers/visual-feedback",
 				payload: input,
 			});
+			shouldRunVisualFeedbackInline = !queueResult.queued;
 
 			await adminDb.runTransaction(async (transaction) => {
 				const user = await transaction.get(userRef);
@@ -129,9 +132,6 @@ export async function POST(request: Request) {
 						0,
 						Number(user.get("reservedCredits") ?? 0) - gradeCost,
 					),
-					credits: queueResult.queued
-						? Number(user.get("credits") ?? 0)
-						: Number(user.get("credits") ?? 0) + annotationCost,
 					totalCreditsConsumed: Number(user.get("totalCreditsConsumed") ?? 0) + gradeCost,
 					updatedAt: Timestamp.now(),
 				});
@@ -141,9 +141,9 @@ export async function POST(request: Request) {
 					maxScore: score.maxScore,
 					feedback: result.content,
 					gradedAt: Timestamp.now(),
-					creditsReserved: queueResult.queued ? annotationCost : 0,
+					creditsReserved: annotationCost,
 					creditsConsumed: gradeCost,
-					visualAnnotationStatus: queueResult.queued ? "queued" : "queue_unavailable",
+					visualAnnotationStatus: queueResult.queued ? "queued" : "annotating_inline",
 					queueWarning: queueResult.queued ? null : queueResult.reason,
 					gradingMetadata: {
 						model: result.model,
@@ -192,6 +192,23 @@ export async function POST(request: Request) {
 			kind: "grading",
 			href: `/exams/${input.examId}`,
 		});
+
+		if (shouldRunVisualFeedbackInline) {
+			try {
+				await completeVisualFeedback(input);
+			} catch (error) {
+				await createUserNotification({
+					userId: input.userId,
+					title: `${examTitle} visual feedback failed`,
+					body:
+						error instanceof Error
+							? error.message
+							: "Visual feedback could not be generated.",
+					kind: "grading",
+					href: `/exams/${input.examId}`,
+				});
+			}
+		}
 
 		return NextResponse.json({ ok: true });
 	} catch (error) {

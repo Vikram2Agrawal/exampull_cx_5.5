@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -45,9 +46,16 @@ export async function GET(
 		return NextResponse.json({ error: "Attempt not found." }, { status: 404 });
 	}
 
-	const pdf = attempt.get("visualFeedbackPdfBase64");
+	const inlinePdf = attempt.get("visualFeedbackPdfBase64");
+	const storagePath = attempt.get("visualFeedbackPdfStoragePath");
+	const pdf =
+		typeof inlinePdf === "string"
+			? inlinePdf
+			: typeof storagePath === "string"
+				? await readStorageBase64(storagePath)
+				: null;
 
-	if (typeof pdf !== "string") {
+	if (!pdf) {
 		return NextResponse.json({ error: "Visual feedback is not ready yet." }, { status: 404 });
 	}
 
