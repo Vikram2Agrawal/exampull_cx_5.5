@@ -301,6 +301,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after per-event notification preferences deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - Focused Featurebase/customer-voice verification passed: `pnpm format && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Featurebase customer voice"` with signed SSO JWT, public Featurebase embed URLs, in-app widget fallback submission, changelog seen-state update, and admin Support Inbox visibility.
 - Full local gate after Featurebase/customer-voice wiring passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 46 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after Featurebase/customer-voice wiring passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after Featurebase/customer-voice deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 48 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
