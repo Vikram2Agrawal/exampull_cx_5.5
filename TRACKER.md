@@ -184,6 +184,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Cross-browser quality matrix passed: `pnpm exec playwright test --project=desktop-safari --project=mobile-safari e2e/quality.spec.ts` and `pnpm exec playwright test --project=mobile-android e2e/quality.spec.ts`.
 - Focused admin CSRF E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs|referrals reward"` and `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts -g "admin sections"`.
 - Full local gate after admin CSRF hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
+- App Hosting deploy after admin CSRF hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after admin CSRF hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
