@@ -1,6 +1,6 @@
 # ExamPull Build Tracker
 
-Last updated: 2026-05-01
+Last updated: 2026-05-02
 
 ## Current Phase
 
@@ -32,6 +32,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Scholar Power Mode E2E covering slot edits, reorder, range bulk edit, queueing, and created-exam metadata.
 - [x] Add authenticated one-time source upload E2E covering signed Storage write, ready fallback extraction, queueing, and detail-page source retention.
 - [x] Add authenticated class style-reference E2E covering 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and combined exam queueing.
+- [x] Add authenticated full-worker Free exam E2E covering 12-question generation, LaTeX compilation, Storage-backed PDF artifacts, credit settlement, download, and data export.
+- [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
+- [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -50,6 +53,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
 - Anonymous preview claim-to-account preservation still needs full Firebase anonymous-linking E2E; preview delivery itself no longer exposes the source PDF.
+- Generated exam artifacts now use Storage-backed PDFs/pages; visual feedback attempt artifacts still use inline base64 and should receive the same storage treatment before large upload stress testing.
 
 ## Latest Verification
 
@@ -101,6 +105,10 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Firebase Storage CORS verified with localhost:3100, 127.0.0.1:3100, localhost:3000, and hosted production origins.
 - Full local gate after class style-reference fallback and combined-source wizard E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after class style-reference fallback deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- LaTeX Cloud Run compile smoke passed against `LATEX_SERVICE_URL` with `200 OK` and rendered page output after image revision `latex-service-00003-fh9`.
+- Focused full-worker E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "full 12-question worker"`.
+- Full local gate after full-worker E2E and Storage-backed exam artifacts passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after Storage-backed exam artifact deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

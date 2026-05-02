@@ -25,7 +25,7 @@ export default defineConfig({
 	],
 	webServer: {
 		command:
-			"TEST_SESSION_API_ENABLED=true WEB_URL= CLOUD_TASKS_INVOKER_SA= pnpm exec next dev --turbopack -p 3100",
+			"TEST_SESSION_API_ENABLED=true AI_GATEWAY_MOCK=true CLOUD_TASKS_AUTH_REQUIRED=false WEB_URL= CLOUD_TASKS_INVOKER_SA= pnpm exec next dev --turbopack -p 3100",
 		url: "http://localhost:3100",
 		reuseExistingServer: false,
 		timeout: 120_000,

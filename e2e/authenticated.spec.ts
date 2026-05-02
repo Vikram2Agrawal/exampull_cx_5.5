@@ -65,6 +65,70 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 	await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
 });
 
+test("free user can complete a full 12-question worker generation", async ({ page }) => {
+	test.setTimeout(180_000);
+	const { uid } = await signInAsTestUser(page, `worker-free-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 24,
+	});
+	const createResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title: "Worker completed free exam",
+			className: "Worker Biology",
+			topics: ["Cell membranes", "Osmosis", "Diffusion"],
+			questionCount: 12,
+			mode: "standard",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { examId: string };
+
+	const workerResponse = await page.context().request.post("/api/workers/generate-exam", {
+		data: { userId: uid, examId: createPayload.examId },
+	});
+	expect(workerResponse.status()).toBe(200);
+
+	await page.goto(`/exams/${createPayload.examId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Worker completed free exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Worker Biology - 12 questions - Complete")).toBeVisible();
+	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Answer key locked" })).toBeVisible();
+	const pdfResponse = await page
+		.context()
+		.request.get(`/api/exams/${createPayload.examId}/download?type=exam`);
+	expect(pdfResponse.status()).toBe(200);
+	expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+			examPdfBase64?: string;
+			answerKeyPdfBase64?: string;
+		}[];
+	};
+	expect(exportPayload.profile?.credits).toBe(0);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(24);
+	const completedExam = exportPayload.exams.find((exam) => exam.id === createPayload.examId);
+	expect(completedExam?.status).toBe("complete");
+	expect(completedExam?.creditsReserved).toBe(0);
+	expect(completedExam?.creditsConsumed).toBe(24);
+	expect(completedExam?.examPdfBase64?.length).toBeGreaterThan(100);
+	expect(completedExam?.answerKeyPdfBase64?.length).toBeGreaterThan(100);
+});
+
 test("scholar user can configure and queue a reordered Power Mode exam", async ({ page }) => {
 	await signInAsTestUser(page, `power-${Date.now()}@exampull.test`, {
 		tier: "scholar",

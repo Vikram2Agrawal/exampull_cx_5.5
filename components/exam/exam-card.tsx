@@ -60,7 +60,7 @@ export function ExamCard({ exam }: { exam: ExamSummary }) {
 					href={`/api/exams/${exam.id}/download?type=exam`}
 					className={cn(
 						"rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground",
-						exam.examPdfBase64 ? "" : "pointer-events-none opacity-40",
+						exam.examPdfReady ? "" : "pointer-events-none opacity-40",
 					)}
 				>
 					<Download aria-label="Download exam" size={18} />

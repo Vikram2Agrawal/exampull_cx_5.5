@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSharedExam } from "@/lib/exams/library";
+import { getSharedExamPdf } from "@/lib/exams/library";
 
 export const runtime = "nodejs";
 
@@ -18,18 +18,18 @@ function downloadName(title: string) {
 
 export async function GET(request: Request, { params }: { params: Promise<{ shareId: string }> }) {
 	const { shareId } = await params;
-	const exam = await getSharedExam(shareId);
+	const exam = await getSharedExamPdf(shareId);
 	const dispositionParam = new URL(request.url).searchParams.get("disposition");
 	const disposition = dispositionParam === "inline" ? "inline" : "attachment";
 
-	if (!exam?.examPdfBase64) {
+	if (!exam) {
 		return NextResponse.json(
 			{ error: "Shared exam not found or PDF is not ready." },
 			{ status: 404 },
 		);
 	}
 
-	return new Response(Buffer.from(exam.examPdfBase64, "base64"), {
+	return new Response(Buffer.from(exam.pdfBase64, "base64"), {
 		headers: {
 			"Content-Type": "application/pdf",
 			"Content-Disposition": `${disposition}; filename="${downloadName(exam.title)}"`,

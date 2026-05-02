@@ -32,7 +32,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
 		<div className="min-h-screen">
 			<PublicNav />
 			<main className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_360px]">
-				{exam.examPdfBase64 ? (
+				{exam.examPdfReady ? (
 					<div className="overflow-hidden rounded-lg border border-glass-border bg-paper shadow-paper">
 						<iframe
 							title={`${exam.title} shared PDF preview`}
@@ -68,7 +68,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
 						</p>
 					</SectionHeader>
 					<GlassPanel className="p-5">
-						{exam.examPdfBase64 ? (
+						{exam.examPdfReady ? (
 							<a
 								href={`/api/share/${exam.shareId}/download`}
 								className="mb-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"

@@ -56,7 +56,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 						</p>
 					</SectionHeader>
 					<div className="flex gap-2">
-						{exam.examPdfBase64 ? (
+						{exam.examPdfReady ? (
 							<a
 								href={`/api/exams/${exam.id}/download?type=exam`}
 								className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"
@@ -70,7 +70,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 								Exam PDF
 							</Button>
 						)}
-						{exam.answerKeyPdfBase64 && canViewAnswerKey ? (
+						{exam.answerKeyPdfReady && canViewAnswerKey ? (
 							<a
 								href={`/api/exams/${exam.id}/download?type=answer`}
 								className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-premium px-4 text-sm font-medium text-premium-foreground"
@@ -89,7 +89,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 					</div>
 				</div>
 				<div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-					{exam.examPdfBase64 ? (
+					{exam.examPdfReady ? (
 						<div className="overflow-hidden rounded-lg border border-glass-border bg-paper shadow-paper">
 							<iframe
 								title={`${exam.title} PDF preview`}

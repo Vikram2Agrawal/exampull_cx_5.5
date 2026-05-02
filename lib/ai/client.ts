@@ -36,6 +36,46 @@ export type LlmResult = {
 	latencyMs: number;
 };
 
+function contentText(content: LlmMessage["content"]) {
+	if (typeof content === "string") {
+		return content;
+	}
+
+	return content.map((part) => (part.type === "text" ? part.text : "[image]")).join("\n");
+}
+
+function mockQuestionJson(messages: LlmMessage[]) {
+	const text = messages.map((message) => contentText(message.content)).join("\n");
+	const count = Math.max(
+		1,
+		Math.min(100, Number(text.match(/Generate exactly (\d+) questions/i)?.[1] ?? 3)),
+	);
+
+	return JSON.stringify(
+		Array.from({ length: count }, (_, index) => ({
+			prompt: `Mock exam question ${index + 1}: Explain a core idea from the supplied course materials and show the reasoning needed for partial credit.`,
+			answer: `A complete answer for question ${index + 1} identifies the relevant concept, states the governing relationship, and justifies each step clearly.`,
+			points: 10,
+		})),
+	);
+}
+
+function mockContent(stage: PipelineStage, messages: LlmMessage[]) {
+	if (stage === "questionGeneration") {
+		return mockQuestionJson(messages);
+	}
+
+	if (stage === "topicExtraction") {
+		return "Core concepts\nWorked examples\nApplication problems\nCommon misconceptions\nExam synthesis";
+	}
+
+	if (stage === "styleGuide") {
+		return "Use concise prompts, visible point values, formal wording, and clear answer-space expectations.";
+	}
+
+	return "Balanced exam blueprint with representative coverage, escalating difficulty, and clear point allocation.";
+}
+
 export async function callLlm({
 	stage,
 	tier,
@@ -45,6 +85,16 @@ export async function callLlm({
 	tier: Tier;
 	messages: LlmMessage[];
 }): Promise<LlmResult> {
+	if (process.env.AI_GATEWAY_MOCK === "true") {
+		return {
+			content: mockContent(stage, messages),
+			model: `mock/${modelForStage(stage, tier)}`,
+			inputTokens: 0,
+			outputTokens: 0,
+			latencyMs: 0,
+		};
+	}
+
 	if (!env.OPENROUTER_API_KEY) {
 		return {
 			content: "OpenRouter key missing. Build-phase deterministic fallback response.",

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { publicBaseUrl } from "@/lib/env";
+import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { createExamForUser, createExamRequestSchema } from "@/lib/exams/create";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
@@ -42,6 +43,7 @@ export type SharedExam = {
 	topics: string[];
 	questionCount: number;
 	status: string;
+	examPdfReady: boolean;
 	examPdfBase64: string | null;
 	createdAt: string;
 };
@@ -86,6 +88,39 @@ function isoDate(value: unknown) {
 	}
 
 	return new Date().toISOString();
+}
+
+function storagePathList(value: unknown) {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function pdfReady(data: FirebaseFirestore.DocumentData, type: "exam" | "answer") {
+	const base64Field = type === "answer" ? "answerKeyPdfBase64" : "examPdfBase64";
+	const storageField = type === "answer" ? "answerKeyPdfStoragePath" : "examPdfStoragePath";
+
+	return typeof data[base64Field] === "string" || typeof data[storageField] === "string";
+}
+
+async function pdfBase64FromData(data: FirebaseFirestore.DocumentData, type: "exam" | "answer") {
+	const base64Field = type === "answer" ? "answerKeyPdfBase64" : "examPdfBase64";
+	const storageField = type === "answer" ? "answerKeyPdfStoragePath" : "examPdfStoragePath";
+	const inlinePdf = data[base64Field];
+
+	if (typeof inlinePdf === "string" && inlinePdf.length > 0) {
+		return inlinePdf;
+	}
+
+	const storagePath = data[storageField];
+
+	if (typeof storagePath === "string" && storagePath.length > 0) {
+		return readStorageBase64(storagePath);
+	}
+
+	return null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -190,6 +225,12 @@ export async function deleteExamForUser(user: CurrentUser, examId: string) {
 		.filter((upload) => upload.exists && upload.get("examId") === examId)
 		.map((upload) => upload.get("storagePath"))
 		.filter((value): value is string => typeof value === "string" && value.length > 0);
+	const artifactStoragePaths = [
+		snapshot.get("examPdfStoragePath"),
+		snapshot.get("answerKeyPdfStoragePath"),
+		...storagePathList(snapshot.get("examRenderedPageStoragePaths")),
+		...storagePathList(snapshot.get("answerKeyRenderedPageStoragePaths")),
+	].filter((value): value is string => typeof value === "string" && value.length > 0);
 	const shares = await shareCollection
 		.where("ownerUid", "==", user.uid)
 		.where("examId", "==", examId)
@@ -210,7 +251,7 @@ export async function deleteExamForUser(user: CurrentUser, examId: string) {
 	}
 
 	await Promise.all(
-		[...attemptStoragePaths, ...adHocStoragePaths].map((storagePath) =>
+		[...attemptStoragePaths, ...adHocStoragePaths, ...artifactStoragePaths].map((storagePath) =>
 			adminStorage.bucket().file(storagePath).delete({ ignoreNotFound: true }),
 		),
 	);
@@ -436,9 +477,42 @@ export async function getSharedExam(shareId: string): Promise<SharedExam | null>
 		topics: stringList(data.topics),
 		questionCount: Number(data.questionCount ?? 0),
 		status: typeof data.status === "string" ? data.status : "queued",
+		examPdfReady: pdfReady(data, "exam"),
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		createdAt: isoDate(data.createdAt),
 	};
+}
+
+export async function getSharedExamPdf(shareId: string) {
+	const shareSnapshot = await shareCollection.doc(shareId).get();
+
+	if (!shareSnapshot.exists || shareSnapshot.get("revoked") === true) {
+		return null;
+	}
+
+	const ownerUid = shareSnapshot.get("ownerUid");
+	const examId = shareSnapshot.get("examId");
+
+	if (typeof ownerUid !== "string" || typeof examId !== "string") {
+		return null;
+	}
+
+	const snapshot = await examRef(ownerUid, examId).get();
+
+	if (!snapshot.exists) {
+		return null;
+	}
+
+	const data = snapshot.data() ?? {};
+	const pdfBase64 = await pdfBase64FromData(data, "exam");
+
+	if (!pdfBase64) {
+		return null;
+	}
+
+	const title = typeof data.title === "string" ? data.title : "Shared practice exam";
+
+	return { title, pdfBase64 };
 }
 
 export async function getExamPdfForUser({
@@ -464,14 +538,7 @@ export async function getExamPdfForUser({
 		throw new Error("Answer keys are available on Scholar and Guru.");
 	}
 
-	const pdf =
-		type === "answer"
-			? typeof data.answerKeyPdfBase64 === "string"
-				? data.answerKeyPdfBase64
-				: null
-			: typeof data.examPdfBase64 === "string"
-				? data.examPdfBase64
-				: null;
+	const pdf = await pdfBase64FromData(data, type);
 
 	if (!pdf) {
 		return null;

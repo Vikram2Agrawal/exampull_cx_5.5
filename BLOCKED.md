@@ -1,6 +1,6 @@
 # ExamPull Blockers
 
-Last updated: 2026-05-01
+Last updated: 2026-05-02
 
 No human blockers are currently accepted. The blank repository, missing generated env values, and unprovisioned services are build tasks in scope, not blockers.
 

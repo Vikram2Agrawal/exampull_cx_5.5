@@ -28,6 +28,8 @@ export type ExamSummary = {
 	shareCount: number;
 	creditsReserved: number;
 	creditsConsumed: number;
+	examPdfReady: boolean;
+	answerKeyPdfReady: boolean;
 	examPdfBase64: string | null;
 	answerKeyPdfBase64: string | null;
 	adHocSources: {
@@ -154,6 +156,11 @@ export function emptyUserCredits() {
 
 function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSummary {
 	const config = isRecord(data.config) ? data.config : {};
+	const examPdfReady =
+		typeof data.examPdfBase64 === "string" || typeof data.examPdfStoragePath === "string";
+	const answerKeyPdfReady =
+		typeof data.answerKeyPdfBase64 === "string" ||
+		typeof data.answerKeyPdfStoragePath === "string";
 
 	return {
 		id,
@@ -177,6 +184,8 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		shareCount: Number(data.shareCount ?? 0),
 		creditsReserved: Number(data.creditsReserved ?? 0),
 		creditsConsumed: Number(data.creditsConsumed ?? 0),
+		examPdfReady,
+		answerKeyPdfReady,
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		answerKeyPdfBase64:
 			typeof data.answerKeyPdfBase64 === "string" ? data.answerKeyPdfBase64 : null,

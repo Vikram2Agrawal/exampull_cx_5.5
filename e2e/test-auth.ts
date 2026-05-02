@@ -50,6 +50,7 @@ export async function signInAsTestUser(
 	});
 	expect(createResponse.status()).toBe(200);
 	const createPayload = (await createResponse.json()) as {
+		uid: string;
 		customToken: string;
 		apiKey: string;
 	};
@@ -70,6 +71,8 @@ export async function signInAsTestUser(
 		data: { token, idToken: identityPayload.idToken },
 	});
 	expect(sessionResponse.status()).toBe(200);
+
+	return { uid: createPayload.uid };
 }
 
 export async function seedExam(page: Page, title: string) {

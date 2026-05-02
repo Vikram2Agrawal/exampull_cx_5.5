@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
+import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { adminAuth, adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
 export const feedbackSchema = z.object({
@@ -178,7 +179,13 @@ export async function updateProfileSettings(user: CurrentUser, input: ProfileSet
 	return { updated: true };
 }
 
-async function collectionToJson(collection: FirebaseFirestore.CollectionReference) {
+type ExportedDocument = FirebaseFirestore.DocumentData & {
+	id: string;
+};
+
+async function collectionToJson(
+	collection: FirebaseFirestore.CollectionReference,
+): Promise<ExportedDocument[]> {
 	const snapshot = await collection.get();
 
 	return snapshot.docs.map((doc) => ({
@@ -187,14 +194,48 @@ async function collectionToJson(collection: FirebaseFirestore.CollectionReferenc
 	}));
 }
 
+async function exportedPdfBase64(
+	exam: ExportedDocument,
+	inlineField: "examPdfBase64" | "answerKeyPdfBase64",
+	storageField: "examPdfStoragePath" | "answerKeyPdfStoragePath",
+) {
+	const inlinePdf = exam[inlineField];
+
+	if (typeof inlinePdf === "string" && inlinePdf.length > 0) {
+		return inlinePdf;
+	}
+
+	const storagePath = exam[storageField];
+
+	if (typeof storagePath !== "string" || storagePath.length === 0) {
+		return null;
+	}
+
+	return readStorageBase64(storagePath);
+}
+
+async function examWithExportedArtifacts(exam: ExportedDocument): Promise<ExportedDocument> {
+	const [examPdfBase64, answerKeyPdfBase64] = await Promise.all([
+		exportedPdfBase64(exam, "examPdfBase64", "examPdfStoragePath"),
+		exportedPdfBase64(exam, "answerKeyPdfBase64", "answerKeyPdfStoragePath"),
+	]);
+
+	return {
+		...exam,
+		examPdfBase64,
+		answerKeyPdfBase64,
+	};
+}
+
 export async function exportUserData(userId: string) {
 	const base = userRef(userId);
-	const [profile, exams, classes, notifications] = await Promise.all([
+	const [profile, rawExams, classes, notifications] = await Promise.all([
 		base.get(),
 		collectionToJson(base.collection("exams")),
 		collectionToJson(base.collection("classes")),
 		collectionToJson(base.collection("notifications")),
 	]);
+	const exams = await Promise.all(rawExams.map(examWithExportedArtifacts));
 
 	const classMaterials = await Promise.all(
 		classes.map(async (course) => {

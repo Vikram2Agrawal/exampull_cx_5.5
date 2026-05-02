@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm, type LlmContentPart } from "@/lib/ai/client";
 import { examConfigSchema } from "@/lib/billing/credits";
+import { storeExamArtifact } from "@/lib/exams/artifacts";
 import { buildExamLatex, type GeneratedExamQuestion } from "@/lib/exams/latex";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
 import { readSourceDocumentContent } from "@/lib/materials/source-reader";
 import type { Tier } from "@/lib/product/constants";
@@ -306,6 +307,20 @@ export async function POST(request: Request) {
 			compileLatex({ latex: examLatex }),
 			compileLatex({ latex: answerKeyLatex }),
 		]);
+		const [examArtifact, answerKeyArtifact] = await Promise.all([
+			storeExamArtifact({
+				userId: input.userId,
+				examId: input.examId,
+				kind: "exam",
+				compiled: examCompiled,
+			}),
+			storeExamArtifact({
+				userId: input.userId,
+				examId: input.examId,
+				kind: "answer",
+				compiled: answerKeyCompiled,
+			}),
+		]);
 
 		await adminDb.runTransaction(async (transaction) => {
 			const user = await transaction.get(userRef);
@@ -322,10 +337,18 @@ export async function POST(request: Request) {
 				status: "complete",
 				examLatex,
 				answerKeyLatex,
-				examPdfBase64: examCompiled.pdfBase64,
-				answerKeyPdfBase64: answerKeyCompiled.pdfBase64,
-				examRenderedPages: examCompiled.pages,
-				answerKeyRenderedPages: answerKeyCompiled.pages,
+				examPdfStoragePath: examArtifact.pdfStoragePath,
+				answerKeyPdfStoragePath: answerKeyArtifact.pdfStoragePath,
+				examRenderedPageStoragePaths: examArtifact.pageStoragePaths,
+				answerKeyRenderedPageStoragePaths: answerKeyArtifact.pageStoragePaths,
+				examPdfBytes: examArtifact.pdfBytes,
+				answerKeyPdfBytes: answerKeyArtifact.pdfBytes,
+				examRenderedPageCount: examArtifact.pageStoragePaths.length,
+				answerKeyRenderedPageCount: answerKeyArtifact.pageStoragePaths.length,
+				examPdfBase64: FieldValue.delete(),
+				answerKeyPdfBase64: FieldValue.delete(),
+				examRenderedPages: FieldValue.delete(),
+				answerKeyRenderedPages: FieldValue.delete(),
 				creditsConsumed: creditsReserved,
 				creditsReserved: 0,
 				qaIterations: { exam: 1, answerKey: 1 },
