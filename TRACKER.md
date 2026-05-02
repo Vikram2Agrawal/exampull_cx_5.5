@@ -215,6 +215,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after cross-browser persona matrix passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Focused auth hardening verification passed: `pnpm format && pnpm lint && pnpm typecheck`, `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signup session rejects"`, and `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts` after phone-prerequisite signup changes.
 - Full local gate after signup phone-verification hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after signup phone-verification hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after signup phone-verification deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
