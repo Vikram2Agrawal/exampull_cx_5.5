@@ -200,6 +200,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after destructive admin re-auth and audit archive deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
 - Focused Guru visual-feedback overlay E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"` with submitted-work overlay metadata, exported LaTeX, Storage-backed PDF, and credit settlement assertions.
 - Full local gate after Guru visual-feedback submitted-work overlay passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
+- App Hosting deploy after Guru visual-feedback submitted-work overlay passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after Guru visual-feedback submitted-work overlay deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
