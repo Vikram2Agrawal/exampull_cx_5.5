@@ -296,7 +296,7 @@ export function SignUpForm() {
 						/>
 					</div>
 					{error ? (
-						<div className="rounded-lg bg-error/10 p-3 text-sm text-error">
+						<div className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
 							<p>{error}</p>
 							{error.includes("already registered") ? (
 								<a
@@ -345,7 +345,9 @@ export function SignUpForm() {
 						/>
 					</div>
 					{error ? (
-						<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
+						<p className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+							{error}
+						</p>
 					) : null}
 					<Button
 						type="submit"

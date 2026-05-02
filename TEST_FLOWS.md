@@ -41,8 +41,8 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P2-CHAOS-001 Refresh at every wizard step preserves draft state; authenticated E2E verifies source details, manual topics, Power Mode configure controls, per-slot edits, successful queueing, and draft clearing.
 - [x] P2-CHAOS-002 LaTeX 503 retries without burning visual QA budget; authenticated E2E injects local-only transient 503s and verifies generation completes with single credit settlement, one QA iteration per artifact, and stored PDFs.
 - [x] P2-CHAOS-003 Stripe webhook during generation preserves tier snapshot; authenticated E2E queues a Scholar exam, applies a signed Stripe cancellation before worker completion, and verifies the completed exam keeps Scholar answer-key access and exact reserved-credit settlement after the user returns to Free.
-- [ ] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation.
-- [ ] P2-A11Y-002 Screen-reader labels and live regions for generation tracker and forms.
+- [x] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation; accessibility E2E tabs through signup fields, queues an exam from the wizard, exercises the library delete alert dialog focus trap, and navigates admin sections/search without pointer input.
+- [x] P2-A11Y-002 Screen-reader labels and live regions for generation tracker and forms; generation tracker is a labeled region, wizard/library form status updates use polite live regions, destructive modal is an alert dialog, and admin/library search controls have explicit names.
 - [ ] P2-VISUAL-001 Primary screens pass dark/light/mobile/desktop design soft oracle.
 - [ ] P2-PERF-001 Primary flows meet LCP, INP, CLS, and action-feedback latency budgets.
 - [x] P2-EVAL-001 Quick exam eval suite produces local artifacts without paid evaluator SDK calls.
@@ -104,6 +104,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after LaTeX retry chaos deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
 - Focused Stripe tier-snapshot chaos E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Stripe downgrade during generation"` with signed cancellation during queued generation, Free-tier profile downgrade, Scholar `tierAtGen`, answer-key entitlement, and exact reserved-credit settlement.
 - Full local gate after Stripe tier-snapshot chaos coverage: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 30 desktop Chrome tests and one mobile-only skip.
+- Focused accessibility E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts` with keyboard-only signup traversal, wizard queueing, library alert-dialog focus trap, admin navigation/search focus, form live regions, and generation tracker labeling.
+- Full local gate after accessibility coverage and admin queue fallback: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 34 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

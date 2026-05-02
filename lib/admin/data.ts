@@ -79,6 +79,20 @@ function isoDate(value: unknown) {
 	return new Date().toISOString();
 }
 
+function timestampMillis(value: unknown) {
+	return value instanceof Timestamp ? value.toMillis() : 0;
+}
+
+function firestoreCode(error: unknown) {
+	if (!error || typeof error !== "object" || !("code" in error)) {
+		return null;
+	}
+
+	const code = (error as { code?: unknown }).code;
+
+	return typeof code === "number" ? code : null;
+}
+
 function text(value: unknown, fallback = "") {
 	return typeof value === "string" && value.trim() ? value : fallback;
 }
@@ -169,11 +183,25 @@ export async function listAdminExams(limit = 100): Promise<AdminExamRow[]> {
 }
 
 export async function listAdminQueueItems(limit = 100): Promise<AdminQueueItem[]> {
-	const snapshot = await adminDb
-		.collectionGroup("exams")
-		.orderBy("updatedAt", "desc")
-		.limit(limit)
-		.get();
+	let snapshot: FirebaseFirestore.QuerySnapshot;
+
+	try {
+		snapshot = await adminDb
+			.collectionGroup("exams")
+			.orderBy("updatedAt", "desc")
+			.limit(limit)
+			.get();
+	} catch (error) {
+		if (firestoreCode(error) !== 9) {
+			throw error;
+		}
+
+		snapshot = await adminDb
+			.collectionGroup("exams")
+			.orderBy("createdAt", "desc")
+			.limit(Math.max(limit, limit * 3))
+			.get();
+	}
 
 	return snapshot.docs
 		.filter((doc) => {
@@ -186,6 +214,11 @@ export async function listAdminQueueItems(limit = 100): Promise<AdminQueueItem[]
 				typeof doc.get("queueWarning") === "string"
 			);
 		})
+		.sort(
+			(left, right) =>
+				timestampMillis(right.get("updatedAt")) - timestampMillis(left.get("updatedAt")),
+		)
+		.slice(0, limit)
 		.map((doc) => ({
 			id: doc.id,
 			userId: userIdFromCollectionGroupDoc(doc),

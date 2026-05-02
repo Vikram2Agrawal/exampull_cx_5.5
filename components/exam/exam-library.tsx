@@ -11,7 +11,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel, Paper } from "@/components/ui/surface";
 import type { ClassSummary } from "@/lib/classes/data";
@@ -72,6 +72,16 @@ export function ExamLibrary({
 	const [view, setView] = useState<"grid" | "list">("grid");
 	const [bulkClassId, setBulkClassId] = useState("");
 	const [message, setMessage] = useState("");
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+	const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+	const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		if (deleteDialogOpen) {
+			cancelDeleteRef.current?.focus();
+		}
+	}, [deleteDialogOpen]);
 
 	const styles = useMemo(
 		() => Array.from(new Set(exams.flatMap((exam) => exam.questionStyles))).sort(),
@@ -162,7 +172,34 @@ export function ExamLibrary({
 		});
 	}
 
-	function runBulkAction(action: LibraryAction) {
+	function closeDeleteDialog() {
+		setDeleteDialogOpen(false);
+		deleteTriggerRef.current?.focus();
+	}
+
+	function onDeleteDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			closeDeleteDialog();
+			return;
+		}
+
+		if (event.key !== "Tab") {
+			return;
+		}
+
+		if (event.shiftKey && document.activeElement === cancelDeleteRef.current) {
+			event.preventDefault();
+			confirmDeleteRef.current?.focus();
+		}
+
+		if (!event.shiftKey && document.activeElement === confirmDeleteRef.current) {
+			event.preventDefault();
+			cancelDeleteRef.current?.focus();
+		}
+	}
+
+	function runBulkAction(action: LibraryAction, confirmed = false) {
 		if (selectedIds.length === 0) {
 			setMessage("Select at least one exam.");
 			return;
@@ -170,13 +207,9 @@ export function ExamLibrary({
 
 		const classId = action === "move_class" ? bulkClassId || null : undefined;
 
-		if (action === "delete") {
-			const confirmed = window.confirm(
-				`Delete ${selectedIds.length} exam${selectedIds.length === 1 ? "" : "s"} permanently?`,
-			);
-			if (!confirmed) {
-				return;
-			}
+		if (action === "delete" && !confirmed) {
+			setDeleteDialogOpen(true);
+			return;
 		}
 
 		startTransition(async () => {
@@ -210,6 +243,7 @@ export function ExamLibrary({
 								size={18}
 							/>
 							<input
+								aria-label="Search exams"
 								value={search}
 								onChange={(event) => setSearch(event.target.value)}
 								className="h-11 w-full rounded-lg border border-glass-border bg-background/70 pl-10 pr-3 outline-none focus:ring-2 focus:ring-brand"
@@ -386,6 +420,7 @@ export function ExamLibrary({
 						<Button
 							type="button"
 							variant="danger"
+							ref={deleteTriggerRef}
 							onClick={() => runBulkAction("delete")}
 							disabled={isPending}
 						>
@@ -395,7 +430,52 @@ export function ExamLibrary({
 					</div>
 				</GlassPanel>
 			) : null}
-			{message ? <p className="text-sm text-muted">{message}</p> : null}
+			{message ? (
+				<p className="text-sm text-muted" role="status" aria-live="polite">
+					{message}
+				</p>
+			) : null}
+			{deleteDialogOpen ? (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+					role="presentation"
+				>
+					<div
+						role="alertdialog"
+						aria-modal="true"
+						aria-labelledby="bulk-delete-title"
+						aria-describedby="bulk-delete-description"
+						onKeyDown={onDeleteDialogKeyDown}
+						className="w-full max-w-md rounded-lg border border-glass-border bg-background p-5 shadow-glass"
+					>
+						<h2 id="bulk-delete-title" className="text-lg font-semibold">
+							Delete selected exams?
+						</h2>
+						<p id="bulk-delete-description" className="mt-2 text-sm text-muted">
+							This permanently deletes {selectedIds.length} selected exam
+							{selectedIds.length === 1 ? "" : "s"}. Archive first if you need the
+							history.
+						</p>
+						<div className="mt-5 flex justify-end gap-2">
+							<Button type="button" ref={cancelDeleteRef} onClick={closeDeleteDialog}>
+								Cancel
+							</Button>
+							<Button
+								type="button"
+								variant="danger"
+								ref={confirmDeleteRef}
+								onClick={() => {
+									setDeleteDialogOpen(false);
+									runBulkAction("delete", true);
+								}}
+								disabled={isPending}
+							>
+								Confirm delete
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
 			{filteredExams.length > 0 ? (
 				view === "grid" ? (
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

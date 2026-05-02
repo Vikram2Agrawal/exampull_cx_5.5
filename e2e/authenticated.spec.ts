@@ -2087,9 +2087,8 @@ test("authenticated user can search and bulk manage the exam library", async ({ 
 	await expect(page.getByLabel("Select Library kinetics exam")).toHaveCount(0);
 
 	await page.getByLabel("Select Library entropy exam").check();
-	page.once("dialog", (dialog) => {
-		void dialog.accept();
-	});
 	await page.getByRole("button", { name: "Delete" }).click();
+	await expect(page.getByRole("alertdialog", { name: "Delete selected exams?" })).toBeVisible();
+	await page.getByRole("button", { name: "Confirm delete" }).click();
 	await expect(page.getByLabel("Select Library entropy exam")).toHaveCount(0);
 });

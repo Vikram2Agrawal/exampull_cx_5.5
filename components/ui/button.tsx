@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import { type ComponentPropsWithoutRef, forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type ButtonVariant = "primary" | "secondary" | "premium" | "danger" | "ghost";
@@ -32,15 +32,13 @@ type BaseProps = {
 
 type ButtonProps = BaseProps & ComponentPropsWithoutRef<"button">;
 
-export function Button({
-	variant = "secondary",
-	size = "md",
-	className,
-	children,
-	...props
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+	{ variant = "secondary", size = "md", className, children, ...props },
+	ref,
+) {
 	return (
 		<button
+			ref={ref}
 			className={cn(
 				"inline-flex items-center justify-center rounded-lg font-medium transition duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
 				variants[variant],
@@ -52,7 +50,7 @@ export function Button({
 			{children}
 		</button>
 	);
-}
+});
 
 type ButtonLinkProps = BaseProps & ComponentPropsWithoutRef<typeof Link>;
 

@@ -67,7 +67,10 @@ export function AppShell({
 	return (
 		<div className="min-h-screen bg-background text-foreground">
 			<header className="sticky top-0 z-40 border-b border-glass-border bg-background/85 backdrop-blur-xl">
-				<nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+				<nav
+					className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6"
+					aria-label="Application"
+				>
 					<a href="/dashboard" className="flex items-center gap-2 font-semibold">
 						<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
 							E
@@ -112,7 +115,9 @@ export function AppShell({
 					</div>
 				</nav>
 			</header>
-			<main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+			<main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+				{children}
+			</main>
 			<button
 				type="button"
 				aria-label="Open help and feedback"

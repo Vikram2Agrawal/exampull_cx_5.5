@@ -36,7 +36,7 @@ export function AdminShell({ children, active }: { children: React.ReactNode; ac
 					</span>
 					Admin
 				</div>
-				<nav className="space-y-1 p-3">
+				<nav className="space-y-1 p-3" aria-label="Admin sections">
 					{nav.map((item) => {
 						const Icon = item.icon;
 
@@ -65,6 +65,7 @@ export function AdminShell({ children, active }: { children: React.ReactNode; ac
 							size={16}
 						/>
 						<input
+							aria-label="Admin search"
 							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-slate-950"
 							placeholder="Search users, exams, share links"
 						/>
@@ -73,7 +74,9 @@ export function AdminShell({ children, active }: { children: React.ReactNode; ac
 						Agent session
 					</span>
 				</header>
-				<main className="p-4 lg:p-6">{children}</main>
+				<main id="main-content" className="p-4 lg:p-6">
+					{children}
+				</main>
 			</div>
 		</div>
 	);

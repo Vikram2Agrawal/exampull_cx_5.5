@@ -118,9 +118,9 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 						</Paper>
 					)}
 					<div className="space-y-4">
-						<GlassPanel className="p-5">
+						<GlassPanel className="p-5" role="region" aria-label="Generation tracker">
 							<h2 className="font-semibold">Pipeline</h2>
-							<div className="mt-4 space-y-2">
+							<div className="mt-4 space-y-2" role="status" aria-live="polite">
 								{pipelineStages.map((stage, index) => (
 									<div
 										key={stage}

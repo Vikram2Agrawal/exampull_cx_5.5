@@ -52,6 +52,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add wizard refresh-resilience E2E covering source details, manual topics, Power Mode controls, per-slot edits, successful queueing, and draft clearing.
 - [x] Add LaTeX 503 retry chaos E2E covering local-only transient compile failures, complete generation, single credit settlement, one QA iteration per artifact, and stored PDFs.
 - [x] Add Stripe tier-snapshot chaos E2E covering a signed cancellation during queued generation while the completed exam preserves Scholar entitlement and exact reserved-credit settlement.
+- [x] Add accessibility E2E and UI semantics covering keyboard-only signup, wizard, library alert dialog, admin navigation/search, generation tracker labeling, and form live regions.
+- [x] Harden admin queue overview with an index-missing fallback so admin shell navigation does not crash while Firestore indexes are catching up.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -169,6 +171,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after LaTeX retry chaos deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome`.
 - Focused Stripe tier-snapshot chaos E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Stripe downgrade during generation"`.
 - Full local gate after Stripe tier-snapshot chaos coverage passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 30 desktop Chrome tests and one mobile-only skip.
+- Focused accessibility E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts`.
+- Full local gate after accessibility coverage and admin queue fallback passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 34 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

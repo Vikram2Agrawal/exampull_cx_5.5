@@ -846,7 +846,7 @@ export function NewExamForm({
 							>
 								<div>
 									<p className="font-medium">{upload.filename}</p>
-									<p className="text-muted">
+									<p className="text-muted" role="status" aria-live="polite">
 										{Math.max(1, Math.round(upload.sizeBytes / 1024))} KB -{" "}
 										{uploadStatusText(upload)}
 									</p>
@@ -921,7 +921,9 @@ export function NewExamForm({
 					className="mt-2 min-h-36 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
 					placeholder="One topic per line, or separate with commas"
 				/>
-				<p className="mt-2 text-sm text-muted">{topics.length} topics ready</p>
+				<p className="mt-2 text-sm text-muted" role="status" aria-live="polite">
+					{topics.length} topics ready
+				</p>
 			</div>
 			<div>
 				<label className="text-sm font-medium" htmlFor="source-notes">
@@ -1315,7 +1317,9 @@ export function NewExamForm({
 				</div>
 			) : null}
 			{error ? (
-				<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
+				<p className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+					{error}
+				</p>
 			) : null}
 			<div className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-glass p-4 sm:flex-row sm:items-center">
 				<div>
