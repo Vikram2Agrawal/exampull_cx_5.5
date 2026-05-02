@@ -66,7 +66,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
 - [x] Add hash-chained admin audit entries, audit-log read meta-audit records, and audit hash unit coverage.
-- [ ] Complete remaining post-v1 admin hardening: external audit replication and destructive-operation reauth; passkey/SMS operator auth remains deferred by operator direction.
+- [x] Add build-phase destructive admin re-auth and audit archive replication plumbing for hash-chained audit entries.
+- [ ] Provision a separate deny-delete audit archive bucket/project and passkey/SMS operator re-auth; admin phone/passkey remains deferred by operator direction.
 
 ## Known Risks
 
@@ -193,6 +194,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after audit hash-chain hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after audit hash-chain hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after audit hash-chain hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
+- Focused destructive admin re-auth and audit archive verification passed: `pnpm format && pnpm typecheck`, `pnpm test`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs|referrals reward|dormant phone"` with 3 desktop Chrome tests.
+- Full local gate after destructive admin re-auth and audit archive replication passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

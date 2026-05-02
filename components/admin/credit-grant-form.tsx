@@ -11,6 +11,7 @@ export function CreditGrantForm() {
 	const [userId, setUserId] = useState("");
 	const [amount, setAmount] = useState("20");
 	const [reason, setReason] = useState("");
+	const [reauthPassword, setReauthPassword] = useState("");
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
 
@@ -23,6 +24,7 @@ export function CreditGrantForm() {
 					headers: {
 						"Content-Type": "application/json",
 						"x-admin-csrf-token": csrfToken,
+						"x-admin-reauth-password": reauthPassword,
 					},
 					body: JSON.stringify({ amount: parsedAmount, reason }),
 				});
@@ -33,6 +35,7 @@ export function CreditGrantForm() {
 				}
 
 				setStatus("Credit grant recorded.");
+				setReauthPassword("");
 				router.refresh();
 			} catch (error) {
 				setStatus(error instanceof Error ? error.message : "Credit grant failed.");
@@ -43,7 +46,7 @@ export function CreditGrantForm() {
 	return (
 		<section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
 			<h2 className="font-semibold">Manual credit grant</h2>
-			<div className="mt-4 grid gap-3 md:grid-cols-[1fr_120px_1fr_auto]">
+			<div className="mt-4 grid gap-3 md:grid-cols-[1fr_120px_1fr_1fr_auto]">
 				<input
 					className="h-10 rounded-md border border-slate-200 px-3 text-sm"
 					placeholder="User ID"
@@ -62,7 +65,18 @@ export function CreditGrantForm() {
 					value={reason}
 					onChange={(event) => setReason(event.target.value)}
 				/>
-				<Button type="button" disabled={isPending || !userId || !reason} onClick={submit}>
+				<input
+					className="h-10 rounded-md border border-slate-200 px-3 text-sm"
+					placeholder="Re-auth password"
+					type="password"
+					value={reauthPassword}
+					onChange={(event) => setReauthPassword(event.target.value)}
+				/>
+				<Button
+					type="button"
+					disabled={isPending || !userId || !reason || !reauthPassword}
+					onClick={submit}
+				>
 					Grant
 				</Button>
 			</div>

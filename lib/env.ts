@@ -35,6 +35,8 @@ const envSchema = z.object({
 	ADMIN_AGENT_PASSWORD: z.string().optional(),
 	ADMIN_AGENT_AUTH_ENABLED: z.string().default("true"),
 	ADMIN_SECRET: z.string().optional(),
+	AUDIT_ARCHIVE_BUCKET: z.string().optional(),
+	AUDIT_ARCHIVE_PREFIX: z.string().default("admin-audit-archive/v1"),
 	TEST_SIGNUP_TOKEN: z.string().optional(),
 	TEST_SESSION_API_ENABLED: z.string().default("false"),
 });
@@ -45,6 +47,7 @@ const fallbackEnv: z.output<typeof envSchema> = {
 	OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
 	CLOUD_TASKS_QUEUE: "exampull-jobs",
 	ADMIN_AGENT_AUTH_ENABLED: "true",
+	AUDIT_ARCHIVE_PREFIX: "admin-audit-archive/v1",
 	TEST_SESSION_API_ENABLED: "false",
 };
 

@@ -16,7 +16,10 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
-	const authError = await requireAdminApiSession(request, { requireCsrf: true });
+	const authError = await requireAdminApiSession(request, {
+		requireCsrf: true,
+		requireReauth: true,
+	});
 	if (authError) {
 		return authError;
 	}

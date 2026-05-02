@@ -1193,6 +1193,8 @@ ADMIN_SECRET=                                # HMAC signing key (32+ random hex 
 ADMIN_WEBAUTHN_RP_ID=                        # Set to the App Hosting hostname during build; switches to the custom admin host after launch
 ADMIN_AGENT_PASSWORD=                        # Strong password for the autonomous agent auth path (admin-prd §2). Empty = path disabled.
 ADMIN_AGENT_AUTH_ENABLED=true                # Live toggle (mirrored to config/admin_auth doc); default enabled pre-launch, disable at launch unless explicitly used for ongoing coverage
+AUDIT_ARCHIVE_BUCKET=                        # Optional dedicated GCS bucket for immutable audit archive objects; defaults to the Firebase Storage bucket during build
+AUDIT_ARCHIVE_PREFIX=admin-audit-archive/v1  # Object prefix for replicated hash-chained audit JSON records
 
 # Test signup token — when present and matched at signup, creates an isTestAccount=true user (PRD §5.19).
 # Closed in production by leaving unset or rotating. Build agents need this to spawn synthetic accounts.

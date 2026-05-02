@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { appendAdminAuditInTransaction } from "@/lib/admin/audit";
+import {
+	type AdminAuditRecord,
+	appendAdminAuditInTransaction,
+	replicateAdminAudit,
+} from "@/lib/admin/audit";
 import { decidePhoneConflict, latestAccountActivityMillis } from "@/lib/auth/phone-conflicts";
 import {
 	emailIdentifiersFromProviders,
@@ -72,50 +76,63 @@ async function releaseDormantPhoneOwner({
 	phoneNumber: string;
 	now: FirebaseFirestore.Timestamp;
 }) {
-	return adminDb.runTransaction(async (transaction) => {
-		const snapshot = await transaction.get(ownerRef);
-		if (!snapshot.exists) {
-			return false;
-		}
+	const result = await adminDb.runTransaction(
+		async (
+			transaction,
+		): Promise<{
+			released: boolean;
+			auditRecord: AdminAuditRecord | null;
+		}> => {
+			const snapshot = await transaction.get(ownerRef);
+			if (!snapshot.exists) {
+				return { released: false, auditRecord: null };
+			}
 
-		const lastActivityMs = latestAccountActivityMillis([
-			snapshot.get("lastLoginAt"),
-			snapshot.get("updatedAt"),
-			snapshot.get("createdAt"),
-		]);
-		const decision = decidePhoneConflict({
-			existingUid: ownerUid,
-			incomingUid,
-			lastActivityMs,
-			nowMs: now.toMillis(),
-		});
+			const lastActivityMs = latestAccountActivityMillis([
+				snapshot.get("lastLoginAt"),
+				snapshot.get("updatedAt"),
+				snapshot.get("createdAt"),
+			]);
+			const decision = decidePhoneConflict({
+				existingUid: ownerUid,
+				incomingUid,
+				lastActivityMs,
+				nowMs: now.toMillis(),
+			});
 
-		if (decision.kind !== "dormant_reclaim") {
-			return false;
-		}
+			if (decision.kind !== "dormant_reclaim") {
+				return { released: false, auditRecord: null };
+			}
 
-		await appendAdminAuditInTransaction(transaction, {
-			action: "phone_dormant_reclaim",
-			target: `users/${ownerUid}`,
-			details: `Released ${phoneNumber} to users/${incomingUid} after inactivity since ${decision.dormantSince}.`,
-			operatorId: "system",
-			authMethod: "system",
-		});
-		transaction.set(
-			ownerRef,
-			{
-				phoneNumber: FieldValue.delete(),
-				previousPhoneNumbers: FieldValue.arrayUnion(phoneNumber),
-				phoneReleasedAt: now,
-				phoneReleasedToUid: incomingUid,
-				phoneReleaseReason: "dormant_reclaim",
-				updatedAt: now,
-			},
-			{ merge: true },
-		);
+			const auditRecord = await appendAdminAuditInTransaction(transaction, {
+				action: "phone_dormant_reclaim",
+				target: `users/${ownerUid}`,
+				details: `Released ${phoneNumber} to users/${incomingUid} after inactivity since ${decision.dormantSince}.`,
+				operatorId: "system",
+				authMethod: "system",
+			});
+			transaction.set(
+				ownerRef,
+				{
+					phoneNumber: FieldValue.delete(),
+					previousPhoneNumbers: FieldValue.arrayUnion(phoneNumber),
+					phoneReleasedAt: now,
+					phoneReleasedToUid: incomingUid,
+					phoneReleaseReason: "dormant_reclaim",
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
 
-		return true;
-	});
+			return { released: true, auditRecord };
+		},
+	);
+
+	if (result.auditRecord) {
+		await replicateAdminAudit(result.auditRecord);
+	}
+
+	return result.released;
 }
 
 export async function POST(request: Request) {

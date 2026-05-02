@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { auditEntryHash } from "@/lib/admin/audit";
+import { adminAuditArchivePath, adminAuditArchivePayload, auditEntryHash } from "@/lib/admin/audit";
+import { Timestamp } from "@/lib/firebase/admin";
 
 const baseEntry = {
 	action: "grant_credits",
@@ -33,5 +34,35 @@ describe("admin audit hash chain", () => {
 				details: "21 credits: support adjustment",
 			}),
 		).not.toBe(original);
+	});
+
+	it("builds deterministic archive payloads and append-only object paths", () => {
+		const createdAt = Timestamp.fromMillis(baseEntry.createdAtMillis);
+		const record = {
+			id: "entry_123",
+			action: baseEntry.action,
+			target: baseEntry.target,
+			details: baseEntry.details,
+			operatorId: baseEntry.operatorId,
+			authMethod: baseEntry.authMethod,
+			via: baseEntry.authMethod,
+			previousHash: baseEntry.previousHash,
+			hash: auditEntryHash(baseEntry),
+			sequence: baseEntry.sequence,
+			createdAt,
+			createdAtMillis: createdAt.toMillis(),
+			immutable: true,
+		} as const;
+
+		expect(adminAuditArchivePath(record)).toBe(
+			"admin-audit-archive/v1/2026-02-02/000000000001-entry_123.json",
+		);
+		expect(adminAuditArchivePayload(record)).toMatchObject({
+			archiveVersion: 1,
+			id: "entry_123",
+			hash: record.hash,
+			sequence: 1,
+			immutable: true,
+		});
 	});
 });

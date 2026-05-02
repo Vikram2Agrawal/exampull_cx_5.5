@@ -47,6 +47,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P2-PERF-001 Primary flows meet LCP, INP, CLS, and action-feedback latency budgets; quality E2E records dashboard, library, wizard, and detail paint/CLS metrics plus library list-view action feedback under `artifacts/quality`.
 - [x] P2-ADMIN-SEC-001 Admin write APIs require per-session CSRF tokens; authenticated E2E verifies missing/invalid tokens are rejected and referral override writes succeed only with the admin shell token.
 - [x] P2-ADMIN-SEC-002 Admin audit entries are hash-chained and audit-log reads are meta-audited; unit tests verify hash determinism/tamper sensitivity, and focused authenticated E2E covers CSRF-protected referral override plus dormant phone reclaim audit paths.
+- [x] P2-ADMIN-SEC-003 Destructive admin writes require explicit re-auth and archive audit replication; unit tests verify re-auth and archive payload determinism, and authenticated E2E verifies credit grants plus referral grants/revokes reject missing re-auth and succeed with re-confirmation.
 - [x] P2-EVAL-001 Quick exam eval suite produces local artifacts without paid evaluator SDK calls.
 
 ## Coverage Notes
@@ -119,6 +120,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused audit hardening verification passed: `pnpm format && pnpm typecheck && pnpm test`, `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "referrals reward|dormant phone|admin write APIs"`, and `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts -g "admin sections"`.
 - Full local gate after audit hash-chain hardening: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 37 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after audit hash-chain hardening deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
+- Focused destructive admin re-auth and audit archive verification passed: `pnpm format && pnpm typecheck`, `pnpm test`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs|referrals reward|dormant phone"` with 3 desktop Chrome tests.
+- Full local gate after destructive admin re-auth and audit archive replication: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 37 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

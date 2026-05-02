@@ -113,12 +113,18 @@ async function signUpWithReferral(page: Page, email: string, referralCode: strin
 }
 
 async function signInAsAdminAgent(page: Page) {
-	const password = envValue("ADMIN_AGENT_PASSWORD");
-	expect(password, "ADMIN_AGENT_PASSWORD must be set for admin E2E").toBeTruthy();
+	const password = adminAgentPassword();
 	const response = await page.context().request.post("/api/admin/auth/agent", {
 		data: { password },
 	});
 	expect(response.status()).toBe(200);
+}
+
+function adminAgentPassword() {
+	const password = envValue("ADMIN_AGENT_PASSWORD");
+	expect(password, "ADMIN_AGENT_PASSWORD must be set for admin E2E").toBeTruthy();
+
+	return password ?? "";
 }
 
 async function adminCsrfTokenFromPage(page: Page) {
@@ -232,7 +238,13 @@ test("settings shows synced linked auth sources without duplicate account state"
 	);
 });
 
-test("admin write APIs reject missing or invalid CSRF tokens", async ({ page }) => {
+test("admin write APIs reject missing or invalid CSRF tokens and destructive writes require reauth", async ({
+	page,
+}) => {
+	const { uid } = await signInAsTestUser(page, `admin-reauth-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 10,
+	});
 	await signInAsAdminAgent(page);
 	const missingTokenResponse = await page
 		.context()
@@ -250,6 +262,50 @@ test("admin write APIs reject missing or invalid CSRF tokens", async ({ page }) 
 			data: { status: "reviewing" },
 		});
 	expect(invalidTokenResponse.status()).toBe(403);
+
+	const missingReauthResponse = await page
+		.context()
+		.request.post(`/api/admin/users/${uid}/credits`, {
+			headers: { "x-admin-csrf-token": await adminCsrfTokenFromPage(page) },
+			data: {
+				amount: 5,
+				reason: "Support adjustment after failed generation.",
+			},
+		});
+	expect(missingReauthResponse.status()).toBe(403);
+
+	const invalidReauthResponse = await page
+		.context()
+		.request.post(`/api/admin/users/${uid}/credits`, {
+			headers: {
+				"x-admin-csrf-token": await adminCsrfTokenFromPage(page),
+				"x-admin-reauth-password": "not-the-admin-password",
+			},
+			data: {
+				amount: 5,
+				reason: "Support adjustment after failed generation.",
+			},
+		});
+	expect(invalidReauthResponse.status()).toBe(403);
+
+	const validReauthResponse = await page
+		.context()
+		.request.post(`/api/admin/users/${uid}/credits`, {
+			headers: {
+				"x-admin-csrf-token": await adminCsrfTokenFromPage(page),
+				"x-admin-reauth-password": adminAgentPassword(),
+			},
+			data: {
+				amount: 5,
+				reason: "Support adjustment after failed generation.",
+			},
+		});
+	expect(validReauthResponse.status()).toBe(200);
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exported = (await exportResponse.json()) as { profile: { credits?: number } | null };
+	expect(exported.profile?.credits).toBe(15);
 });
 
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
@@ -1792,7 +1848,21 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 				reason: "Verified as a real classmate after review.",
 			},
 		});
-	expect(grantResponse.status()).toBe(200);
+	expect(grantResponse.status()).toBe(403);
+
+	const reauthedGrantResponse = await page
+		.context()
+		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
+			headers: {
+				"x-admin-csrf-token": adminCsrfToken,
+				"x-admin-reauth-password": adminAgentPassword(),
+			},
+			data: {
+				action: "grant_scholar",
+				reason: "Verified as a real classmate after review.",
+			},
+		});
+	expect(reauthedGrantResponse.status()).toBe(200);
 	const grantedExportResponse = await page.context().request.get("/api/settings/export");
 	expect(grantedExportResponse.status()).toBe(200);
 	const grantedExport = (await grantedExportResponse.json()) as {
@@ -1814,7 +1884,10 @@ test("referrals reward real conversions, flag suspicious aliases, and allow admi
 	const revokeResponse = await page
 		.context()
 		.request.patch(`/api/admin/referrals/${suspiciousReferralId}/override`, {
-			headers: { "x-admin-csrf-token": adminCsrfToken },
+			headers: {
+				"x-admin-csrf-token": adminCsrfToken,
+				"x-admin-reauth-password": adminAgentPassword(),
+			},
 			data: {
 				action: "revoke_scholar",
 				reason: "Confirmed referral abuse after manual review.",

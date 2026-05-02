@@ -17,6 +17,10 @@ const requestSchema = z.object({
 	reason: z.string().trim().min(4).max(500),
 });
 
+function requiresReauth(action: z.infer<typeof requestSchema>["action"]) {
+	return action.startsWith("grant_") || action.startsWith("revoke_");
+}
+
 export async function PATCH(
 	request: Request,
 	{ params }: { params: Promise<{ referralId: string }> },
@@ -30,6 +34,13 @@ export async function PATCH(
 
 	try {
 		const input = requestSchema.parse(await request.json());
+		if (requiresReauth(input.action)) {
+			const reauthError = await requireAdminApiSession(request, { requireReauth: true });
+			if (reauthError) {
+				return reauthError;
+			}
+		}
+
 		const result = await overrideReferralReward({
 			referralId,
 			action: input.action,

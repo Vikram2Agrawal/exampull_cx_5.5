@@ -97,6 +97,25 @@ export async function verifyAdminCsrfToken({
 	}
 }
 
+export async function verifyAdminReauthPassword({
+	password,
+	secret = adminSecret(),
+	expectedPassword = process.env.ADMIN_AGENT_PASSWORD,
+}: {
+	password: string | null;
+	secret?: string;
+	expectedPassword?: string;
+}) {
+	if (!password || !expectedPassword) {
+		return false;
+	}
+
+	const expected = await hmac(secret, `admin-reauth:${expectedPassword}`);
+	const actual = await hmac(secret, `admin-reauth:${password}`);
+
+	return constantTimeEqual(expected, actual);
+}
+
 export async function verifyAdminSessionToken(token: string | undefined, secret = adminSecret()) {
 	if (!token) {
 		return null;
