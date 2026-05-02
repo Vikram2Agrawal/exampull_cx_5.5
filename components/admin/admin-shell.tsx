@@ -6,13 +6,13 @@ import {
 	MessageSquare,
 	Network,
 	RefreshCw,
-	Search,
 	Settings,
 	ShieldCheck,
 	Users,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { AdminCsrfProvider } from "@/components/admin/admin-csrf";
+import { AdminGlobalSearch } from "@/components/admin/admin-global-search";
 import { createAdminCsrfToken } from "@/lib/admin/session";
 import { cn } from "@/lib/utils";
 
@@ -80,18 +80,7 @@ export async function AdminShell({
 				</aside>
 				<div className="lg:pl-64">
 					<header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
-						<label className="relative w-full max-w-lg">
-							<Search
-								aria-hidden="true"
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-								size={16}
-							/>
-							<input
-								aria-label="Admin search"
-								className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-slate-950"
-								placeholder="Search users, exams, share links"
-							/>
-						</label>
+						<AdminGlobalSearch />
 						<span className="ml-4 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
 							Agent session
 						</span>

@@ -528,6 +528,83 @@ test("admin communications composer sends audited single-user messages", async (
 	await expect(page.getByText("your scholar account has 42 credits")).toBeVisible();
 });
 
+test("admin global search finds users exams classes and support items", async ({ page }) => {
+	const suffix = Date.now().toString();
+	const searchPhrase = `Global Search ${suffix}`;
+	const email = `global-search-${suffix}@exampull.test`;
+	const { uid } = await signInAsTestUser(page, email, {
+		tier: "scholar",
+		credits: 64,
+	});
+	const className = `${searchPhrase} Seminar`;
+	const classResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: className,
+			institution: "ExamPull Search Institute",
+			educationLevel: 50,
+			description: "Synthetic class for admin global search coverage.",
+		},
+	});
+	expect(classResponse.status()).toBe(201);
+	const classPayload = (await classResponse.json()) as { classId: string };
+	const examTitle = `${searchPhrase} Integral Exam`;
+	const examId = await seedExam(page, examTitle, {
+		classId: classPayload.classId,
+		className,
+	});
+	const feedbackTitle = `${searchPhrase} Support Case`;
+	const feedbackResponse = await page.context().request.post("/api/feedback", {
+		data: {
+			kind: "bug",
+			title: feedbackTitle,
+			body: "The global search regression needs a support inbox item to find.",
+			source: "support_page",
+		},
+	});
+	expect(feedbackResponse.status()).toBe(201);
+
+	await signInAsAdminAgent(page);
+	const apiResponse = await page
+		.context()
+		.request.get(`/api/admin/search?q=${encodeURIComponent(suffix)}`);
+	expect(apiResponse.status()).toBe(200);
+	const apiPayload = (await apiResponse.json()) as {
+		results?: Array<{ type: string; label: string; meta: string }>;
+	};
+	const results = apiPayload.results ?? [];
+	expect(results).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ type: "user", label: email, meta: uid }),
+			expect.objectContaining({
+				type: "exam",
+				label: examTitle,
+				meta: expect.stringContaining(examId),
+			}),
+			expect.objectContaining({
+				type: "class",
+				label: className,
+				meta: expect.stringContaining(classPayload.classId),
+			}),
+			expect.objectContaining({ type: "feedback", label: feedbackTitle }),
+		]),
+	);
+
+	await page.goto("/admin/users");
+	const searchInput = page.getByLabel("Admin search");
+	await searchInput.fill(suffix);
+	const dropdown = page.getByTestId("admin-global-search-results");
+	await expect(dropdown).toBeVisible();
+	await expect(dropdown.getByText(email)).toBeVisible();
+	await expect(dropdown.getByText(examTitle)).toBeVisible();
+	await dropdown.getByTestId("admin-global-search-result").filter({ hasText: examTitle }).click();
+	await expect(page).toHaveURL(/\/admin\/search\?q=/);
+	await expect(page.getByRole("heading", { name: "Global Search", exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: email, exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: examTitle, exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: className, exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: feedbackTitle, exact: true })).toBeVisible();
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;
