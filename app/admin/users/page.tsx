@@ -1,5 +1,6 @@
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
 import { CreditGrantForm } from "@/components/admin/credit-grant-form";
+import { TierOverrideForm } from "@/components/admin/tier-override-form";
 import { listAdminUsers } from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function AdminUsersPage() {
 		<AdminShell active="Users">
 			<div className="space-y-6">
 				<CreditGrantForm />
+				<TierOverrideForm />
 				<AdminTable
 					title="Users"
 					description="Organic and test accounts, credits, spend, and activity."
@@ -42,6 +44,11 @@ export default async function AdminUsersPage() {
 							</div>,
 							<span key="tier" className="capitalize">
 								{user.tier}
+								{user.tierOverride ? (
+									<span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
+										override
+									</span>
+								) : null}
 							</span>,
 							user.credits,
 							user.reservedCredits,

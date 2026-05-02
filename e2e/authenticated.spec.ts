@@ -758,6 +758,52 @@ test("admin bulk credit grants require dry run and credit matching users", async
 	expect(exportPayload.profile?.manualCreditGrantCount).toBe(1);
 });
 
+test("admin tier override updates a user with reauth audit and notification", async ({ page }) => {
+	const suffix = Date.now().toString();
+	const user = await createTestAuthUser(page, `tier-override-${suffix}@exampull.test`, {
+		tier: "free",
+		credits: 5,
+	});
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/users");
+	await expect(page.getByRole("heading", { name: "Tier override" })).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const deniedResponse = await page.context().request.post(`/api/admin/users/${user.uid}/tier`, {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+		},
+		data: {
+			tier: "guru",
+			reason: `Tier override ${suffix}`,
+		},
+	});
+	expect(deniedResponse.status()).toBe(403);
+
+	await page.getByLabel("Tier override user ID").fill(user.uid);
+	await page.getByLabel("Tier override tier").selectOption("guru");
+	await page.getByLabel("Tier override reason").fill(`Tier override ${suffix}`);
+	await page.getByLabel("Tier override re-auth password").fill(adminAgentPassword());
+	await page.getByRole("button", { name: "Override" }).click();
+	await expect(page.getByText("Tier override recorded.")).toBeVisible();
+	await expect(page.locator("tr").filter({ hasText: user.uid })).toContainText("guru");
+
+	const idToken = await idTokenForCustomToken(user);
+	const sessionResponse = await page.context().request.put("/api/test/session", {
+		data: { token: testSignupToken(), idToken },
+	});
+	expect(sessionResponse.status()).toBe(200);
+	await page.goto("/notifications");
+	await expect(page.getByText("Tier updated")).toBeVisible();
+	await expect(page.getByText("Your account tier is now guru.")).toBeVisible();
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: { tier?: string; tierOverrideReason?: string } | null;
+	};
+	expect(exportPayload.profile?.tier).toBe("guru");
+	expect(exportPayload.profile?.tierOverrideReason).toBe(`Tier override ${suffix}`);
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;

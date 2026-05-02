@@ -1,11 +1,13 @@
 import { appendAdminAudit, recordAdminAuditAccess } from "@/lib/admin/audit";
 import { env } from "@/lib/env";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { createUserNotification } from "@/lib/user/data";
 
 export type AdminUserRow = {
 	id: string;
 	email: string;
 	tier: string;
+	tierOverride: string | null;
 	credits: number;
 	reservedCredits: number;
 	totalCreditsConsumed: number;
@@ -174,6 +176,10 @@ export async function listAdminUsers(limit = 100): Promise<AdminUserRow[]> {
 		id: doc.id,
 		email: text(doc.get("email"), "unknown"),
 		tier: text(doc.get("tier"), "free"),
+		tierOverride:
+			typeof doc.get("tierOverrideReason") === "string"
+				? doc.get("tierOverrideReason")
+				: null,
 		credits: Number(doc.get("credits") ?? 0),
 		reservedCredits: Number(doc.get("reservedCredits") ?? 0),
 		totalCreditsConsumed: Number(doc.get("totalCreditsConsumed") ?? 0),
@@ -437,6 +443,52 @@ export async function grantUserCredits({
 	});
 
 	return { granted: amount };
+}
+
+export async function overrideUserTier({
+	userId,
+	tier,
+	expiresAt,
+	reason,
+}: {
+	userId: string;
+	tier: "free" | "scholar" | "guru";
+	expiresAt: string | null;
+	reason: string;
+}) {
+	const userRef = adminDb.collection("users").doc(userId);
+	const snapshot = await userRef.get();
+
+	if (!snapshot.exists) {
+		throw new Error("User not found.");
+	}
+
+	const expiresAtTimestamp = expiresAt ? Timestamp.fromDate(new Date(expiresAt)) : null;
+
+	await userRef.set(
+		{
+			tier,
+			tierOverrideReason: reason,
+			tierOverrideExpiresAt: expiresAtTimestamp,
+			tierOverrideUpdatedAt: Timestamp.now(),
+			updatedAt: Timestamp.now(),
+		},
+		{ merge: true },
+	);
+	await createUserNotification({
+		userId,
+		title: "Tier updated",
+		body: `Your account tier is now ${tier}.`,
+		kind: "billing",
+		href: "/billing",
+	});
+	await writeAdminAudit({
+		action: "override_tier",
+		target: `users/${userId}`,
+		details: `${tier}${expiresAt ? ` until ${expiresAt}` : ""}: ${reason}`,
+	});
+
+	return { tier };
 }
 
 export async function updateTriageStatus({
