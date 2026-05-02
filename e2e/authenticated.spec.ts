@@ -1566,6 +1566,91 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 	);
 });
 
+test("Stripe downgrade during generation preserves the exam tier snapshot", async ({ page }) => {
+	test.setTimeout(180_000);
+	const suffix = Date.now();
+	const title = `Tier snapshot exam ${suffix}`;
+	const { uid } = await signInAsTestUser(page, `tier-snapshot-${suffix}@exampull.test`, {
+		tier: "scholar",
+		credits: 20,
+	});
+	const createResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title,
+			className: "Snapshot Physics",
+			topics: ["Damped oscillators", "Resonance"],
+			questionCount: 2,
+			mode: "standard",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { examId: string };
+
+	const downgrade = {
+		id: `evt_snapshot_cancel_${suffix}`,
+		object: "event",
+		type: "customer.subscription.deleted",
+		data: {
+			object: {
+				id: `sub_snapshot_${suffix}`,
+				object: "subscription",
+				status: "canceled",
+				metadata: {
+					userId: uid,
+					tier: "scholar",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, downgrade)).status()).toBe(200);
+
+	const workerResponse = await page.context().request.post("/api/workers/generate-exam", {
+		data: { userId: uid, examId: createPayload.examId },
+	});
+	expect(workerResponse.status()).toBe(200);
+
+	await page.goto(`/exams/${createPayload.examId}`);
+	await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+	await expect(page.getByText("Snapshot Physics - 2 questions - Complete")).toBeVisible();
+	await expect(page.getByRole("link", { name: "Answer key" })).toBeVisible();
+	const answerResponse = await page
+		.context()
+		.request.get(`/api/exams/${createPayload.examId}/download?type=answer`);
+	expect(answerResponse.status()).toBe(200);
+	expect(answerResponse.headers()["content-type"]).toContain("application/pdf");
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			tier?: string;
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+			subscriptionStatus?: string;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			tierAtGen?: string;
+			answerKeyUnlocked?: boolean;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+		}[];
+	};
+	expect(exportPayload.profile?.tier).toBe("free");
+	expect(exportPayload.profile?.subscriptionStatus).toBe("canceled");
+	expect(exportPayload.profile?.credits).toBe(16);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(4);
+	const completedExam = exportPayload.exams.find((exam) => exam.id === createPayload.examId);
+	expect(completedExam?.status).toBe("complete");
+	expect(completedExam?.tierAtGen).toBe("scholar");
+	expect(completedExam?.answerKeyUnlocked).toBe(true);
+	expect(completedExam?.creditsReserved).toBe(0);
+	expect(completedExam?.creditsConsumed).toBe(4);
+});
+
 test("referrals reward real conversions, flag suspicious aliases, and allow admin overrides", async ({
 	page,
 }) => {
