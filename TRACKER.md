@@ -285,6 +285,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after share-key downgrade grace deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - Focused Stripe payment-failure grace regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"` with past-due grace preserving Scholar access, billing-page warning, skipped-test email/SMS communication rows, scheduled-expiry worker downgrade, and share-key grace after payment-grace expiry.
 - Full local gate after payment-failure grace passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after payment-failure grace passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Payment-grace Cloud Scheduler created: `pnpm setup:payment-grace-scheduler` enabled `expire-payment-grace` at `23 */6 * * *` UTC targeting `/api/workers/expire-payment-grace` with the App Hosting worker service account.
+- Hosted smoke after payment-failure grace deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
