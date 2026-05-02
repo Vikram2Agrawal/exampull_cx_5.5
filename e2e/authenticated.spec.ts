@@ -1184,9 +1184,11 @@ test("scanned PDF upload renders page images for multimodal topic extraction", a
 	expect(workerResponse.status()).toBe(200);
 	const workerPayload = (await workerResponse.json()) as {
 		topics?: string[];
+		extractedContext?: string;
 		warning?: string;
 	};
 	expect(workerPayload.warning).toBeUndefined();
+	expect(workerPayload.extractedContext).toContain(focus);
 	expect(workerPayload.topics).toEqual(
 		expect.arrayContaining([
 			focus,
@@ -1203,6 +1205,7 @@ test("scanned PDF upload renders page images for multimodal topic extraction", a
 		uploads: {
 			id: string;
 			status?: string;
+			extractedContextExcerpt?: string | null;
 			renderedImagePageCount?: number | null;
 			extractionProgress?: {
 				pagesRead?: number | null;
@@ -1212,9 +1215,23 @@ test("scanned PDF upload renders page images for multimodal topic extraction", a
 	};
 	const upload = uploadsPayload.uploads.find((item) => item.id === startPayload.uploadId);
 	expect(upload?.status).toBe("ready");
+	expect(upload?.extractedContextExcerpt).toContain(focus);
 	expect(upload?.renderedImagePageCount).toBe(1);
 	expect(upload?.extractionProgress?.pagesRead).toBe(1);
 	expect(upload?.extractionProgress?.totalPages).toBe(1);
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		examUploads?: {
+			id?: string;
+			extractedContext?: string;
+		}[];
+	};
+	const exportedUpload = exportPayload.examUploads?.find(
+		(item) => item.id === startPayload.uploadId,
+	);
+	expect(exportedUpload?.extractedContext).toContain(focus);
 });
 
 test("new exam wizard preserves source topic and configure drafts across refresh", async ({

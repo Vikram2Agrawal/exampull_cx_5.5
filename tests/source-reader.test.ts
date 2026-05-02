@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseTopicLines, sourceDocumentContentParts } from "@/lib/materials/source-reader";
+import {
+	parseTopicExtractionResponse,
+	parseTopicLines,
+	sourceDocumentContentParts,
+} from "@/lib/materials/source-reader";
 
 describe("source reader topic parser", () => {
 	it("deduplicates structured LLM topic lines", () => {
@@ -32,5 +36,22 @@ describe("source reader topic parser", () => {
 			{ type: "image_url", image_url: { url: "data:image/png;base64,page1" } },
 			{ type: "image_url", image_url: { url: "data:image/png;base64,page2" } },
 		]);
+	});
+
+	it("parses structured topic extraction with reusable source context", () => {
+		expect(
+			parseTopicExtractionResponse(
+				JSON.stringify({
+					topics: ["Free-body diagrams", "Newton's second law"],
+					extractedContext:
+						"Slides emphasize force labels, acceleration sign conventions, and two worked ramp problems.",
+				}),
+				"physics slides",
+			),
+		).toEqual({
+			topics: ["Free-body diagrams", "Newton's second law"],
+			extractedContext:
+				"Slides emphasize force labels, acceleration sign conventions, and two worked ramp problems.",
+		});
 	});
 });

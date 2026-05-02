@@ -3,7 +3,7 @@ import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import {
-	parseTopicLines,
+	parseTopicExtractionResponse,
 	readSourceDocumentContent,
 	sourceDocumentContentParts,
 } from "@/lib/materials/source-reader";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 			{
 				role: "system",
 				content:
-					"Extract 5-12 concise, testable academic topics. Return one topic per line, no prose.",
+					"Extract course material for exam generation. Return strict JSON with keys: topics (5-12 concise, testable academic topics) and extractedContext (a compact factual summary of visible lecture text, notes, diagram labels, formulas, examples, and constraints that should ground later exam generation).",
 			},
 			{
 				role: "user",
@@ -91,22 +91,32 @@ export async function POST(request: Request) {
 			},
 		],
 	});
-	const topics = parseTopicLines(result.content, materialPayload?.fallback ?? text);
+	const extraction = parseTopicExtractionResponse(
+		result.content,
+		materialPayload?.fallback ?? text,
+	);
 
 	if (materialPayload) {
 		await materialPayload.materialRef.update({
 			status: "ready",
-			extractedTopics: topics,
+			extractedTopics: extraction.topics,
+			extractedContext: extraction.extractedContext,
 			extractionMetadata: {
 				model: result.model,
 				inputTokens: result.inputTokens,
 				outputTokens: result.outputTokens,
 				latencyMs: result.latencyMs,
 				renderedImagePageCount: materialPayload.renderedImagePageCount ?? 0,
+				extractedContextChars: extraction.extractedContext.length,
 			},
 			updatedAt: Timestamp.now(),
 		});
 	}
 
-	return NextResponse.json({ topics, topicsText: result.content, model: result.model });
+	return NextResponse.json({
+		topics: extraction.topics,
+		topicsText: result.content,
+		extractedContext: extraction.extractedContext,
+		model: result.model,
+	});
 }

@@ -348,10 +348,11 @@ async function attemptWithExportedArtifacts(attempt: ExportedDocument): Promise<
 
 export async function exportUserData(userId: string) {
 	const base = userRef(userId);
-	const [profile, rawExams, classes, notifications] = await Promise.all([
+	const [profile, rawExams, classes, examUploads, notifications] = await Promise.all([
 		base.get(),
 		collectionToJson(base.collection("exams")),
 		collectionToJson(base.collection("classes")),
+		collectionToJson(base.collection("examUploads")),
 		collectionToJson(base.collection("notifications")),
 	]);
 	const exams = await Promise.all(rawExams.map(examWithExportedArtifacts));
@@ -390,6 +391,7 @@ export async function exportUserData(userId: string) {
 		attempts,
 		classes,
 		classMaterials,
+		examUploads,
 		notifications,
 	};
 }

@@ -27,6 +27,7 @@ const generatedQuestionSchema = z.object({
 type SourceContext = {
 	text: string;
 	imageDataUrl?: string;
+	imageDataUrls?: string[];
 };
 
 function stringList(value: unknown) {
@@ -74,6 +75,19 @@ async function sourceContextFromSnapshot(snapshot: FirebaseFirestore.DocumentSna
 	const focus = typeof snapshot.get("focus") === "string" ? String(snapshot.get("focus")) : "";
 	const contentType = String(snapshot.get("contentType") ?? "");
 	const storagePath = String(snapshot.get("storagePath") ?? "");
+	const extractedContext =
+		typeof snapshot.get("extractedContext") === "string"
+			? String(snapshot.get("extractedContext")).trim()
+			: "";
+
+	if (extractedContext) {
+		return {
+			text: `Source: ${filename}\nFocus: ${focus || "none"}\nCached extracted context:\n${extractedContext}`.slice(
+				0,
+				18000,
+			),
+		};
+	}
 
 	try {
 		const source = await readSourceDocumentContent({
@@ -86,6 +100,7 @@ async function sourceContextFromSnapshot(snapshot: FirebaseFirestore.DocumentSna
 		return {
 			text: `Source: ${filename}\n${source.text}`.slice(0, 18000),
 			imageDataUrl: source.imageDataUrl,
+			imageDataUrls: source.imageDataUrls,
 		};
 	} catch (error) {
 		return {
@@ -162,7 +177,10 @@ async function readAdHocSourceContexts({
 
 function contentWithSourceImages(text: string, contexts: SourceContext[]) {
 	const imageParts = contexts
-		.map((context) => context.imageDataUrl)
+		.flatMap(
+			(context) =>
+				context.imageDataUrls ?? (context.imageDataUrl ? [context.imageDataUrl] : []),
+		)
 		.filter((value): value is string => typeof value === "string")
 		.slice(0, 3);
 

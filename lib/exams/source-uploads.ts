@@ -34,6 +34,7 @@ export type ExamSourceUploadSummary = {
 	status: string;
 	styleReference: boolean;
 	extractedTopics: string[];
+	extractedContextExcerpt: string | null;
 	extractionProgress: SourceExtractionProgress | null;
 	renderedImagePageCount: number | null;
 	createdAt: string;
@@ -88,6 +89,16 @@ function stringList(value: unknown) {
 	return value.filter((item): item is string => typeof item === "string");
 }
 
+function contextExcerpt(value: unknown) {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	const trimmed = value.trim();
+
+	return trimmed ? trimmed.slice(0, 600) : null;
+}
+
 function extractionProgressFromValue(value: unknown): SourceExtractionProgress | null {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		return null;
@@ -127,6 +138,7 @@ function uploadSummaryFromDoc(
 		status: typeof data.status === "string" ? data.status : "uploading",
 		styleReference: Boolean(data.styleReference ?? false),
 		extractedTopics: stringList(data.extractedTopics),
+		extractedContextExcerpt: contextExcerpt(data.extractedContext),
 		extractionProgress: extractionProgressFromValue(data.extractionProgress),
 		renderedImagePageCount:
 			typeof data.extractionMetadata?.renderedImagePageCount === "number"
@@ -146,6 +158,7 @@ export function publicSourceUploadMetadata(source: ExamSourceUploadSummary) {
 		focus: source.focus,
 		styleReference: source.styleReference,
 		extractedTopics: source.extractedTopics,
+		extractedContextExcerpt: source.extractedContextExcerpt,
 	};
 }
 

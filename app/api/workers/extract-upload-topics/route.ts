@@ -3,6 +3,7 @@ import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import {
+	parseTopicExtractionResponse,
 	parseTopicLines,
 	readSourceDocumentContent,
 	sourceDocumentContentParts,
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
 				{
 					role: "system",
 					content:
-						"Extract 5-12 concise, testable academic topics. If a Focus line is provided, scope the topics to that focus while using the document table of contents and headings for context. Return one topic per line, no prose.",
+						"Extract course material for exam generation. If a Focus line is provided, scope the topics to that focus while using the document table of contents and headings for context. Return strict JSON with keys: topics (5-12 concise, testable academic topics) and extractedContext (a compact factual summary of visible lecture text, notes, diagram labels, formulas, examples, and constraints that should ground later exam generation).",
 				},
 				{
 					role: "user",
@@ -109,11 +110,12 @@ export async function POST(request: Request) {
 				},
 			],
 		});
-		const topics = parseTopicLines(result.content, source.fallback);
+		const extraction = parseTopicExtractionResponse(result.content, source.fallback);
 
 		await uploadRef.update({
 			status: "ready",
-			extractedTopics: topics,
+			extractedTopics: extraction.topics,
+			extractedContext: extraction.extractedContext,
 			extractionMetadata: {
 				model: result.model,
 				inputTokens: result.inputTokens,
@@ -122,6 +124,7 @@ export async function POST(request: Request) {
 				pagesRead: source.pagesRead ?? null,
 				totalPages: source.pageCount ?? null,
 				renderedImagePageCount: source.renderedImagePageCount ?? 0,
+				extractedContextChars: extraction.extractedContext.length,
 			},
 			extractionProgress: {
 				stage: "complete",
@@ -133,7 +136,12 @@ export async function POST(request: Request) {
 			updatedAt: Timestamp.now(),
 		});
 
-		return NextResponse.json({ topics, topicsText: result.content, model: result.model });
+		return NextResponse.json({
+			topics: extraction.topics,
+			topicsText: result.content,
+			extractedContext: extraction.extractedContext,
+			model: result.model,
+		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Topic extraction failed.";
 		const fallbackTopics = parseTopicLines("", `${filename} ${focus}`.trim());

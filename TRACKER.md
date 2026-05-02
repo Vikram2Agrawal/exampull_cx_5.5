@@ -46,6 +46,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement linked auth-provider metadata, server-side duplicate-email session checks, Settings provider display, Google conflict recovery from sign-in, and preview claim handoff through sign-in.
 - [x] Implement long-PDF source upload extraction progress with TOC/headings stage, page-read metadata, focus-scoped topic prompts, and Next server PDF parser packaging.
 - [x] Implement scanned/image-only PDF fallback by rasterizing textless pages for multimodal topic extraction with rendered-page metadata.
+- [x] Persist reusable extracted source context for uploaded/class materials, prefer cached context during exam generation, and include ad hoc upload records in user data export.
 - [x] Add Mobile Safari Power Mode E2E covering tap reorder controls, range bulk edit, and queued mobile Power Mode creation.
 - [x] Add Scholar Boost two-tab E2E covering atomic once-per-account consumption, included grading, report-window refund, and recovered boost reuse.
 - [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
@@ -76,7 +77,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 
 - The repository began with documentation only; cross-browser coverage now includes quality sweeps and persona matrix smoke, while exhaustive per-flow browser replication remains a continuing hardening track rather than an open P0-P2 gap.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth. Audit archive replication plumbing is implemented, but irreversible retention-lock or separate-project deny-delete governance should be activated with the operator's production compliance posture.
-- Scanned image-only PDFs now render the first pages into multimodal extraction context; true OCR text caching/search over scanned PDFs remains a deeper document-ingestion fidelity pass.
+- Scanned image-only PDFs now render the first pages into multimodal extraction context and persist a reusable AI-extracted source context; full verbatim OCR text search remains a deeper document-ingestion fidelity pass.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 - Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
 
@@ -217,6 +218,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after signup phone-verification hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after signup phone-verification hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after signup phone-verification deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
+- Focused source-context cache verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test`, plus `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "scanned PDF upload"` with upload-summary and user-export assertions.
+- Full local gate after reusable source-context caching and export coverage passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

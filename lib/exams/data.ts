@@ -37,6 +37,7 @@ export type ExamSummary = {
 		filename: string;
 		focus: string | null;
 		extractedTopics: string[];
+		extractedContextExcerpt: string | null;
 	}[];
 };
 
@@ -95,6 +96,11 @@ function adHocSources(value: unknown) {
 				filename,
 				focus: typeof source.focus === "string" && source.focus ? source.focus : null,
 				extractedTopics: stringList(source.extractedTopics),
+				extractedContextExcerpt:
+					typeof source.extractedContextExcerpt === "string" &&
+					source.extractedContextExcerpt
+						? source.extractedContextExcerpt
+						: null,
 			},
 		];
 	});
