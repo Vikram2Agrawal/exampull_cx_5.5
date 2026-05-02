@@ -196,6 +196,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after audit hash-chain hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
 - Focused destructive admin re-auth and audit archive verification passed: `pnpm format && pnpm typecheck`, `pnpm test`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs|referrals reward|dormant phone"` with 3 desktop Chrome tests.
 - Full local gate after destructive admin re-auth and audit archive replication passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
+- App Hosting deploy after destructive admin re-auth and audit archive replication passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after destructive admin re-auth and audit archive deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
