@@ -38,6 +38,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-FEEDBACK-001 Product feedback widget routes feature requests, bugs, and general feedback to Firestore triage.
 - [x] P1-SETTINGS-001 User data export includes ad hoc upload records and account deletion removes the `examUploads` subcollection; scanned-PDF E2E verifies export inclusion and unit coverage verifies deletion collection coverage.
 - [x] P1-ADMIN-002 Admin Users, Exams, Analytics, Operations, Communications, Abuse, Referrals, Configuration, Audit Log surfaces load.
+- [x] P1-ADMIN-003 Preview generation kill switch is configurable from admin with CSRF and destructive re-auth; landing page hides the preview tool when disabled, and authenticated E2E verifies protected admin writes while normal preview claim still passes.
 
 ## P2 Resilience And Quality Flows
 
@@ -148,6 +149,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused account deletion cleanup verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test` with `accountDeletionSubcollections()` covering `examUploads`.
 - Full local gate after account deletion upload cleanup: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Hosted production smoke after account deletion upload cleanup: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
+- Focused preview kill-switch verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`, `pnpm exec playwright test --project=desktop-chrome e2e/smoke.spec.ts e2e/accessibility.spec.ts -g "landing page|admin sections"`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs"` with CSRF/re-auth coverage.
+- Full local gate after preview kill-switch implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

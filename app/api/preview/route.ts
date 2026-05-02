@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getRuntimeConfig } from "@/lib/config/runtime";
 import { storeAnonymousPreviewArtifact } from "@/lib/exams/artifacts";
 import { buildExamLatex } from "@/lib/exams/latex";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -58,6 +59,13 @@ async function enforcePreviewRateLimit(request: Request) {
 export async function POST(request: Request) {
 	try {
 		const input = requestSchema.parse(await request.json());
+		const runtimeConfig = await getRuntimeConfig();
+		if (runtimeConfig.previewGenerationDisabled) {
+			return NextResponse.json(
+				{ error: runtimeConfig.previewDisabledMessage },
+				{ status: 503 },
+			);
+		}
 		await enforcePreviewRateLimit(request);
 		const previewId = randomUUID();
 		const latex = buildExamLatex({

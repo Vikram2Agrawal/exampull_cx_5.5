@@ -287,6 +287,17 @@ test("admin write APIs reject missing or invalid CSRF tokens and destructive wri
 		});
 	expect(invalidTokenResponse.status()).toBe(403);
 
+	const previewConfigMissingReauth = await page
+		.context()
+		.request.patch("/api/admin/configuration/preview", {
+			headers: { "x-admin-csrf-token": await adminCsrfTokenFromPage(page) },
+			data: {
+				disabled: false,
+				reason: "Keep preview enabled during CSRF regression.",
+			},
+		});
+	expect(previewConfigMissingReauth.status()).toBe(403);
+
 	const missingReauthResponse = await page
 		.context()
 		.request.post(`/api/admin/users/${uid}/credits`, {
@@ -325,6 +336,24 @@ test("admin write APIs reject missing or invalid CSRF tokens and destructive wri
 			},
 		});
 	expect(validReauthResponse.status()).toBe(200);
+
+	const previewConfigResponse = await page
+		.context()
+		.request.patch("/api/admin/configuration/preview", {
+			headers: {
+				"x-admin-csrf-token": await adminCsrfTokenFromPage(page),
+				"x-admin-reauth-password": adminAgentPassword(),
+			},
+			data: {
+				disabled: false,
+				reason: "Keep preview enabled during admin regression.",
+			},
+		});
+	expect(previewConfigResponse.status()).toBe(200);
+	const previewConfig = (await previewConfigResponse.json()) as {
+		previewGenerationDisabled?: boolean;
+	};
+	expect(previewConfig.previewGenerationDisabled).toBe(false);
 
 	const exportResponse = await page.context().request.get("/api/settings/export");
 	expect(exportResponse.status()).toBe(200);

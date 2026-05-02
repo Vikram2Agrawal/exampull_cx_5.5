@@ -3,6 +3,9 @@ import { PublicNav } from "@/components/layout/site-nav";
 import { AnonymousPreview } from "@/components/preview/anonymous-preview";
 import { ButtonLink } from "@/components/ui/button";
 import { GlassPanel, SectionHeader } from "@/components/ui/surface";
+import { getRuntimeConfig } from "@/lib/config/runtime";
+
+export const dynamic = "force-dynamic";
 
 const proofPoints = [
 	{
@@ -22,7 +25,28 @@ const proofPoints = [
 	},
 ] as const;
 
-export default function LandingPage() {
+function PreviewPaused({ message }: { message: string }) {
+	return (
+		<GlassPanel className="p-6">
+			<p className="text-sm font-medium uppercase tracking-[0.14em] text-secondary">
+				Preview paused
+			</p>
+			<h2 className="mt-4 text-2xl font-semibold">Generate a full exam after signup</h2>
+			<p className="mt-3 text-sm leading-6 text-muted">{message}</p>
+			<ButtonLink href="/sign-up" variant="primary" className="mt-6 w-full">
+				Sign up free
+				<ArrowRight aria-hidden="true" size={18} />
+			</ButtonLink>
+		</GlassPanel>
+	);
+}
+
+export default async function LandingPage() {
+	const runtimeConfig = await getRuntimeConfig();
+	const previewProofPoint = runtimeConfig.previewGenerationDisabled
+		? "Preview temporarily paused"
+		: "No account preview";
+
 	return (
 		<div className="min-h-screen">
 			<PublicNav />
@@ -47,7 +71,7 @@ export default function LandingPage() {
 						</div>
 						<div className="grid gap-3 sm:grid-cols-3">
 							{[
-								"No account preview",
+								previewProofPoint,
 								"40 free credits monthly",
 								"Scholar Boost included",
 							].map((item) => (
@@ -57,7 +81,11 @@ export default function LandingPage() {
 							))}
 						</div>
 					</div>
-					<AnonymousPreview />
+					{runtimeConfig.previewGenerationDisabled ? (
+						<PreviewPaused message={runtimeConfig.previewDisabledMessage} />
+					) : (
+						<AnonymousPreview />
+					)}
 				</section>
 				<section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
 					<div className="grid gap-4 md:grid-cols-3">

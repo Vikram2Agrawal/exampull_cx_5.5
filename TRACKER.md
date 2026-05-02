@@ -53,6 +53,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
 - [x] Add referral fraud detection, admin reward override controls/API, and authenticated E2E covering clean rewards, suspicious alias review holds, manual grant, and manual revoke.
 - [x] Add notification-center unread badge, click-to-read navigation, individual delete, clear-all APIs/UI, and authenticated event-matrix E2E.
+- [x] Add runtime preview generation kill switch with admin CSRF + re-auth API/UI, landing-page paused state, preview-route enforcement, and audit logging.
 - [x] Add wizard refresh-resilience E2E covering source details, manual topics, Power Mode controls, per-slot edits, successful queueing, and draft clearing.
 - [x] Add LaTeX 503 retry chaos E2E covering local-only transient compile failures, complete generation, single credit settlement, one QA iteration per artifact, and stored PDFs.
 - [x] Add Stripe tier-snapshot chaos E2E covering a signed cancellation during queued generation while the completed exam preserves Scholar entitlement and exact reserved-credit settlement.
@@ -227,6 +228,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after account deletion upload cleanup passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after account deletion upload cleanup passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after account deletion upload cleanup passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
+- Focused preview kill-switch verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`, `pnpm exec playwright test --project=desktop-chrome e2e/smoke.spec.ts e2e/accessibility.spec.ts -g "landing page|admin sections"`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs"`.
+- Full local gate after preview kill-switch implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

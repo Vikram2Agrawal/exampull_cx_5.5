@@ -1,11 +1,22 @@
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
+import { PreviewKillSwitch } from "@/components/admin/preview-kill-switch";
 import { getAdminConfiguration } from "@/lib/admin/data";
+import { getRuntimeConfig } from "@/lib/config/runtime";
 import { CREDIT_COSTS, TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminConfigurationPage() {
+export default async function AdminConfigurationPage() {
 	const configuration = getAdminConfiguration();
+	const runtimeConfig = await getRuntimeConfig();
+	const configurationRows = [
+		...configuration,
+		{
+			name: "PREVIEW_GENERATION",
+			configured: true,
+			value: runtimeConfig.previewGenerationDisabled ? "disabled" : "enabled",
+		},
+	];
 	const pricingRows = [
 		["Free credits", TIER_MONTHLY_CREDITS.free.toString()],
 		["Scholar credits", TIER_MONTHLY_CREDITS.scholar.toString()],
@@ -24,7 +35,7 @@ export default function AdminConfigurationPage() {
 					description="Runtime setup, secret presence, feature flags, and public endpoints."
 					headers={["Name", "State", "Value"]}
 					empty="No configuration entries."
-					rows={configuration.map((item) => ({
+					rows={configurationRows.map((item) => ({
 						key: item.name,
 						cells: [
 							<p key="name" className="font-medium text-slate-950">
@@ -42,6 +53,10 @@ export default function AdminConfigurationPage() {
 							item.value || "--",
 						],
 					}))}
+				/>
+				<PreviewKillSwitch
+					initialDisabled={runtimeConfig.previewGenerationDisabled}
+					initialMessage={runtimeConfig.previewDisabledMessage}
 				/>
 				<AdminTable
 					title="Credit constants"
