@@ -321,6 +321,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after admin refund operations deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 51 local-only authenticated/quality specs skipped.
 - Focused admin bulk-credit verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin bulk credit grants"` with missing-preview rejection, dry-run count/sample/total, re-authenticated execution, user notification, and credited balance coverage.
 - Full local gate after admin bulk credit grants passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 50 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after admin bulk credit grants passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after admin bulk credit grants deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 52 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
