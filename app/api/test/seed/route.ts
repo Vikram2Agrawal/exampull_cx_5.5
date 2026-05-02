@@ -38,6 +38,11 @@ const requestSchema = z.discriminatedUnion("kind", [
 		href: z.string().trim().max(240).nullable().default(null),
 		read: z.boolean().default(false),
 	}),
+	z.object({
+		token: z.string().min(1),
+		kind: z.literal("expired_preview"),
+		previewId: z.string().trim().min(1).max(120).optional(),
+	}),
 ]);
 
 function assertEnabled(token: string) {
@@ -161,6 +166,45 @@ export async function POST(request: Request) {
 		}
 
 		return NextResponse.json({ notificationId: notificationRef.id });
+	}
+
+	if (input.kind === "expired_preview") {
+		const previewId = input.previewId ?? randomUUID();
+		const expiredAt = Timestamp.fromMillis(Date.now() - 60_000);
+		await adminDb
+			.collection("anonymous_previews")
+			.doc(previewId)
+			.set({
+				title: "Expired anonymous preview",
+				topics: ["Limits", "Derivatives", "Optimization"],
+				questionCount: 3,
+				examPdfStoragePath: `test/anonymous-previews/${previewId}/exam.pdf`,
+				examRenderedPageStoragePaths: [
+					`test/anonymous-previews/${previewId}/pages/page-1.png`,
+					`test/anonymous-previews/${previewId}/pages/page-2.png`,
+				],
+				materialStoragePaths: [`test/anonymous-previews/${previewId}/materials/source.pdf`],
+				claimedByUid: null,
+				createdAt: expiredAt,
+				updatedAt: expiredAt,
+				expiresAt: expiredAt,
+				isTestData: true,
+				seededByUid: user.uid,
+			});
+
+		await adminDb
+			.collection("preview_rate_limits")
+			.doc(`expired-${previewId}`)
+			.set({
+				fingerprint: `expired-${previewId}`,
+				count: 1,
+				resetAt: expiredAt,
+				expiresAt: expiredAt,
+				updatedAt: expiredAt,
+				isTestData: true,
+			});
+
+		return NextResponse.json({ previewId });
 	}
 
 	const attemptId = randomUUID();

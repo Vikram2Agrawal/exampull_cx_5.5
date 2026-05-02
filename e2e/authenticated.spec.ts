@@ -450,6 +450,40 @@ test("anonymous preview can be claimed by a verified test account", async ({ pag
 	expect(claimedExam?.examPdfBase64?.length).toBeGreaterThan(100);
 });
 
+test("expired anonymous preview data is purged by the worker", async ({ page }) => {
+	test.setTimeout(90_000);
+	await signInAsTestUser(page, `preview-purge-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 40,
+	});
+	const previewId = `expired-preview-${Date.now()}`;
+	const seedResponse = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "expired_preview",
+			previewId,
+		},
+	});
+	expect(seedResponse.status()).toBe(200);
+
+	const purgeResponse = await page.context().request.post("/api/workers/purge-expired-previews", {
+		data: { limit: 500 },
+	});
+	expect(purgeResponse.status()).toBe(200);
+	const purgePayload = (await purgeResponse.json()) as {
+		anonymousPreviewsDeleted?: number;
+		anonymousPreviewIdsDeleted?: string[];
+		previewRateLimitsDeleted?: number;
+		previewRateLimitIdsDeleted?: string[];
+		storageObjectsDeleted?: number;
+	};
+	expect(purgePayload.anonymousPreviewsDeleted).toBeGreaterThanOrEqual(1);
+	expect(purgePayload.anonymousPreviewIdsDeleted).toContain(previewId);
+	expect(purgePayload.previewRateLimitsDeleted).toBeGreaterThanOrEqual(1);
+	expect(purgePayload.previewRateLimitIdsDeleted).toContain(`expired-${previewId}`);
+	expect(purgePayload.storageObjectsDeleted).toBeGreaterThanOrEqual(4);
+});
+
 test("phone conflict blocks an active prior account during session creation", async ({ page }) => {
 	const phoneNumber = `+1${String(Date.now()).slice(-10).padStart(10, "5")}`;
 	await createTestAuthUser(page, `active-phone-owner-${Date.now()}@exampull.test`, {
