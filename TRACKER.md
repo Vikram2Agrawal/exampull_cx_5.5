@@ -242,6 +242,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Cloud Scheduler automation for expired-preview purge provisioned with `pnpm setup:preview-purge-scheduler`; manual Scheduler invocation logged a `200` response for `/api/workers/purge-expired-previews`.
 - Static/script gate after scheduler provisioning passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 32 unit tests.
 - Production deterministic fallback hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 34 unit tests covering AI/LaTeX production fallback gates.
+- App Hosting deploy after deterministic fallback hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after deterministic fallback hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
