@@ -57,6 +57,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add accessibility E2E and UI semantics covering keyboard-only signup, wizard, library alert dialog, admin navigation/search, generation tracker labeling, and form live regions.
 - [x] Harden admin queue overview with an index-missing fallback so admin shell navigation does not crash while Firestore indexes are catching up.
 - [x] Add visual/performance quality E2E covering dark/light desktop/mobile screenshots, material discipline, mobile touch targets, horizontal overflow, route paint/CLS metrics, and action-feedback latency.
+- [x] Add cross-browser persona matrix covering Scholar Desktop Safari Power Mode drag, Free Mobile Android standard queueing, and Guru Mobile Safari source-upload queueing.
 - [x] Harden admin write APIs with per-session CSRF tokens threaded through the admin shell, credit grant form, triage controls, and referral override controls.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
@@ -74,7 +75,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 
 ## Known Risks
 
-- The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
+- The repository began with documentation only; cross-browser coverage now includes quality sweeps and persona matrix smoke, but exhaustive per-flow browser replication remains a continuing hardening track.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
 - Scanned image-only PDFs now render the first pages into multimodal extraction context; true OCR text caching/search over scanned PDFs remains a deeper document-ingestion fidelity pass.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
@@ -211,6 +212,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after Power Mode pointer-drag reorder passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after Power Mode pointer-drag reorder passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after Power Mode pointer-drag reorder deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 37 local-only authenticated/quality specs skipped.
+- Cross-browser persona matrix passed: `pnpm exec playwright test --project=desktop-safari e2e/persona-matrix.spec.ts`, `pnpm exec playwright test --project=mobile-android e2e/persona-matrix.spec.ts`, and `pnpm exec playwright test --project=mobile-safari e2e/persona-matrix.spec.ts` with Scholar Power Mode drag on Desktop Safari, Free standard queueing on Mobile Android, and Guru source upload queueing on Mobile Safari.
+- Full local gate after cross-browser persona matrix passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
