@@ -70,8 +70,11 @@ test("keyboard user can queue a wizard exam and screen readers receive form stat
 	const generateButton = page.getByRole("button", { name: "Generate", exact: true });
 	await tabTo(page, generateButton);
 	await page.keyboard.press("Enter");
+	await page.waitForURL(/\/exams\/[^/?#]+$/, { timeout: 30_000 });
 
-	await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+	await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible({
+		timeout: 30_000,
+	});
 	await expect(page.getByRole("region", { name: "Generation tracker" })).toBeVisible();
 });
 

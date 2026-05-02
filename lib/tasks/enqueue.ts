@@ -1,7 +1,15 @@
-import { CloudTasksClient } from "@google-cloud/tasks";
+import type { CloudTasksClient } from "@google-cloud/tasks";
 import { env, publicBaseUrl } from "@/lib/env";
 
-const client = new CloudTasksClient();
+let clientPromise: Promise<CloudTasksClient> | null = null;
+
+async function cloudTasksClient() {
+	clientPromise ??= import("@google-cloud/tasks").then(
+		({ CloudTasksClient }) => new CloudTasksClient(),
+	);
+
+	return clientPromise;
+}
 
 export async function enqueueWorkerTask({
 	route,
@@ -19,6 +27,7 @@ export async function enqueueWorkerTask({
 		return { queued: false, reason: "Cloud Tasks env missing" };
 	}
 
+	const client = await cloudTasksClient();
 	const parent = client.queuePath(project, location, queue);
 	const url = new URL(route, publicBaseUrl()).toString();
 	const [task] = await client.createTask({

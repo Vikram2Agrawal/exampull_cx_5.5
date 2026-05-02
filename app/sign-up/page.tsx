@@ -13,15 +13,15 @@ export default function SignUpPage() {
 					<div className="space-y-8">
 						<div className="max-w-2xl space-y-5">
 							<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-								Start with verified ownership
+								Create your account
 							</p>
-							<h1 className="text-5xl font-semibold leading-[1] tracking-normal text-foreground md:text-6xl">
-								Turn tonight's materials into tomorrow's exam
+							<h1 className="text-4xl font-semibold leading-[1] tracking-normal text-foreground md:text-6xl">
+								Verify once. Start building exams.
 							</h1>
 							<p className="text-lg leading-8 text-muted">
-								Phone verification happens before account creation, so the free
-								monthly credits stay durable without creating an unverified account
-								state.
+								Phone verification happens before the account is created. That keeps
+								free credits protected and prevents half-created accounts if the
+								code step fails.
 							</p>
 						</div>
 						<ExamArtifactPreview compact className="hidden max-w-lg lg:block" />

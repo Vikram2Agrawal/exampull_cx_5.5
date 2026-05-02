@@ -48,7 +48,7 @@ export function PublicNav() {
 						Sign in
 					</ButtonLink>
 					<ButtonLink href="/sign-up" variant="primary">
-						Generate exam
+						Start free
 					</ButtonLink>
 				</div>
 			</nav>

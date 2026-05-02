@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ClipboardCheck, FileUp, ListPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { NewExamForm } from "@/components/exam/new-exam-form";
 import { AppShell } from "@/components/layout/site-nav";
@@ -9,6 +9,23 @@ import { listClassMaterials, listUserClasses } from "@/lib/classes/data";
 import { listUserExams } from "@/lib/exams/data";
 
 const steps = ["Sources", "Topics", "Configure"];
+const sourceOptions = [
+	{
+		title: "Use saved class materials",
+		description: "Pull from slides, notes, and style references already in your classes.",
+		icon: ClipboardCheck,
+	},
+	{
+		title: "Upload files for this exam",
+		description: "Add PDFs, documents, slide decks, text files, or images just for this run.",
+		icon: FileUp,
+	},
+	{
+		title: "Type manual topics",
+		description: "Enter the exact topics or chapters you want represented in the exam.",
+		icon: ListPlus,
+	},
+] as const;
 
 export default async function NewExamPage() {
 	const user = await getCurrentUser();
@@ -25,7 +42,7 @@ export default async function NewExamPage() {
 				theme={user.theme}
 			>
 				<div className="space-y-8">
-					<SectionHeader title="Create an exam">
+					<SectionHeader title="Build a practice exam">
 						<p>Your existing library stays available while generation is paused.</p>
 					</SectionHeader>
 					<GlassPanel className="p-6">
@@ -66,14 +83,14 @@ export default async function NewExamPage() {
 			theme={user.theme}
 		>
 			<div className="space-y-8">
-				<SectionHeader title="Create an exam">
+				<SectionHeader title="Build a practice exam">
 					<p>
-						Combine classes, ad hoc files, and manual topics. Review extracted topics
-						before credits are reserved.
+						Choose your source materials, confirm the topics, then set the length and
+						style before credits are reserved.
 					</p>
 				</SectionHeader>
 				<div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-					<GlassPanel className="p-4">
+					<GlassPanel className="p-4 lg:sticky lg:top-24 lg:self-start">
 						<ol className="space-y-2">
 							{steps.map((step, index) => (
 								<li key={step} className="rounded-lg bg-background/40 p-3 text-sm">
@@ -85,18 +102,9 @@ export default async function NewExamPage() {
 					</GlassPanel>
 					<GlassPanel className="p-6">
 						<div className="grid gap-4 md:grid-cols-3">
-							<ActionCard
-								title="Add classes"
-								description="Include stored class materials."
-							/>
-							<ActionCard
-								title="Upload files"
-								description="PDF, docx, pptx, text, or images."
-							/>
-							<ActionCard
-								title="Manual topics"
-								description="Generate from typed topics only."
-							/>
+							{sourceOptions.map((option) => (
+								<ActionCard key={option.title} {...option} />
+							))}
 						</div>
 						<div className="mt-6">
 							<NewExamForm
@@ -114,15 +122,20 @@ export default async function NewExamPage() {
 	);
 }
 
-function ActionCard({ title, description }: { title: string; description: string }) {
+function ActionCard({
+	title,
+	description,
+	icon: Icon,
+}: {
+	title: string;
+	description: string;
+	icon: typeof ClipboardCheck;
+}) {
 	return (
-		<button
-			type="button"
-			className="min-h-32 rounded-lg border border-glass-border bg-background/40 p-4 text-left hover:bg-glass"
-		>
-			<Plus aria-hidden="true" className="text-secondary" size={20} />
+		<div className="min-h-32 rounded-lg border border-glass-border bg-background/40 p-4">
+			<Icon aria-hidden="true" className="text-secondary" size={20} />
 			<h2 className="mt-4 font-semibold">{title}</h2>
 			<p className="mt-1 text-sm text-muted">{description}</p>
-		</button>
+		</div>
 	);
 }

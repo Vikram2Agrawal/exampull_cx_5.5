@@ -13,14 +13,14 @@ export default function SignInPage() {
 					<div className="space-y-8">
 						<div className="max-w-2xl space-y-5">
 							<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-								Return to the atelier
+								Welcome back
 							</p>
-							<h1 className="text-5xl font-semibold leading-[1] tracking-normal text-foreground md:text-6xl">
-								Your library is a shelf of paper-ready exams
+							<h1 className="text-4xl font-semibold leading-[1] tracking-normal text-foreground md:text-6xl">
+								Pick up where your last exam left off
 							</h1>
 							<p className="text-lg leading-8 text-muted">
-								Resume generations, download polished PDFs, review answer keys, and
-								grade attempts without losing the formal exam surface.
+								Open your exam library, download PDFs, review answer keys, and grade
+								attempts from the same workspace.
 							</p>
 						</div>
 						<ExamArtifactPreview compact className="hidden max-w-lg lg:block" />

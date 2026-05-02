@@ -51,6 +51,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add admin account suspension/reinstatement: re-authenticated API/UI, Users/Operations visibility, audit logging, user notifications, server-side generation blocking, paused generation page, and unsuspend recovery.
 - [x] Add admin force-regeneration repair: re-authenticated API/UI, CSRF enforcement, queued no-cost rerun, preserved consumed-credit accounting, user notifications, audit logging, and authenticated E2E coverage.
 - [x] Harden hosted auth and public design verification: Firebase Auth hosted domain verifier/setup script, real browser-origin Firebase smoke, artifact-first public/auth redesign, dark atelier default, desktop/mobile public visual smoke, and manual screenshot artifacts.
+- [x] Harden real browser phone signup verification: Firebase Phone Auth provider/test-phone config verifier, public signup OTP smoke with Firebase `PhoneAuthProvider`, dashboard and exam-builder screenshot artifacts, and first-run dashboard/builder copy polish.
+- [x] Harden hosted protected-route verification: production smoke now asserts protected app routes do not 500 unauthenticated, Cloud Tasks client initialization is lazy, and lightweight topic parsing is separated from PDF/raster source reading so dashboards and class APIs do not load worker-only document dependencies at module import.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
 - [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
@@ -110,6 +112,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 
 - Post-mortem: hosted smoke was too shallow because it only loaded public read pages and admin 404, while authenticated E2E used local test-session helpers for speed and data isolation. That proved server behavior but did not prove the deployed Firebase Auth origin. Permanent correction: production smoke now performs a real Firebase sign-in attempt with fake credentials and `pnpm verify:auth-domain` checks App Hosting against Firebase Auth `authorizedDomains`.
 - Post-mortem: visual quality E2E focused on authenticated app screens, not the public landing/auth first impression, and the global CSS let OS light mode override the documented dark atelier identity. Permanent correction: public smoke now asserts dark default plus desktop/mobile paper-artifact visibility, and manual Playwright/Computer Use inspection artifacts are recorded when public surfaces change.
+- Post-mortem: the first hosted auth correction still did not use the signup path the way a student does, so it missed that Firebase Phone Auth itself was disabled. Permanent correction: `pnpm verify:firebase-auth` now checks authorized domain, Phone Auth provider, and Firebase test phone config; smoke completes browser signup through Firebase `PhoneAuthProvider`, visible OTP entry, dashboard, and exam builder, with screenshots saved under `artifacts/smoke`.
+- Post-mortem: the public redesign used internal metaphor and vague copy instead of student-facing language, and screenshot review caught overlaps that assertions alone would not. Permanent correction: public smoke captures desktop/mobile landing artifacts, phone-signup dashboard, and phone-signup exam-builder screenshots, and user-facing copy now describes course uploads, topic review, PDF output, answer keys, and grading directly.
+- Post-mortem: hosted `/dashboard`, `/classes`, `/exams`, and `/api/classes` still 500'd even after local dev/prod passed because smoke did not explicitly hit protected user routes before signup, and class data imported worker-only PDF/raster dependencies at module load. Permanent correction: smoke now asserts unauthenticated protected routes redirect/401 instead of 500, Cloud Tasks initialization is lazy, and topic parsing lives in a lightweight module separate from source-document reading.
 - Post-mortem: the admin regeneration test briefly relied on a broad admin table row, which could hide valid behavior behind sorting/limits. Permanent correction: the flow now asserts authoritative user export state, credit accounting, worker completion, and notifications instead of trusting a table appearance.
 
 ## Latest Verification
@@ -118,11 +123,13 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - `pnpm typecheck` passing.
 - `pnpm test` passing.
 - `pnpm build` passing.
-- `pnpm exec playwright test --project=desktop-chrome` passing.
-- `pnpm verify:auth-domain` passing for `exampull-web--exampull-gpt-5-5.us-central1.hosted.app`.
-- Local smoke includes real Firebase browser auth from `/sign-in`, desktop artifact hero, and mobile first-viewport paper signal.
+- `pnpm exec playwright test --project=desktop-chrome` passing with 57 tests and four intended cross-browser/mobile skips after the keyboard wizard wait correction.
+- `pnpm verify:firebase-auth` passing for `exampull-web--exampull-gpt-5-5.us-central1.hosted.app`, including authorized domain, Phone Auth provider, and Firebase test phone config.
+- Local smoke includes real Firebase browser auth from `/sign-in`, protected-route redirect/401 checks, real Firebase phone signup through OTP into dashboard and exam builder, desktop artifact hero, mobile first-viewport paper signal, screenshot artifacts, and cleanup.
 - App Hosting deploy after hosted-auth/process hardening, public artifact redesign, and admin force regeneration passed.
-- Hosted smoke after hosted-auth/process hardening, public artifact redesign, and admin force regeneration passed with 4 public smoke tests and 55 local-only authenticated/quality specs skipped.
+- App Hosting deploy after phone signup and protected-route import hardening passed.
+- Hosted smoke after phone signup and protected-route import hardening passed with 6 public smoke tests and 55 local-only authenticated/quality specs skipped.
+- Focused keyboard wizard accessibility regression passed: `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts -g "keyboard user can queue"` after adding an explicit `/exams/:id` route-transition wait.
 - `pnpm exec playwright test --project=desktop-safari --project=mobile-safari` passing.
 - Hosted smoke against `https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app` passing on desktop Chrome.
 - Hosted smoke re-run after visual feedback deployment passed on desktop Chrome.

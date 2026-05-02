@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
-import { parseTopicLines } from "@/lib/materials/source-reader";
+import { parseTopicLines } from "@/lib/materials/topic-parser";
 import { CREDIT_COSTS } from "@/lib/product/constants";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 

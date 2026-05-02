@@ -1,4 +1,4 @@
-import { CheckCircle2, FileText, Sparkles } from "lucide-react";
+import { CheckCircle2, FileText, Sparkles, UploadCloud } from "lucide-react";
 import { Paper } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,8 @@ const sampleQuestions = [
 	"Compute the work done during isothermal expansion from V1 to V2.",
 	"State the second law in Kelvin-Planck form and give one implication.",
 ] as const;
+
+const sourceItems = ["Week 7 slides", "Problem set notes", "Instructor style sample"] as const;
 
 export function ExamArtifactPreview({
 	className,
@@ -19,26 +21,45 @@ export function ExamArtifactPreview({
 
 	return (
 		<div
-			className={cn("relative mx-auto w-full max-w-[560px]", className)}
+			className={cn("relative mx-auto w-full max-w-[600px]", className)}
 			data-testid="exam-artifact-preview"
 		>
-			<div className="absolute -inset-4 rounded-[2rem] border border-glass-border bg-glass/70 shadow-glass" />
-			<div className="absolute -right-3 top-8 z-10 hidden rounded-full border border-premium/50 bg-background/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-premium shadow-glass backdrop-blur md:block">
-				LaTeX PDF
+			<div className="absolute -inset-5 rounded-[2rem] border border-glass-border bg-glass/70 shadow-glass" />
+			{compact ? null : (
+				<div className="absolute -left-6 top-8 z-10 hidden w-48 rounded-lg border border-glass-border bg-background/90 p-3 text-xs text-muted shadow-glass backdrop-blur md:block">
+					<div className="flex items-center gap-2 text-secondary">
+						<UploadCloud aria-hidden="true" size={15} />
+						<span className="font-semibold">Course inputs</span>
+					</div>
+					<div className="mt-3 space-y-2">
+						{sourceItems.map((item) => (
+							<div
+								key={item}
+								className="rounded-md border border-glass-border bg-glass px-2 py-1.5"
+							>
+								{item}
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+			<div className="absolute right-4 top-2 z-10 hidden rounded-full border border-premium/50 bg-background/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-premium shadow-glass backdrop-blur md:block">
+				Print-ready PDF
 			</div>
 			<Paper
 				className={cn(
 					"relative overflow-hidden p-6 sm:p-8",
+					!compact && "md:ml-10",
 					compact ? "min-h-[430px]" : "min-h-[540px]",
 				)}
 			>
 				<div className="flex items-start justify-between gap-4 border-b border-paper-border pb-5">
 					<div>
 						<p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-							ExamPull Generated Practice Examination
+							Generated Practice Examination
 						</p>
-						<h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
-							Thermodynamics and Entropy
+						<h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
+							Thermodynamics Midterm
 						</h2>
 						<p className="mt-2 text-sm text-ink-muted">
 							Closed notes. Show all work. 75 minutes.
@@ -75,7 +96,7 @@ export function ExamArtifactPreview({
 					<span>Answer key generated separately</span>
 				</div>
 			</Paper>
-			<div className="relative mt-4 grid gap-3 sm:grid-cols-3">
+			<div className={cn("relative mt-4 grid gap-3 sm:grid-cols-3", !compact && "md:ml-10")}>
 				{[
 					{ label: "Source-grounded", icon: CheckCircle2 },
 					{ label: "Answer key", icon: FileText },
@@ -94,6 +115,18 @@ export function ExamArtifactPreview({
 					);
 				})}
 			</div>
+			{compact ? null : (
+				<div className="absolute -bottom-5 right-4 hidden w-56 rounded-lg border border-glass-border bg-background/95 p-3 text-xs text-muted shadow-glass backdrop-blur md:block">
+					<div className="flex items-center gap-2 text-secondary">
+						<Sparkles aria-hidden="true" size={15} />
+						<span className="font-semibold">After the attempt</span>
+					</div>
+					<p className="mt-2 leading-5">
+						Upload your work to get a score, worked corrections, and visual notes on
+						Guru.
+					</p>
+				</div>
+			)}
 		</div>
 	);
 }

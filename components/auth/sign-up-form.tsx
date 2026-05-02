@@ -34,6 +34,21 @@ function signupMessage(error: unknown) {
 		if (error.code === "auth/invalid-verification-code") {
 			return "The verification code is not correct.";
 		}
+
+		if (error.code === "auth/operation-not-allowed") {
+			return "Phone sign-up is not enabled on this deployment. This is a configuration issue, not a problem with your number.";
+		}
+
+		if (
+			error.code === "auth/invalid-app-credential" ||
+			error.code === "auth/captcha-check-failed"
+		) {
+			return "Phone verification could not be confirmed. Refresh the page and request a new code.";
+		}
+
+		if (error.code === "auth/too-many-requests") {
+			return "Too many verification attempts. Wait a few minutes, then request a new code.";
+		}
 	}
 
 	if (error instanceof Error) {
@@ -111,6 +126,7 @@ export function SignUpForm() {
 		const testToken = params.get("testToken");
 		if (testToken) {
 			setTestSignupToken(testToken.trim().slice(0, 512));
+			firebaseAuth.settings.appVerificationDisabledForTesting = true;
 		}
 	}, []);
 

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { adminDb, adminStorage, Timestamp } from "@/lib/firebase/admin";
-import { parseTopicLines } from "@/lib/materials/source-reader";
+import { parseTopicLines } from "@/lib/materials/topic-parser";
 import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 
 const maxUploadBytes = 100 * 1024 * 1024;

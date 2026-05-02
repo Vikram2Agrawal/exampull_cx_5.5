@@ -290,9 +290,9 @@ test("primary screens preserve atelier and artifact quality across themes and vi
 	const examTitle = "Quality visual seeded exam";
 	const examId = await seedExam(page, examTitle);
 	const routes: QualityRoute[] = [
-		{ path: "/dashboard", heading: "Your exam atelier", expectPaper: true },
+		{ path: "/dashboard", heading: "Your practice exam workspace", expectPaper: true },
 		{ path: "/exams", heading: "Exam library", expectPaper: true },
-		{ path: "/exams/new", heading: "Create an exam", expectPaper: false },
+		{ path: "/exams/new", heading: "Build a practice exam", expectPaper: false },
 		{ path: `/exams/${examId}`, heading: examTitle, expectPaper: true },
 		{ path: "/settings", heading: "Settings", expectPaper: false },
 	];

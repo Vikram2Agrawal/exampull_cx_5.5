@@ -21,7 +21,9 @@
 		"setup:stripe": "tsx scripts/setup-stripe.ts",
 		"setup:project": "tsx scripts/setup-project.ts",
 		"setup:firebase-auth-domain": "node scripts/verify-firebase-auth-domain.mjs --write",
+		"setup:firebase-auth": "node scripts/verify-firebase-auth-domain.mjs --write",
 		"verify:auth-domain": "node scripts/verify-firebase-auth-domain.mjs",
+		"verify:firebase-auth": "node scripts/verify-firebase-auth-domain.mjs",
 		"deploy:latex": "tsx scripts/deploy-latex.ts",
 		"stopguard": "node scripts/stopguard.mjs"
 	},

@@ -25,9 +25,11 @@ Visual and perceptual quality are judged against `DESIGN_PHILOSOPHY.md` using so
 
 ## Anti-Cheat Production Gates
 
-Production smoke must include at least one browser-level Firebase Auth call from the current deployed origin. The test intentionally uses a nonexistent account and expects the normal invalid-credential response; `auth/unauthorized-domain` is a deployment failure. Run `pnpm verify:auth-domain` before deploy and `pnpm setup:firebase-auth-domain` only when a new App Hosting hostname must be added.
+Production smoke must include browser-level Firebase Auth calls from the current deployed origin. The sign-in smoke intentionally uses a nonexistent account and expects the normal invalid-credential response; `auth/unauthorized-domain` is a deployment failure. The signup smoke uses the public form, Firebase `PhoneAuthProvider`, the OTP field, a Firebase-configured test phone number, and the real session API; `auth/operation-not-allowed` is a deployment failure. The hidden `testToken` URL param may enable Firebase's official app-verification-disabled test mode for automation because agents must not solve CAPTCHAs, but the flow must still use the browser SDK and visible OTP transition, not backend session seeding.
 
-Public and auth surfaces are not covered by authenticated test-session helpers. Smoke must visually exercise the landing page on desktop and mobile, assert the dark atelier default, assert the paper artifact is visible in the first viewport, and check horizontal overflow. Authenticated E2E helpers remain valid for server behavior and data isolation, but they cannot be the only proof that login/signup works or that the first-run public experience honors `DESIGN_PHILOSOPHY.md`.
+Run `pnpm verify:firebase-auth` before deploy. Use `pnpm setup:firebase-auth` only when a new App Hosting hostname, Phone Auth provider, or Firebase test phone entry must be added.
+
+Public and auth surfaces are not covered by authenticated test-session helpers. Smoke must visually exercise the landing page on desktop and mobile, assert the dark atelier default, assert the paper artifact is visible in the first viewport, check horizontal overflow, and save screenshot artifacts. Signup smoke must continue past OTP into the authenticated dashboard and exam builder before cleanup, with screenshots attached. Smoke must also request unauthenticated protected user routes and fail on any 500; those routes must redirect to sign-in or return a clear 401 before loading heavy worker-only dependencies. Authenticated E2E helpers remain valid for server behavior and data isolation, but they cannot be the only proof that login/signup works or that the first-run public experience honors `DESIGN_PHILOSOPHY.md`.
 
 ## Flow Enumeration Formula
 
@@ -566,6 +568,7 @@ Tests leave residue. Without cleanup, the test environment becomes a graveyard o
 - **Per-batch cleanup**: subscriptions canceled in Stripe test mode; Firestore documents in dedicated test collections purged
 - **Daily sweeper**: removes anything older than the longest valid test horizon (currently **7 days**, matching anonymous upload retention per PRD §5.3)
 - **Pre-flight assertion**: every test starts by asserting the expected initial state of its account/fixtures. If reality differs (a previous test left state behind, a sweeper missed something), **fail fast** with a clear setup error rather than producing misleading results
+- **Firebase test phone cleanup**: production signup smoke may remove only the configured Firebase test phone account before/after the browser flow, and only when the Auth user or Firestore user is tagged as test data. Cleanup is hygiene, not proof; the positive path must still use the public form, Firebase browser SDK, visible OTP field, session API, dashboard, and builder.
 
 Tests must not depend on the residue of previous tests. If your test passes only because a prior test left state behind, your test is broken — not because it's flaky, but because it's testing a fiction.
 

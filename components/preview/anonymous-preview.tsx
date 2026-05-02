@@ -28,7 +28,7 @@ async function getPreviewFingerprint() {
 }
 
 export function AnonymousPreview() {
-	const [title, setTitle] = useState("Thermodynamics and Entropy");
+	const [title, setTitle] = useState("Thermodynamics Midterm");
 	const [topicsText, setTopicsText] = useState(
 		"Second law of thermodynamics\nIsothermal expansion\nEntropy statements",
 	);
@@ -136,7 +136,7 @@ export function AnonymousPreview() {
 									href={previewId ? `/sign-up?preview=${previewId}` : "/sign-up"}
 									className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover"
 								>
-									Sign up free
+									Create free account
 								</Link>
 							</div>
 						</div>

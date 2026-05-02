@@ -1036,7 +1036,7 @@ test("anonymous preview can be claimed by a verified test account", async ({ pag
 	expect(previewPayload.previewImageBase64?.length).toBeGreaterThan(100);
 	expect(previewPayload.pdfBase64).toBeUndefined();
 	await expect(page.getByText("Preview ready.")).toBeVisible();
-	const signUpLink = page.getByRole("link", { name: "Sign up free" });
+	const signUpLink = page.getByRole("link", { name: "Create free account" });
 	await expect(signUpLink).toBeVisible();
 	const href = await signUpLink.getAttribute("href");
 	expect(href).toContain("/sign-up?preview=");
