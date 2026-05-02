@@ -30,7 +30,11 @@ export default async function NewExamPage() {
 	);
 
 	return (
-		<AppShell active="exams" unreadNotificationCount={user.unreadNotificationCount}>
+		<AppShell
+			active="exams"
+			unreadNotificationCount={user.unreadNotificationCount}
+			theme={user.theme}
+		>
 			<div className="space-y-8">
 				<SectionHeader title="Create an exam">
 					<p>

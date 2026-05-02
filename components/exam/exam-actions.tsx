@@ -179,7 +179,7 @@ export function ExamActions({
 							key={value}
 							type="button"
 							aria-label={`Rate ${value}`}
-							className="rounded-lg p-2 text-premium hover:bg-glass"
+							className="flex h-11 w-11 items-center justify-center rounded-lg text-premium hover:bg-glass"
 							disabled={isPending}
 							onClick={() => rateExam(value)}
 						>

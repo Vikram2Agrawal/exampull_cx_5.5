@@ -26,7 +26,11 @@ export default async function DashboardPage() {
 	);
 
 	return (
-		<AppShell active="dashboard" unreadNotificationCount={user.unreadNotificationCount}>
+		<AppShell
+			active="dashboard"
+			unreadNotificationCount={user.unreadNotificationCount}
+			theme={user.theme}
+		>
 			<div className="space-y-8">
 				<div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
 					<SectionHeader title="Your exam atelier">
@@ -86,7 +90,10 @@ export default async function DashboardPage() {
 				<section>
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-2xl font-semibold">Recent exams</h2>
-						<a href="/exams" className="text-sm text-secondary">
+						<a
+							href="/exams"
+							className="inline-flex min-h-11 items-center text-sm text-secondary"
+						>
 							View library
 						</a>
 					</div>

@@ -284,7 +284,7 @@ export function ExamLibrary({
 								aria-label="Style filter"
 								value={styleFilter}
 								onChange={(event) => setStyleFilter(event.target.value)}
-								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
 							>
 								<option value="all">All styles</option>
 								{styles.map((style) => (
@@ -297,7 +297,7 @@ export function ExamLibrary({
 								aria-label="Difficulty filter"
 								value={difficultyFilter}
 								onChange={(event) => setDifficultyFilter(event.target.value)}
-								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
 							>
 								<option value="all">All difficulties</option>
 								{difficulties.map((difficulty) => (
@@ -310,7 +310,7 @@ export function ExamLibrary({
 								aria-label="Bookmark filter"
 								value={bookmarkFilter}
 								onChange={(event) => setBookmarkFilter(event.target.value)}
-								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
 							>
 								<option value="all">All bookmarks</option>
 								<option value="bookmarked">Bookmarked</option>
@@ -324,7 +324,7 @@ export function ExamLibrary({
 										event.target.value as "active" | "archived" | "all",
 									)
 								}
-								className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
 							>
 								<option value="active">Active</option>
 								<option value="archived">Archived</option>

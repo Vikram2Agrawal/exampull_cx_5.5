@@ -17,7 +17,11 @@ export default async function ClassesPage() {
 	const classes = await listUserClasses(user.uid);
 
 	return (
-		<AppShell active="classes" unreadNotificationCount={user.unreadNotificationCount}>
+		<AppShell
+			active="classes"
+			unreadNotificationCount={user.unreadNotificationCount}
+			theme={user.theme}
+		>
 			<div className="space-y-8">
 				<div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
 					<SectionHeader title="Classes">

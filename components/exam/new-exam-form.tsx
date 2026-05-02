@@ -975,7 +975,7 @@ export function NewExamForm({
 								max={maxQuestions}
 								value={questionCount}
 								onChange={(event) => setQuestionCount(Number(event.target.value))}
-								className="mt-4 w-full accent-brand"
+								className="mt-4 h-11 w-full accent-brand"
 							/>
 							<p className="mt-2 text-2xl font-semibold">{questionCount}</p>
 						</>
@@ -998,7 +998,7 @@ export function NewExamForm({
 					<div className="mt-3 grid grid-cols-2 gap-2">
 						<button
 							type="button"
-							className={`rounded-lg border px-3 py-2 text-sm ${
+							className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
 								mode === "standard"
 									? "border-brand bg-brand text-white"
 									: "border-glass-border bg-background/60"
@@ -1009,7 +1009,7 @@ export function NewExamForm({
 						</button>
 						<button
 							type="button"
-							className={`rounded-lg border px-3 py-2 text-sm ${
+							className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
 								mode === "power"
 									? "border-premium bg-premium text-premium-foreground"
 									: "border-glass-border bg-background/60"
@@ -1117,7 +1117,7 @@ export function NewExamForm({
 							max={Math.max(1, powerSlots.length)}
 							value={rangeStart}
 							onChange={(event) => setRangeStart(Number(event.target.value))}
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 							aria-label="Range start"
 						/>
 						<input
@@ -1126,7 +1126,7 @@ export function NewExamForm({
 							max={Math.max(1, powerSlots.length)}
 							value={rangeEnd}
 							onChange={(event) => setRangeEnd(Number(event.target.value))}
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 							aria-label="Range end"
 						/>
 						<input
@@ -1135,13 +1135,13 @@ export function NewExamForm({
 							list="power-topic-options"
 							placeholder="Range topic"
 							aria-label="Range topic"
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 						/>
 						<select
 							aria-label="Range style"
 							value={rangeStyle}
 							onChange={(event) => setRangeStyle(event.target.value as QuestionStyle)}
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 						>
 							{styleOptions.map((option) => (
 								<option key={option.value} value={option.value}>
@@ -1155,7 +1155,7 @@ export function NewExamForm({
 							onChange={(event) =>
 								setRangeDifficulty(event.target.value as QuestionDifficulty)
 							}
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 						>
 							{difficultyOptions.map((option) => (
 								<option key={option.value} value={option.value}>
@@ -1169,7 +1169,7 @@ export function NewExamForm({
 							max={100}
 							value={rangePoints}
 							onChange={(event) => setRangePoints(Number(event.target.value))}
-							className="h-10 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 							aria-label="Range points"
 						/>
 						<Button

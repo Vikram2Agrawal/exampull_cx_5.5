@@ -15,7 +15,11 @@ export default async function SettingsPage() {
 	const code = await ensureReferralCode(user.uid);
 
 	return (
-		<AppShell active="settings" unreadNotificationCount={user.unreadNotificationCount}>
+		<AppShell
+			active="settings"
+			unreadNotificationCount={user.unreadNotificationCount}
+			theme={user.theme}
+		>
 			<div className="space-y-8">
 				<SectionHeader title="Settings">
 					<p>
@@ -29,6 +33,7 @@ export default async function SettingsPage() {
 					linkedAuthProviders={user.linkedAuthProviders}
 					referralCode={code}
 					referralUrl={referralUrl(code)}
+					initialTheme={user.theme}
 				/>
 			</div>
 		</AppShell>

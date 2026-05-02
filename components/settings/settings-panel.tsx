@@ -25,18 +25,20 @@ export function SettingsPanel({
 	linkedAuthProviders,
 	referralCode,
 	referralUrl,
+	initialTheme,
 }: {
 	displayName: string;
 	email: string | null;
 	linkedAuthProviders: LinkedAuthProvider[];
 	referralCode: string;
 	referralUrl: string;
+	initialTheme: "system" | "light" | "dark";
 }) {
 	const router = useRouter();
 	const [name, setName] = useState(displayName);
 	const [emailNotifications, setEmailNotifications] = useState(true);
 	const [productNotifications, setProductNotifications] = useState(true);
-	const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+	const [theme, setTheme] = useState<"system" | "light" | "dark">(initialTheme);
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
 	const hasGoogle = linkedAuthProviders.some((provider) => provider.type === "google");
@@ -195,7 +197,7 @@ export function SettingsPanel({
 			<section className="rounded-lg border border-glass-border bg-glass p-6">
 				<Bell aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Notification preferences</h2>
-				<label className="mt-5 flex items-center gap-3 text-sm">
+				<label className="mt-5 flex min-h-11 items-center gap-3 text-sm">
 					<input
 						type="checkbox"
 						checked={emailNotifications}
@@ -203,7 +205,7 @@ export function SettingsPanel({
 					/>
 					Email receipts, exports, and account events
 				</label>
-				<label className="mt-3 flex items-center gap-3 text-sm">
+				<label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
 					<input
 						type="checkbox"
 						checked={productNotifications}
@@ -216,6 +218,7 @@ export function SettingsPanel({
 				<Moon aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Appearance</h2>
 				<select
+					aria-label="Theme"
 					className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3"
 					value={theme}
 					onChange={(event) =>

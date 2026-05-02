@@ -54,6 +54,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add Stripe tier-snapshot chaos E2E covering a signed cancellation during queued generation while the completed exam preserves Scholar entitlement and exact reserved-credit settlement.
 - [x] Add accessibility E2E and UI semantics covering keyboard-only signup, wizard, library alert dialog, admin navigation/search, generation tracker labeling, and form live regions.
 - [x] Harden admin queue overview with an index-missing fallback so admin shell navigation does not crash while Firestore indexes are catching up.
+- [x] Add visual/performance quality E2E covering dark/light desktop/mobile screenshots, material discipline, mobile touch targets, horizontal overflow, route paint/CLS metrics, and action-feedback latency.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -175,6 +176,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after accessibility coverage and admin queue fallback passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 34 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after accessibility/admin implementation passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after accessibility/admin deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome`.
+- Focused visual/performance quality E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/quality.spec.ts` with screenshot artifacts under `artifacts/quality`, primary-route LCP/FCP around 472-544ms, CLS 0, and library action feedback around 16ms.
+- Full local gate after visual/performance quality coverage passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 36 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

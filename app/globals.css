@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-:root {
+:root,
+.dark {
+	color-scheme: dark;
 	--background: oklch(0.13 0.02 265);
 	--foreground: oklch(0.96 0.01 265);
 	--muted: oklch(0.73 0.03 265);
@@ -24,9 +26,12 @@
 	--shadow-glass: 0 24px 80px oklch(0 0 0 / 0.24);
 	--shadow-paper: 0 12px 36px oklch(0 0 0 / 0.18);
 	--shadow-paper-hover: 0 18px 48px oklch(0 0 0 / 0.22);
+	--ambient-one: oklch(0.18 0.04 265 / 0.4);
+	--ambient-two: oklch(0.22 0.04 195 / 0.34);
 }
 
 .light {
+	color-scheme: light;
 	--background: oklch(0.985 0 0);
 	--foreground: oklch(0.18 0.02 265);
 	--muted: oklch(0.48 0.03 265);
@@ -34,6 +39,23 @@
 	--glass-strong: oklch(1 0 0 / 0.9);
 	--glass-border: oklch(0 0 0 / 0.08);
 	--shadow-glass: 0 18px 60px oklch(0 0 0 / 0.1);
+	--ambient-one: oklch(0.67 0.07 265 / 0.11);
+	--ambient-two: oklch(0.72 0.07 195 / 0.1);
+}
+
+@media (prefers-color-scheme: light) {
+	:root {
+		color-scheme: light;
+		--background: oklch(0.985 0 0);
+		--foreground: oklch(0.18 0.02 265);
+		--muted: oklch(0.48 0.03 265);
+		--glass: oklch(1 0 0 / 0.78);
+		--glass-strong: oklch(1 0 0 / 0.9);
+		--glass-border: oklch(0 0 0 / 0.08);
+		--shadow-glass: 0 18px 60px oklch(0 0 0 / 0.1);
+		--ambient-one: oklch(0.67 0.07 265 / 0.11);
+		--ambient-two: oklch(0.72 0.07 195 / 0.1);
+	}
 }
 
 @theme inline {
@@ -76,8 +98,8 @@ body {
 	min-height: 100vh;
 	margin: 0;
 	background:
-		linear-gradient(135deg, oklch(0.18 0.04 265 / 0.4), transparent 42%),
-		linear-gradient(315deg, oklch(0.22 0.04 195 / 0.34), transparent 45%), var(--background);
+		linear-gradient(135deg, var(--ambient-one), transparent 42%),
+		linear-gradient(315deg, var(--ambient-two), transparent 45%), var(--background);
 	color: var(--foreground);
 	font-variant-numeric: tabular-nums;
 }

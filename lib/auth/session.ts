@@ -19,6 +19,7 @@ export type CurrentUser = {
 	linkedAuthProviders: LinkedAuthProvider[];
 	boostUsedAt: string | null;
 	boostGradingUsedAt: string | null;
+	theme: "system" | "light" | "dark";
 };
 
 export async function readUserSessionCookie() {
@@ -77,6 +78,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			linkedAuthProviders: linkedAuthProvidersFromDocument(data.linkedAuthProviders),
 			boostUsedAt: optionalTimestampIso(data.boostUsedAt),
 			boostGradingUsedAt: optionalTimestampIso(data.boostGradingUsedAt),
+			theme:
+				data.settings &&
+				typeof data.settings === "object" &&
+				data.settings.theme === "light"
+					? "light"
+					: data.settings &&
+							typeof data.settings === "object" &&
+							data.settings.theme === "dark"
+						? "dark"
+						: "system",
 		};
 	} catch {
 		return null;

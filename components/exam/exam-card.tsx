@@ -59,7 +59,7 @@ export function ExamCard({ exam }: { exam: ExamSummary }) {
 				<a
 					href={`/api/exams/${exam.id}/download?type=exam`}
 					className={cn(
-						"rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground",
+						"flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground",
 						exam.examPdfReady ? "" : "pointer-events-none opacity-40",
 					)}
 				>
@@ -67,7 +67,7 @@ export function ExamCard({ exam }: { exam: ExamSummary }) {
 				</a>
 				<a
 					href={`/exams/${exam.id}`}
-					className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+					className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground"
 				>
 					<Share2 aria-label="Share exam" size={18} />
 				</a>
