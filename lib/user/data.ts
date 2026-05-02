@@ -414,6 +414,10 @@ async function deleteCollection(collection: FirebaseFirestore.CollectionReferenc
 	}
 }
 
+export function accountDeletionSubcollections() {
+	return ["classes", "exams", "examUploads", "notifications", "referrals"] as const;
+}
+
 export async function deleteUserAccount(user: CurrentUser) {
 	const base = userRef(user.uid);
 	const [classes, exams] = await Promise.all([
@@ -429,12 +433,11 @@ export async function deleteUserAccount(user: CurrentUser) {
 		await deleteCollection(exam.ref.collection("attempts"));
 	}
 
-	await Promise.all([
-		deleteCollection(base.collection("classes")),
-		deleteCollection(base.collection("exams")),
-		deleteCollection(base.collection("notifications")),
-		deleteCollection(base.collection("referrals")),
-	]);
+	await Promise.all(
+		accountDeletionSubcollections().map((collectionName) =>
+			deleteCollection(base.collection(collectionName)),
+		),
+	);
 
 	await adminDb.collection("accountDeletions").add({
 		userId: user.uid,

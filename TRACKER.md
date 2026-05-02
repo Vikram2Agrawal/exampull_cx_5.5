@@ -47,6 +47,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement long-PDF source upload extraction progress with TOC/headings stage, page-read metadata, focus-scoped topic prompts, and Next server PDF parser packaging.
 - [x] Implement scanned/image-only PDF fallback by rasterizing textless pages for multimodal topic extraction with rendered-page metadata.
 - [x] Persist reusable extracted source context for uploaded/class materials, prefer cached context during exam generation, and include ad hoc upload records in user data export.
+- [x] Extend account deletion cleanup to remove ad hoc `examUploads` records alongside classes, exams, notifications, referrals, Storage files, and Auth user state.
 - [x] Add Mobile Safari Power Mode E2E covering tap reorder controls, range bulk edit, and queued mobile Power Mode creation.
 - [x] Add Scholar Boost two-tab E2E covering atomic once-per-account consumption, included grading, report-window refund, and recovered boost reuse.
 - [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
@@ -222,6 +223,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after reusable source-context caching and export coverage passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after reusable source-context caching passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after reusable source-context deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
+- Focused account deletion cleanup verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test` with 29 unit tests and explicit `examUploads` deletion coverage.
+- Full local gate after account deletion upload cleanup passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
