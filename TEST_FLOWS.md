@@ -23,7 +23,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-CLASS-002 Instructor example upload charges 2 credits and produces a visible style guide; authenticated E2E verifies credit accounting and fallback style guide readiness.
 - [x] P1-WIZARD-001 Wizard combines class materials, ad hoc uploads, and manual topics; authenticated E2E verifies stored material IDs, ad hoc source retention, and manual topics on the queued exam.
 - [!] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; server-side text PDF/image extraction is implemented, but long-document progress E2E remains.
-- [ ] P1-WIZARD-003 Topic extraction failure offers best-effort/manual fallback.
+- [x] P1-WIZARD-003 Topic extraction failure offers best-effort/manual fallback; authenticated E2E verifies warning status, fallback topics, and use in exam creation.
 - [x] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; authenticated E2E covers slot edits, reorder, range bulk edit, queueing, and created metadata.
 - [!] P1-POWER-002 Mobile Power Mode uses tap reorder and bulk actions; explicit up/down controls and range bulk edits exist, tap-to-target E2E remains.
 - [x] P1-LIBRARY-001 Library search, filter, bookmark, archive, restore, delete, move-to-class, grid/list, and bulk actions pass authenticated E2E.
@@ -72,6 +72,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome authenticated Free manual-topics exam suite: `pnpm exec playwright test --project=desktop-chrome` passed with a 12-question queued Standard exam.
 - Desktop Chrome authenticated Power Mode suite: `pnpm exec playwright test --project=desktop-chrome` passed with Scholar slot edits, reorder, range bulk edit, queueing, and created metadata.
 - Desktop Chrome authenticated one-time source upload suite: `pnpm exec playwright test --project=desktop-chrome` passed with signed Storage upload, ready fallback extraction, exam queueing, and detail-page source retention.
+- Desktop Chrome topic-extraction fallback suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "topic extraction failure"` passed with missing Storage object, worker best-effort warning, fallback topics, and queued exam source retention.
 - Desktop Chrome authenticated class style-reference and combined-source wizard suite: `pnpm exec playwright test --project=desktop-chrome` passed with 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and queued exam export verification.
 - Desktop Chrome authenticated full-worker exam suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "full 12-question worker"` passed with Cloud Run LaTeX compilation, Storage-backed artifacts, credit settlement, PDF download, and exported base64 artifacts.
 - Desktop Chrome authenticated Scholar full-worker answer-key suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "scholar user can complete a full worker generation"` passed with answer-key access, download, credit settlement, and exported artifacts.
@@ -81,6 +82,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Full local gate after anonymous-preview claim implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Full local gate after Scholar full-worker answer-key E2E: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Full local gate after phone-conflict E2E harness: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
+- Full local gate after topic-extraction fallback E2E: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

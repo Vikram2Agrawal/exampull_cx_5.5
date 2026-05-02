@@ -574,6 +574,79 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
 });
 
+test("topic extraction failure keeps best-effort source topics available", async ({ page }) => {
+	const { uid } = await signInAsTestUser(page, `fallback-source-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 24,
+	});
+	const startResponse = await page.context().request.post("/api/exam-uploads", {
+		data: {
+			filename: "missing extraction source.txt",
+			contentType: "text/plain",
+			sizeBytes: 128,
+			focus: "eigenvalue stability",
+			styleReference: false,
+		},
+	});
+	expect(startResponse.status()).toBe(201);
+	const startPayload = (await startResponse.json()) as { uploadId: string };
+
+	const completeResponse = await page
+		.context()
+		.request.patch(`/api/exam-uploads/${startPayload.uploadId}`, {
+			data: { status: "uploaded" },
+		});
+	expect(completeResponse.status()).toBe(200);
+
+	const workerResponse = await page.context().request.post("/api/workers/extract-upload-topics", {
+		data: { userId: uid, uploadId: startPayload.uploadId, tier: "free" },
+	});
+	expect(workerResponse.status()).toBe(200);
+	const workerPayload = (await workerResponse.json()) as {
+		topics?: string[];
+		warning?: string;
+	};
+	expect(workerPayload.warning).toBe("best_effort");
+	expect(workerPayload.topics).toEqual(
+		expect.arrayContaining(["missing", "extraction", "source", "eigenvalue", "stability"]),
+	);
+
+	const uploadsResponse = await page
+		.context()
+		.request.get(`/api/exam-uploads?ids=${startPayload.uploadId}`);
+	expect(uploadsResponse.status()).toBe(200);
+	const uploadsPayload = (await uploadsResponse.json()) as {
+		uploads: {
+			id: string;
+			status?: string;
+			extractedTopics?: string[];
+		}[];
+	};
+	const upload = uploadsPayload.uploads.find((item) => item.id === startPayload.uploadId);
+	expect(upload?.status).toBe("ready_with_warnings");
+	expect(upload?.extractedTopics).toEqual(workerPayload.topics);
+
+	const createResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title: "Fallback extraction exam",
+			topics: ["Manual fallback synthesis"],
+			questionCount: 12,
+			mode: "standard",
+			adHocUploadIds: [startPayload.uploadId],
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { examId: string };
+
+	await page.goto(`/exams/${createPayload.examId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Fallback extraction exam" }),
+	).toBeVisible();
+	const detailText = await page.locator("body").innerText();
+	expect(detailText).toContain("missing extraction source.txt");
+	expect(detailText).toContain("5 extracted topics");
+});
+
 test("authenticated user can upload a class style reference and see credit accounting", async ({
 	page,
 }) => {

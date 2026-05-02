@@ -41,6 +41,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated anonymous-preview claim E2E covering public preview UI, no-PDF preview response, sign-up CTA preview token, claim into a verified test account, PDF download, and data export.
 - [x] Add authenticated Scholar full-worker E2E covering paid-tier generation, answer-key access, answer-key download, credit settlement, and exported artifacts.
 - [x] Add authenticated phone-conflict E2E covering active prior-auth-required rejection and dormant 180+ day phone reclaim into a clean account.
+- [x] Add authenticated topic-extraction failure E2E covering best-effort fallback topics, warning status, and fallback source reuse in exam creation.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -125,6 +126,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Focused phone-conflict E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "phone conflict|dormant phone"`.
 - Full local gate after phone-conflict E2E harness passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after phone-conflict E2E harness deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- Focused topic-extraction fallback E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "topic extraction failure"`.
+- Full local gate after topic-extraction fallback E2E passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
