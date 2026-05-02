@@ -24,6 +24,8 @@ export type ExamSummary = {
 	boostGradingIncluded: boolean;
 	createdAt: string;
 	rating: number | null;
+	feedbackText: string | null;
+	ratingDismissed: boolean;
 	bookmarked: boolean;
 	archived: boolean;
 	shareCount: number;
@@ -187,6 +189,8 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		boostGradingIncluded: Boolean(data.boostGradingIncluded ?? false),
 		createdAt: isoDate(data.createdAt),
 		rating: typeof data.rating === "number" ? data.rating : null,
+		feedbackText: typeof data.feedbackText === "string" ? data.feedbackText : null,
+		ratingDismissed: data.ratingDismissedAt instanceof Timestamp,
 		bookmarked: Boolean(data.bookmarked ?? false),
 		archived: Boolean(data.archived ?? false),
 		shareCount: Number(data.shareCount ?? 0),

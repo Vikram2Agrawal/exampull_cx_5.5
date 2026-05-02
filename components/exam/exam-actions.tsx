@@ -4,11 +4,15 @@ import { Archive, Bookmark, Copy, Flag, RotateCcw, Share2, Star, Trash2 } from "
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import type { ExamStatus } from "@/lib/product/constants";
 
 type ExamActionsProps = {
 	examId: string;
+	examStatus: ExamStatus;
 	initialBookmarked: boolean;
 	initialRating: number | null;
+	initialFeedbackText: string | null;
+	initialRatingDismissed: boolean;
 	initialArchived: boolean;
 	cloneUnavailableReason: string | null;
 };
@@ -25,8 +29,11 @@ async function readJson(response: Response) {
 
 export function ExamActions({
 	examId,
+	examStatus,
 	initialBookmarked,
 	initialRating,
+	initialFeedbackText,
+	initialRatingDismissed,
 	initialArchived,
 	cloneUnavailableReason,
 }: ExamActionsProps) {
@@ -34,10 +41,19 @@ export function ExamActions({
 	const [isPending, startTransition] = useTransition();
 	const [bookmarked, setBookmarked] = useState(initialBookmarked);
 	const [rating, setRating] = useState(initialRating);
+	const [selectedRating, setSelectedRating] = useState(initialRating ?? 0);
+	const [feedbackText, setFeedbackText] = useState(initialFeedbackText ?? "");
+	const [ratingDismissed, setRatingDismissed] = useState(initialRatingDismissed);
 	const [shareUrl, setShareUrl] = useState("");
 	const [status, setStatus] = useState("");
+	const canRate = examStatus === "complete" && rating === null && !ratingDismissed;
+	const hasRated = examStatus === "complete" && rating !== null;
 
-	function patchExam(payload: Record<string, unknown>, successMessage: string) {
+	function patchExam(
+		payload: Record<string, unknown>,
+		successMessage: string,
+		onSuccess?: () => void,
+	) {
 		startTransition(async () => {
 			try {
 				await readJson(
@@ -47,6 +63,7 @@ export function ExamActions({
 						body: JSON.stringify(payload),
 					}),
 				);
+				onSuccess?.();
 				setStatus(successMessage);
 				router.refresh();
 			} catch (error) {
@@ -62,8 +79,24 @@ export function ExamActions({
 	}
 
 	function rateExam(value: number) {
-		setRating(value);
-		patchExam({ rating: value }, "Rating saved.");
+		setSelectedRating(value);
+	}
+
+	function submitRating() {
+		if (selectedRating === 0) {
+			setStatus("Choose a rating first.");
+			return;
+		}
+
+		patchExam({ rating: selectedRating, feedbackText }, "Rating saved.", () =>
+			setRating(selectedRating),
+		);
+	}
+
+	function dismissRating() {
+		patchExam({ ratingDismissed: true }, "Rating prompt dismissed.", () =>
+			setRatingDismissed(true),
+		);
 	}
 
 	function archiveExam() {
@@ -171,36 +204,76 @@ export function ExamActions({
 					<Archive aria-hidden="true" size={18} />
 					{initialArchived ? "Restore" : "Archive"}
 				</Button>
-				<Button type="button" variant="danger" onClick={reportExam} disabled={isPending}>
-					<Flag aria-hidden="true" size={18} />
-					Report issue
-				</Button>
+				{examStatus === "complete" ? (
+					<Button
+						type="button"
+						variant="danger"
+						onClick={reportExam}
+						disabled={isPending}
+					>
+						<Flag aria-hidden="true" size={18} />
+						Report issue
+					</Button>
+				) : null}
 				<Button type="button" variant="danger" onClick={deleteExam} disabled={isPending}>
 					<Trash2 aria-hidden="true" size={18} />
 					Delete
 				</Button>
 			</div>
-			<div>
-				<p className="text-sm font-medium">Artifact rating</p>
-				<div className="mt-2 flex gap-1">
-					{[1, 2, 3, 4, 5].map((value) => (
-						<button
-							key={value}
+			{canRate ? (
+				<div className="space-y-3 rounded-lg border border-glass-border bg-background/50 p-3">
+					<div>
+						<p className="text-sm font-medium">Artifact rating</p>
+						<p className="mt-1 text-xs text-muted">
+							Your feedback helps us improve. We may follow up via email.
+						</p>
+						<div className="mt-2 flex gap-1">
+							{[1, 2, 3, 4, 5].map((value) => (
+								<button
+									key={value}
+									type="button"
+									aria-label={`Rate ${value}`}
+									className="flex h-11 w-11 items-center justify-center rounded-lg text-premium hover:bg-glass"
+									disabled={isPending}
+									onClick={() => rateExam(value)}
+								>
+									<Star
+										aria-hidden="true"
+										className={value <= selectedRating ? "fill-premium" : ""}
+										size={18}
+									/>
+								</button>
+							))}
+						</div>
+					</div>
+					<label className="block text-sm font-medium" htmlFor="exam-feedback-text">
+						Optional feedback
+					</label>
+					<textarea
+						id="exam-feedback-text"
+						value={feedbackText}
+						maxLength={2000}
+						onChange={(event) => setFeedbackText(event.target.value)}
+						className="min-h-24 w-full rounded-lg border border-glass-border bg-background px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+						placeholder="What felt realistic, confusing, or off?"
+						disabled={isPending}
+					/>
+					<div className="flex flex-wrap gap-2">
+						<Button type="button" onClick={submitRating} disabled={isPending}>
+							Submit rating
+						</Button>
+						<Button
 							type="button"
-							aria-label={`Rate ${value}`}
-							className="flex h-11 w-11 items-center justify-center rounded-lg text-premium hover:bg-glass"
+							variant="ghost"
+							onClick={dismissRating}
 							disabled={isPending}
-							onClick={() => rateExam(value)}
 						>
-							<Star
-								aria-hidden="true"
-								className={rating && value <= rating ? "fill-premium" : ""}
-								size={18}
-							/>
-						</button>
-					))}
+							Don't ask again
+						</Button>
+					</div>
 				</div>
-			</div>
+			) : null}
+			{hasRated ? <p className="text-sm text-muted">Thanks for your feedback!</p> : null}
 			{shareUrl ? (
 				<div className="flex items-center gap-2 rounded-lg border border-glass-border bg-background/50 p-2 text-xs text-muted">
 					<Copy aria-hidden="true" size={14} />

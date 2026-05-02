@@ -36,6 +36,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated class style-reference E2E covering 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and combined exam queueing.
 - [x] Add authenticated full-worker Free exam E2E covering 12-question generation, LaTeX compilation, Storage-backed PDF artifacts, credit settlement, download, and data export.
 - [x] Add paid-exam report recourse: one-time generation credit refund, refund metadata, user notification, abuse triage record, and no double-refund regression coverage.
+- [x] Complete exam rating recourse: completed-only inline rating form, optional text feedback, dismissal, server-side queued/failed gating, top-level admin feedback rows, export metadata, and E2E coverage.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -257,6 +258,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after deleted-source-class clone guard passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 42 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after deleted-source-class clone guard passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after deleted-source-class clone guard deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 44 local-only authenticated/quality specs skipped.
+- Focused completed-exam rating regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "completed exam rating"` with optional feedback, dismissal, complete-only UI, queued API rejection, export fields, and admin feedback row visibility.
+- Full local gate after completed-exam rating flow passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 43 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

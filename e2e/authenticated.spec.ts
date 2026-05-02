@@ -611,6 +611,85 @@ test("scholar user can open answer key action for a completed paid exam", async 
 	await expect(page.getByRole("link", { name: "Answer key" })).toBeVisible();
 });
 
+test("completed exam rating captures feedback and hides on incomplete exams", async ({ page }) => {
+	await signInAsTestUser(page, `exam-rating-${Date.now()}@exampull.test`, {
+		tier: "scholar",
+		credits: 80,
+	});
+	const ratingExamTitle = `Rating fixture exam ${Date.now()}`;
+	const ratingFeedback = `The notation looked realistic for ${ratingExamTitle}, but one prompt needed clearer limits.`;
+	const examId = await seedExam(page, ratingExamTitle);
+
+	await page.goto(`/exams/${examId}`);
+	await expect(page.getByText("Artifact rating")).toBeVisible();
+	await expect(
+		page.getByText("Your feedback helps us improve. We may follow up via email."),
+	).toBeVisible();
+	await page.getByRole("button", { name: "Rate 4" }).click();
+	await page.getByLabel("Optional feedback").fill(ratingFeedback);
+	await page.getByRole("button", { name: "Submit rating" }).click();
+	await expect(page.getByText("Thanks for your feedback!")).toBeVisible();
+
+	const dismissExamId = await seedExam(page, "Dismiss rating fixture");
+	await page.goto(`/exams/${dismissExamId}`);
+	await page.getByRole("button", { name: "Don't ask again" }).click();
+	await expect(page.getByText("Rating prompt dismissed.")).toBeVisible();
+
+	const queuedResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title: "Queued rating guard",
+			topics: ["Limits", "Continuity"],
+			questionCount: 2,
+			mode: "standard",
+		},
+	});
+	expect(queuedResponse.status()).toBe(201);
+	const queuedPayload = (await queuedResponse.json()) as { examId: string };
+
+	await page.goto(`/exams/${queuedPayload.examId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Queued rating guard" }),
+	).toBeVisible();
+	await expect(page.getByText("Manual topics - 2 questions - queued")).toBeVisible();
+	await expect(page.getByText("Artifact rating")).toHaveCount(0);
+	await expect(page.getByRole("button", { name: "Report issue" })).toHaveCount(0);
+
+	const rejectedRatingResponse = await page
+		.context()
+		.request.patch(`/api/exams/${queuedPayload.examId}`, {
+			data: {
+				rating: 5,
+				feedbackText: "Queued exams cannot be rated.",
+			},
+		});
+	expect(rejectedRatingResponse.status()).toBe(400);
+	const rejectedRatingPayload = (await rejectedRatingResponse.json()) as { error?: string };
+	expect(rejectedRatingPayload.error).toContain("completed exams");
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		exams?: {
+			id?: string;
+			rating?: number;
+			feedbackText?: string | null;
+			ratedAt?: unknown;
+			ratingDismissedAt?: unknown;
+		}[];
+	};
+	const ratedExam = exportPayload.exams?.find((exam) => exam.id === examId);
+	expect(ratedExam?.rating).toBe(4);
+	expect(ratedExam?.feedbackText).toBe(ratingFeedback);
+	expect(ratedExam?.ratedAt).toBeTruthy();
+	const dismissedExam = exportPayload.exams?.find((exam) => exam.id === dismissExamId);
+	expect(dismissedExam?.ratingDismissedAt).toBeTruthy();
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/communications");
+	await expect(page.getByText(`Exam rating: ${ratingExamTitle}`)).toBeVisible();
+	await expect(page.getByText(ratingFeedback)).toBeVisible();
+});
+
 test("guru user can download completed visual feedback PDF", async ({ page }) => {
 	await signInAsTestUser(page, `guru-visual-${Date.now()}@exampull.test`, {
 		tier: "guru",

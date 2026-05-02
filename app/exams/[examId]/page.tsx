@@ -143,8 +143,11 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 							<div className="mt-4">
 								<ExamActions
 									examId={exam.id}
+									examStatus={exam.status}
 									initialBookmarked={exam.bookmarked}
 									initialRating={exam.rating}
+									initialFeedbackText={exam.feedbackText}
+									initialRatingDismissed={exam.ratingDismissed}
 									initialArchived={exam.archived}
 									cloneUnavailableReason={exam.cloneUnavailableReason}
 								/>

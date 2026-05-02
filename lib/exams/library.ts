@@ -15,6 +15,8 @@ export const examUpdateSchema = z.object({
 	bookmarked: z.boolean().optional(),
 	archived: z.boolean().optional(),
 	rating: z.number().int().min(1).max(5).nullable().optional(),
+	feedbackText: z.string().trim().max(2000).optional(),
+	ratingDismissed: z.boolean().optional(),
 	reportReason: z.string().trim().min(8).max(1200).optional(),
 });
 
@@ -149,10 +151,35 @@ export async function updateExamForUser({
 	const updateData: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {
 		updatedAt: Timestamp.now(),
 	};
+	const existingStatus = snapshot.get("status");
+	const ratingMutationRequested =
+		parsed.rating !== undefined ||
+		parsed.feedbackText !== undefined ||
+		parsed.ratingDismissed === true;
 
 	if (parsed.bookmarked !== undefined) updateData.bookmarked = parsed.bookmarked;
 	if (parsed.archived !== undefined) updateData.archived = parsed.archived;
-	if (parsed.rating !== undefined) updateData.rating = parsed.rating;
+
+	if (ratingMutationRequested && existingStatus !== "complete") {
+		throw new Error("Rating is only available for completed exams.");
+	}
+
+	if (parsed.ratingDismissed === true) {
+		updateData.ratingDismissedAt = Timestamp.now();
+	}
+
+	if (parsed.rating !== undefined) {
+		updateData.rating = parsed.rating;
+		if (parsed.rating === null) {
+			updateData.feedbackText = null;
+			updateData.ratedAt = FieldValue.delete();
+		} else {
+			updateData.feedbackText = parsed.feedbackText?.trim() || null;
+			updateData.ratedAt = Timestamp.now();
+			updateData.ratingDismissedAt = FieldValue.delete();
+		}
+	}
+
 	if (parsed.reportReason !== undefined) {
 		updateData.status = "reported";
 		updateData.reportedAt = Timestamp.now();
@@ -256,6 +283,39 @@ export async function updateExamForUser({
 		}
 	} else {
 		await ref.update(updateData);
+
+		if (typeof parsed.rating === "number") {
+			const now = Timestamp.now();
+			const feedbackRef = adminDb.collection("feedback").doc(`${user.uid}_${examId}`);
+			const feedbackSnapshot = await feedbackRef.get();
+			const rawTitle = snapshot.get("title");
+			const title = typeof rawTitle === "string" ? rawTitle : "Untitled practice exam";
+			const feedbackText = parsed.feedbackText?.trim() || null;
+
+			await feedbackRef.set(
+				{
+					kind: "exam_rating",
+					title: `Exam rating: ${title}`,
+					body: feedbackText ?? `Rated ${parsed.rating}/5 without written feedback.`,
+					userId: user.uid,
+					userEmail: user.email,
+					email: user.email,
+					examId,
+					examTitle: title,
+					rating: parsed.rating,
+					feedbackText,
+					examPdfUrl: `${publicBaseUrl()}/api/exams/${examId}/download?type=exam`,
+					tier: user.tier,
+					status: "open",
+					isTestData: user.isTestAccount,
+					createdAt: feedbackSnapshot.exists
+						? (feedbackSnapshot.get("createdAt") ?? now)
+						: now,
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+		}
 	}
 
 	return { examId };
