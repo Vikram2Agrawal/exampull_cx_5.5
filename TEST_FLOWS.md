@@ -20,7 +20,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P1 Product Flows
 
-- [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class; authenticated E2E also verifies deletion is blocked while a queued exam still references the class.
+- [x] P1-CLASS-001 User creates, edits, archives, restores, and deletes a class; authenticated E2E also verifies deletion is blocked while a queued exam still references the class, and completed class-backed exams are marked when their source class is deleted.
 - [x] P1-CLASS-002 Instructor example upload charges 2 credits and produces a visible style guide; authenticated E2E verifies credit accounting and fallback style guide readiness.
 - [x] P1-WIZARD-001 Wizard combines class materials, ad hoc uploads, and manual topics; authenticated E2E verifies stored material IDs, ad hoc source retention, and manual topics on the queued exam.
 - [x] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; authenticated E2E verifies PDF upload progress, page-read metadata, worker extraction, and focus-scoped topics.
@@ -29,7 +29,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; authenticated E2E covers slot edits, drag-and-drop reorder, range bulk edit, queueing, and created metadata.
 - [x] P1-POWER-002 Mobile Power Mode uses 44px tap targets for reorder and bulk actions; Mobile Safari E2E verifies tap target size, tap reorder, range bulk edit, and queueing.
 - [x] P1-LIBRARY-001 Library search, filter, bookmark, archive, restore, delete, move-to-class, grid/list, and bulk actions pass authenticated E2E.
-- [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share; full-worker E2E verifies reported paid exams restore generation credits once, record refund metadata, and notify the user without double-refunding repeat reports.
+- [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share; full-worker E2E verifies reported paid exams restore generation credits once, record refund metadata, and notify the user without double-refunding repeat reports; deleted-source-class E2E verifies clone is replaced with the PRD explanation and server-side clone is blocked.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
 - [x] P1-BOOST-001 Free user Scholar Boost is offered from second exam, atomically consumed across two tabs, includes one free grading round, and is restored by the 24-hour report regret flow.
 - [x] P1-BILLING-001 Upgrade, downgrade, cancellation, credit packs, monthly subscription grants, and receipts flow through signed Stripe webhook events; authenticated E2E verifies signature rejection, tier changes, credit packs, monthly grants, billing notifications, and idempotency.
@@ -165,6 +165,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused paid-exam report/refund regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "free user can complete a full 12-question worker generation"` with credit restoration, refund metadata, notification, and no double-refund assertions.
 - Full local gate after paid-exam report/refund recourse: `pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Hosted production smoke after paid-exam report/refund deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 43 local-only authenticated/quality specs skipped.
+- Focused deleted-source-class clone regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "deleted source class blocks"` with source-class deletion marker, detail-page explanation, hidden clone button, and clone API rejection.
+- Full local gate after deleted-source-class clone guard: `pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 42 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

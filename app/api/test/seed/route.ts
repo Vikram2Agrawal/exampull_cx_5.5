@@ -12,6 +12,8 @@ const requestSchema = z.discriminatedUnion("kind", [
 		token: z.string().min(1),
 		kind: z.literal("exam"),
 		title: z.string().trim().min(1).max(120).default("Seeded exam"),
+		classId: z.string().trim().min(1).max(120).optional(),
+		className: z.string().trim().min(1).max(120).optional(),
 	}),
 	z.object({
 		token: z.string().min(1),
@@ -73,8 +75,8 @@ export async function POST(request: Request) {
 			.create({
 				status: "complete",
 				title: input.title,
-				className: "Synthetic E2E",
-				classId: null,
+				className: input.className ?? "Synthetic E2E",
+				classId: input.classId ?? null,
 				topics: ["Derivatives", "Optimization"],
 				sourceMaterialIds: [],
 				adHocUploadIds: [],
@@ -83,6 +85,8 @@ export async function POST(request: Request) {
 				tierAtGen: user.tier,
 				config: {
 					title: input.title,
+					className: input.className ?? "Synthetic E2E",
+					...(input.classId ? { classId: input.classId } : {}),
 					topics: ["Derivatives", "Optimization"],
 					questionCount: 2,
 					tier: user.tier,

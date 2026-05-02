@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { publicBaseUrl } from "@/lib/env";
 import { readStorageBase64 } from "@/lib/exams/artifacts";
+import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
 import { createExamForUser, createExamRequestSchema } from "@/lib/exams/create";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { createUserNotification } from "@/lib/user/data";
@@ -418,12 +419,35 @@ export async function cloneExamForUser(user: CurrentUser, examId: string) {
 	const data = snapshot.data() ?? {};
 	const config = isRecord(data.config) ? data.config : {};
 	const mode = config.mode === "power" ? "power" : "standard";
+	const classId =
+		typeof data.classId === "string"
+			? data.classId
+			: typeof config.classId === "string"
+				? config.classId
+				: undefined;
 	const sourceNotes =
 		typeof data.sourceNotes === "string"
 			? data.sourceNotes
 			: typeof config.sourceNotes === "string"
 				? config.sourceNotes
 				: undefined;
+
+	if (data.sourceClassDeletedAt instanceof Timestamp) {
+		throw new Error(deletedSourceClassCloneMessage);
+	}
+
+	if (classId) {
+		const classSnapshot = await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("classes")
+			.doc(classId)
+			.get();
+
+		if (!classSnapshot.exists) {
+			throw new Error(deletedSourceClassCloneMessage);
+		}
+	}
 
 	const input = createExamRequestSchema.parse({
 		title: typeof data.title === "string" ? `${data.title} copy` : "Cloned practice exam",
@@ -433,12 +457,7 @@ export async function cloneExamForUser(user: CurrentUser, examId: string) {
 				: typeof config.className === "string"
 					? config.className
 					: undefined,
-		classId:
-			typeof data.classId === "string"
-				? data.classId
-				: typeof config.classId === "string"
-					? config.classId
-					: undefined,
+		classId,
 		topics:
 			stringList(data.topics).length > 0
 				? stringList(data.topics)

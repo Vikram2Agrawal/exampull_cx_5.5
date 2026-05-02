@@ -238,6 +238,7 @@ export async function deleteClassForUser(userId: string, classId: string) {
 		.map((material) => material.get("storagePath"))
 		.filter((value): value is string => typeof value === "string" && value.length > 0);
 	const mutations: ((batch: FirebaseFirestore.WriteBatch) => void)[] = [];
+	const now = Timestamp.now();
 
 	for (const material of materials.docs) {
 		mutations.push((batch) => batch.delete(material.ref));
@@ -248,7 +249,8 @@ export async function deleteClassForUser(userId: string, classId: string) {
 			batch.update(exam.ref, {
 				classId: null,
 				className: "Manual topics",
-				updatedAt: Timestamp.now(),
+				sourceClassDeletedAt: now,
+				updatedAt: now,
 			}),
 		);
 	}

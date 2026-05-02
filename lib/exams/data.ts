@@ -1,3 +1,4 @@
+import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import {
 	EXAM_STATUSES,
@@ -32,6 +33,7 @@ export type ExamSummary = {
 	answerKeyPdfReady: boolean;
 	examPdfBase64: string | null;
 	answerKeyPdfBase64: string | null;
+	cloneUnavailableReason: string | null;
 	adHocSources: {
 		id: string;
 		filename: string;
@@ -195,6 +197,8 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		answerKeyPdfBase64:
 			typeof data.answerKeyPdfBase64 === "string" ? data.answerKeyPdfBase64 : null,
+		cloneUnavailableReason:
+			data.sourceClassDeletedAt instanceof Timestamp ? deletedSourceClassCloneMessage : null,
 		adHocSources: adHocSources(data.adHocSources),
 	};
 }

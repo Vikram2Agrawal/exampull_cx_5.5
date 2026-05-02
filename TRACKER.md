@@ -16,6 +16,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement Power Mode question-slot builder, per-slot LaTeX rendering, paid-tier enforcement, and slot-count credit accounting.
 - [x] Implement exam library search/filter/archive visibility/grid-list views, individual delete, and bulk archive/bookmark/delete/move-to-class operations.
 - [x] Implement class edit/archive/restore/delete controls, material delete confirmation, class-tag cleanup on deletion, and material storage cleanup.
+- [x] Block "Create another like this" for completed exams whose source class was deleted, with deleted-source markers, user-facing explanation, server-side clone rejection, and E2E coverage.
 - [x] Harden anonymous preview to return a blurred first-page image instead of a PDF payload, with device/IP rate limiting and sign-up CTA.
 - [x] Implement once-per-account Scholar Boost: second-exam prompt, atomic consumption, Scholar-tier generation, answer-key unlock, one free grading round, and 24-hour report regret recovery.
 - [x] Harden Stripe webhook credit grants with ledger idempotency, subscription-cycle monthly credits, and billing notifications.
@@ -252,6 +253,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after paid-exam report/refund recourse passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after paid-exam report/refund recourse passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after paid-exam report/refund deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 43 local-only authenticated/quality specs skipped.
+- Focused deleted-source-class clone regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "deleted source class blocks"` with source-class deletion marker, detail-page explanation, hidden clone button, and clone API rejection.
+- Full local gate after deleted-source-class clone guard passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 42 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

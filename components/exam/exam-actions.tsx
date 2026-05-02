@@ -10,6 +10,7 @@ type ExamActionsProps = {
 	initialBookmarked: boolean;
 	initialRating: number | null;
 	initialArchived: boolean;
+	cloneUnavailableReason: string | null;
 };
 
 async function readJson(response: Response) {
@@ -27,6 +28,7 @@ export function ExamActions({
 	initialBookmarked,
 	initialRating,
 	initialArchived,
+	cloneUnavailableReason,
 }: ExamActionsProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
@@ -142,10 +144,17 @@ export function ExamActions({
 	return (
 		<div className="space-y-4">
 			<div className="grid gap-2">
-				<Button type="button" onClick={cloneExam} disabled={isPending}>
-					<RotateCcw aria-hidden="true" size={18} />
-					Create another like this
-				</Button>
+				{cloneUnavailableReason ? (
+					<div className="flex gap-2 rounded-lg border border-glass-border bg-background/60 p-3 text-sm text-muted">
+						<RotateCcw aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+						<span>{cloneUnavailableReason}</span>
+					</div>
+				) : (
+					<Button type="button" onClick={cloneExam} disabled={isPending}>
+						<RotateCcw aria-hidden="true" size={18} />
+						Create another like this
+					</Button>
+				)}
 				<Button type="button" onClick={shareExam} disabled={isPending}>
 					<Share2 aria-hidden="true" size={18} />
 					Share exam

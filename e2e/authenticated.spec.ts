@@ -2410,6 +2410,44 @@ test("authenticated user can create edit archive restore and delete a class", as
 	expect(missingResponse.status()).toBe(404);
 });
 
+test("deleted source class blocks cloning a completed exam", async ({ page }) => {
+	await signInAsTestUser(page, `class-clone-block-${Date.now()}@exampull.test`);
+	const className = "Deleted Clone Source";
+	const createResponse = await page.context().request.post("/api/classes", {
+		data: {
+			name: className,
+			institution: "ExamPull",
+			educationLevel: 72,
+			description: "Completed exams from this class should not clone after deletion.",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { classId: string };
+	const examId = await seedExam(page, "Class-backed complete exam", {
+		classId: createPayload.classId,
+		className,
+	});
+
+	const deleteResponse = await page
+		.context()
+		.request.delete(`/api/classes/${createPayload.classId}`);
+	expect(deleteResponse.status()).toBe(200);
+
+	await page.goto(`/exams/${examId}`);
+	await expect(page.getByText("Manual topics - 2 questions - complete")).toBeVisible();
+	await expect(
+		page.getByText(
+			"The class used to create this exam has been deleted, so it can't be cloned. You can create a new exam from scratch.",
+		),
+	).toBeVisible();
+	await expect(page.getByRole("button", { name: "Create another like this" })).toHaveCount(0);
+
+	const cloneResponse = await page.context().request.post(`/api/exams/${examId}/clone`);
+	expect(cloneResponse.status()).toBe(400);
+	const clonePayload = (await cloneResponse.json()) as { error?: string };
+	expect(clonePayload.error).toContain("class used to create this exam has been deleted");
+});
+
 test("class deletion is blocked while a queued exam references it", async ({ page }) => {
 	await signInAsTestUser(page, `class-delete-block-${Date.now()}@exampull.test`, {
 		tier: "free",

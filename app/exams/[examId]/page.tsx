@@ -146,6 +146,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 									initialBookmarked={exam.bookmarked}
 									initialRating={exam.rating}
 									initialArchived={exam.archived}
+									cloneUnavailableReason={exam.cloneUnavailableReason}
 								/>
 							</div>
 						</GlassPanel>

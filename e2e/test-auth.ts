@@ -136,12 +136,18 @@ export async function signInAsTestUser(
 	return { uid: createPayload.uid, claimedExamId: sessionPayload.claimedExamId };
 }
 
-export async function seedExam(page: Page, title: string) {
+export async function seedExam(
+	page: Page,
+	title: string,
+	options: { classId?: string; className?: string } = {},
+) {
 	const response = await page.context().request.post("/api/test/seed", {
 		data: {
 			token: testSignupToken(),
 			kind: "exam",
 			title,
+			classId: options.classId,
+			className: options.className,
 		},
 	});
 	expect(response.status()).toBe(200);
