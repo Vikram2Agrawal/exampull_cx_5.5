@@ -8,6 +8,8 @@ const compileResponseSchema = z.object({
 });
 
 const auth = new GoogleAuth();
+const testChaosAttempts = new Map<string, number>();
+const testChaosMarker = "LATEX_RETRY_CHAOS";
 
 function delay(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,6 +17,22 @@ function delay(ms: number) {
 
 function shouldRetry(status: number) {
 	return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function testOnlyChaosStatus(latex: string) {
+	if (process.env.TEST_SESSION_API_ENABLED !== "true" || !latex.includes(testChaosMarker)) {
+		return null;
+	}
+
+	const key = latex.slice(0, 4096);
+	const attempts = testChaosAttempts.get(key) ?? 0;
+	if (attempts >= 2) {
+		return null;
+	}
+
+	testChaosAttempts.set(key, attempts + 1);
+
+	return 503;
 }
 
 export async function compileLatex({
@@ -46,6 +64,17 @@ export async function compileLatex({
 
 	let lastStatus = 0;
 	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const chaosStatus = testOnlyChaosStatus(latex);
+		if (chaosStatus) {
+			lastStatus = chaosStatus;
+			if (!shouldRetry(chaosStatus) || attempt === 2) {
+				break;
+			}
+
+			await delay(500 * 2 ** attempt);
+			continue;
+		}
+
 		const response = await fetch(url, {
 			method: "POST",
 			headers,

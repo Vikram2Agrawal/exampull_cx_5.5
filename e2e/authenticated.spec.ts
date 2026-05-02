@@ -607,6 +607,71 @@ test("free user can complete a full 12-question worker generation", async ({ pag
 	expect(completedExam?.answerKeyPdfBase64?.length).toBeGreaterThan(100);
 });
 
+test("LaTeX 503 retry completes generation without duplicate credits or QA budget", async ({
+	page,
+}) => {
+	test.setTimeout(180_000);
+	const title = `LATEX_RETRY_CHAOS worker exam ${Date.now()}`;
+	const { uid } = await signInAsTestUser(page, `latex-chaos-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 6,
+	});
+	const createResponse = await page.context().request.post("/api/exams", {
+		data: {
+			title,
+			className: "Chaos Biology",
+			topics: ["Feedback loops"],
+			questionCount: 1,
+			mode: "standard",
+		},
+	});
+	expect(createResponse.status()).toBe(201);
+	const createPayload = (await createResponse.json()) as { examId: string };
+
+	const workerResponse = await page.context().request.post("/api/workers/generate-exam", {
+		data: { userId: uid, examId: createPayload.examId },
+	});
+	expect(workerResponse.status()).toBe(200);
+
+	await page.goto(`/exams/${createPayload.examId}`);
+	await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+	await expect(page.getByText("Chaos Biology - 1 questions - Complete")).toBeVisible();
+	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+			qaIterations?: { exam?: number; answerKey?: number };
+			examPdfStoragePath?: string;
+			answerKeyPdfStoragePath?: string;
+			examPdfBase64?: string;
+			answerKeyPdfBase64?: string;
+		}[];
+	};
+	expect(exportPayload.profile?.credits).toBe(4);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(2);
+	const completedExam = exportPayload.exams.find((exam) => exam.id === createPayload.examId);
+	expect(completedExam?.status).toBe("complete");
+	expect(completedExam?.creditsReserved).toBe(0);
+	expect(completedExam?.creditsConsumed).toBe(2);
+	expect(completedExam?.qaIterations).toEqual({ exam: 1, answerKey: 1 });
+	expect(completedExam?.examPdfStoragePath).toContain("/artifacts/exam.pdf");
+	expect(completedExam?.answerKeyPdfStoragePath).toContain("/artifacts/answer.pdf");
+	expect(completedExam?.examPdfBase64?.length).toBeGreaterThan(100);
+	expect(completedExam?.answerKeyPdfBase64?.length).toBeGreaterThan(100);
+});
+
 test("scholar user can complete a full worker generation with answer key", async ({ page }) => {
 	test.setTimeout(180_000);
 	const { uid } = await signInAsTestUser(page, `worker-scholar-${Date.now()}@exampull.test`, {

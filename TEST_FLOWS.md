@@ -39,7 +39,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 ## P2 Resilience And Quality Flows
 
 - [x] P2-CHAOS-001 Refresh at every wizard step preserves draft state; authenticated E2E verifies source details, manual topics, Power Mode configure controls, per-slot edits, successful queueing, and draft clearing.
-- [!] P2-CHAOS-002 LaTeX 503 retries without burning visual QA budget; transient compile retries are implemented, chaos E2E remains.
+- [x] P2-CHAOS-002 LaTeX 503 retries without burning visual QA budget; authenticated E2E injects local-only transient 503s and verifies generation completes with single credit settlement, one QA iteration per artifact, and stored PDFs.
 - [ ] P2-CHAOS-003 Stripe webhook during generation preserves tier snapshot.
 - [ ] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation.
 - [ ] P2-A11Y-002 Screen-reader labels and live regions for generation tracker and forms.
@@ -99,6 +99,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused wizard refresh E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "wizard preserves"` with source details, manual topics, Power Mode controls, per-slot edits, queueing, and draft clearing.
 - Full local gate after wizard refresh resilience: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 28 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after wizard refresh deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
+- Focused LaTeX retry chaos E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "LaTeX 503 retry"` with local-only transient 503 injection, complete generation, single credit settlement, one QA iteration per artifact, and stored PDF export checks.
+- Full local gate after LaTeX retry chaos coverage: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 29 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
