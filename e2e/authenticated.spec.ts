@@ -636,6 +636,46 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 	expect(createdExam.difficulties).toContain("hardcore");
 });
 
+test("mobile user can tap reorder and bulk edit Power Mode slots", async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name !== "mobile-safari", "Mobile Power Mode coverage.");
+
+	await signInAsTestUser(page, `mobile-power-${Date.now()}@exampull.test`, {
+		tier: "scholar",
+		credits: 100,
+	});
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Mobile Power Mode exam");
+	await page.getByLabel("Class label").fill("AP Biology Mobile");
+	await page
+		.getByRole("textbox", { name: "Topics" })
+		.fill("Photosynthesis\nCalvin cycle\nCellular respiration");
+	await page.getByRole("button", { name: "Power" }).click();
+	await page.getByLabel("Question 1 topic").fill("Photosynthesis");
+	await page.getByRole("button", { name: "Add slot" }).click();
+	await page.getByLabel("Question 2 topic").fill("Calvin cycle");
+	await page.getByRole("button", { name: "Move question 2 up" }).click();
+	await expect(page.getByLabel("Question 1 topic")).toHaveValue("Calvin cycle");
+	await expect(page.getByLabel("Question 2 topic")).toHaveValue("Photosynthesis");
+
+	await page.getByLabel("Range start").fill("1");
+	await page.getByLabel("Range end").fill("2");
+	await page.getByLabel("Range style").selectOption("essay");
+	await page.getByLabel("Range difficulty").selectOption("hardcore");
+	await page.getByLabel("Range points").fill("9");
+	await page.getByRole("button", { name: "Apply range" }).click();
+	await expect(page.getByLabel("Question 1 style")).toHaveValue("essay");
+	await expect(page.getByLabel("Question 2 style")).toHaveValue("essay");
+	await expect(page.getByLabel("Question 1 difficulty")).toHaveValue("hardcore");
+	await expect(page.getByLabel("Question 2 points")).toHaveValue("9");
+
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Mobile Power Mode exam" }),
+	).toBeVisible();
+	await expect(page.getByText("AP Biology Mobile - 2 questions - queued")).toBeVisible();
+});
+
 test("authenticated user can upload one-time source material and queue a grounded exam", async ({
 	page,
 }) => {
