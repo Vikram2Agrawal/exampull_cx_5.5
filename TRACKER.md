@@ -42,6 +42,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add public share-viewer defect reports with unauthenticated share-page UI, abuse triage rows, per-exam/share counters, and creator notifications.
 - [x] Add PRD downgrade grace for answer-key share links: Stripe downgrade starts 7-day grace, notifies creator, records email communication, preserves answer-key downloads during grace, and removes answer-key access after grace expiry.
 - [x] Add PRD payment-failure grace: Stripe past-due starts a 14-day paid-capability grace, records email/SMS reminders, exposes billing-page warning, pauses downgrade until worker expiry, and starts share-key downgrade grace after payment-grace expiry.
+- [x] Surface top-level outbound communications in the admin Communications tab alongside support inbox feedback.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -288,6 +289,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - App Hosting deploy after payment-failure grace passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Payment-grace Cloud Scheduler created: `pnpm setup:payment-grace-scheduler` enabled `expire-payment-grace` at `23 */6 * * *` UTC targeting `/api/workers/expire-payment-grace` with the App Hosting worker service account.
 - Hosted smoke after payment-failure grace deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 47 local-only authenticated/quality specs skipped.
+- Focused admin outbound-communications regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"` with payment-failure email/SMS rows visible in `/admin/communications`.
+- Full local gate after admin outbound communications passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips; `pnpm test` passed with 34 unit tests.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

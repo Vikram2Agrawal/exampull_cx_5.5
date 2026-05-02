@@ -46,6 +46,21 @@ export type AdminFeedbackRow = {
 	createdAt: string;
 };
 
+export type AdminCommunicationRow = {
+	id: string;
+	kind: string;
+	channel: string;
+	subject: string;
+	body: string;
+	status: string;
+	userId: string | null;
+	email: string | null;
+	phoneNumber: string | null;
+	providerId: string | null;
+	errorMessage: string | null;
+	createdAt: string;
+};
+
 export type AdminAuditRow = {
 	id: string;
 	action: string;
@@ -253,6 +268,29 @@ export async function listAdminFeedback(
 		body: text(doc.get("body"), text(doc.get("reason"), "")),
 		status: text(doc.get("status"), "open"),
 		userId: typeof doc.get("userId") === "string" ? doc.get("userId") : null,
+		createdAt: isoDate(doc.get("createdAt")),
+	}));
+}
+
+export async function listAdminCommunications(limit = 100): Promise<AdminCommunicationRow[]> {
+	const snapshot = await adminDb
+		.collection("communications")
+		.orderBy("createdAt", "desc")
+		.limit(limit)
+		.get();
+
+	return snapshot.docs.map((doc) => ({
+		id: doc.id,
+		kind: text(doc.get("kind"), "message"),
+		channel: text(doc.get("channel"), "unknown"),
+		subject: text(doc.get("subject"), "(no subject)"),
+		body: text(doc.get("body"), ""),
+		status: text(doc.get("status"), "unknown"),
+		userId: typeof doc.get("userId") === "string" ? doc.get("userId") : null,
+		email: typeof doc.get("email") === "string" ? doc.get("email") : null,
+		phoneNumber: typeof doc.get("phoneNumber") === "string" ? doc.get("phoneNumber") : null,
+		providerId: typeof doc.get("providerId") === "string" ? doc.get("providerId") : null,
+		errorMessage: typeof doc.get("errorMessage") === "string" ? doc.get("errorMessage") : null,
 		createdAt: isoDate(doc.get("createdAt")),
 	}));
 }

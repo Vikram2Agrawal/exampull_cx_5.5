@@ -2255,6 +2255,13 @@ test("signed Stripe billing webhooks grant credits, change tiers, and remain ide
 			}),
 		]),
 	);
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/communications");
+	await expect(page.getByRole("heading", { name: "Outbound Communications" })).toBeVisible();
+	await expect(page.getByText("Payment issue - grace period started").first()).toBeVisible();
+	await expect(page.getByText("payment_failure").first()).toBeVisible();
+	await expect(page.getByText("sms").first()).toBeVisible();
 });
 
 test("Stripe downgrade during generation preserves the exam tier snapshot", async ({ page }) => {
