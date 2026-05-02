@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { createShareForExam } from "@/lib/exams/library";
+import { createShareForExam, createShareSchema } from "@/lib/exams/library";
 
 export const runtime = "nodejs";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ examId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ examId: string }> }) {
 	const user = await getCurrentUser();
 
 	if (!user) {
@@ -12,11 +12,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ex
 	}
 
 	const { examId } = await params;
-	const result = await createShareForExam(user, examId);
 
-	if (!result) {
-		return NextResponse.json({ error: "Exam not found." }, { status: 404 });
+	try {
+		const body = await request.json().catch(() => ({}));
+		const input = createShareSchema.parse(body);
+		const result = await createShareForExam(user, examId, input);
+
+		if (!result) {
+			return NextResponse.json({ error: "Exam not found." }, { status: 404 });
+		}
+
+		return NextResponse.json(result, { status: 201 });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Share link creation failed.";
+		const status = message.includes("Scholar") ? 403 : 400;
+
+		return NextResponse.json({ error: message }, { status });
 	}
-
-	return NextResponse.json(result, { status: 201 });
 }

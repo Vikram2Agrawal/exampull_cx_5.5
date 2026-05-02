@@ -5,6 +5,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { GlassPanel, Paper, SectionHeader } from "@/components/ui/surface";
 import { getSharedExam } from "@/lib/exams/library";
 
+export const dynamic = "force-dynamic";
+
 export default async function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
 	const { shareId } = await params;
 	const exam = await getSharedExam(shareId);
@@ -75,6 +77,15 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
 							>
 								<Download aria-hidden="true" size={18} />
 								Download shared exam
+							</a>
+						) : null}
+						{exam.answerKeyAvailable ? (
+							<a
+								href={`/api/share/${exam.shareId}/download?type=answer`}
+								className="mb-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-premium px-4 text-sm font-medium text-premium-foreground"
+							>
+								<Download aria-hidden="true" size={18} />
+								Download answer key
 							</a>
 						) : null}
 						<ButtonLink href="/sign-up" variant="primary" className="w-full">

@@ -611,6 +611,52 @@ test("scholar user can open answer key action for a completed paid exam", async 
 	await expect(page.getByRole("link", { name: "Answer key" })).toBeVisible();
 });
 
+test("scholar share link can include answer key until creator downgrade", async ({ page }) => {
+	const email = `share-answer-${Date.now()}@exampull.test`;
+	await signInAsTestUser(page, email, {
+		tier: "scholar",
+		credits: 100,
+	});
+	const examId = await seedExam(page, "Shared answer key exam");
+
+	const shareResponse = await page.context().request.post(`/api/exams/${examId}/share`, {
+		data: { includeAnswerKey: true },
+	});
+	expect(shareResponse.status()).toBe(201);
+	const sharePayload = (await shareResponse.json()) as { shareId: string; shareUrl: string };
+	const sharePath = new URL(sharePayload.shareUrl).pathname;
+
+	await page.goto(sharePath);
+	await expect(page.getByRole("link", { name: "Download shared exam" })).toBeVisible();
+	await expect(page.getByRole("link", { name: "Download answer key" })).toBeVisible();
+	const answerResponse = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(answerResponse.status()).toBe(200);
+	expect(answerResponse.headers()["content-type"]).toContain("application/pdf");
+
+	await createTestAuthUser(page, email, {
+		tier: "free",
+		credits: 40,
+	});
+	const freeShareResponse = await page.context().request.post(`/api/exams/${examId}/share`, {
+		data: { includeAnswerKey: false },
+	});
+	expect(freeShareResponse.status()).toBe(403);
+
+	await page.goto(sharePath);
+	await expect(page.getByRole("link", { name: "Download shared exam" })).toBeVisible();
+	await expect(page.getByRole("link", { name: "Download answer key" })).toHaveCount(0);
+	const downgradedAnswerResponse = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download?type=answer`);
+	expect(downgradedAnswerResponse.status()).toBe(404);
+	const examResponse = await page
+		.context()
+		.request.get(`/api/share/${sharePayload.shareId}/download`);
+	expect(examResponse.status()).toBe(200);
+});
+
 test("completed exam rating captures feedback and hides on incomplete exams", async ({ page }) => {
 	await signInAsTestUser(page, `exam-rating-${Date.now()}@exampull.test`, {
 		tier: "scholar",

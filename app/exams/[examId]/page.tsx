@@ -150,6 +150,10 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ exa
 									initialRatingDismissed={exam.ratingDismissed}
 									initialArchived={exam.archived}
 									cloneUnavailableReason={exam.cloneUnavailableReason}
+									canCreateShareLink={user.tier !== "free"}
+									canShareAnswerKey={
+										user.tier !== "free" && exam.answerKeyPdfReady
+									}
 								/>
 							</div>
 						</GlassPanel>

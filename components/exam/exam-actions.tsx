@@ -15,6 +15,8 @@ type ExamActionsProps = {
 	initialRatingDismissed: boolean;
 	initialArchived: boolean;
 	cloneUnavailableReason: string | null;
+	canCreateShareLink: boolean;
+	canShareAnswerKey: boolean;
 };
 
 async function readJson(response: Response) {
@@ -36,6 +38,8 @@ export function ExamActions({
 	initialRatingDismissed,
 	initialArchived,
 	cloneUnavailableReason,
+	canCreateShareLink,
+	canShareAnswerKey,
 }: ExamActionsProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
@@ -44,6 +48,7 @@ export function ExamActions({
 	const [selectedRating, setSelectedRating] = useState(initialRating ?? 0);
 	const [feedbackText, setFeedbackText] = useState(initialFeedbackText ?? "");
 	const [ratingDismissed, setRatingDismissed] = useState(initialRatingDismissed);
+	const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
 	const [shareUrl, setShareUrl] = useState("");
 	const [status, setStatus] = useState("");
 	const canRate = examStatus === "complete" && rating === null && !ratingDismissed;
@@ -160,7 +165,11 @@ export function ExamActions({
 		startTransition(async () => {
 			try {
 				const body = (await readJson(
-					await fetch(`/api/exams/${examId}/share`, { method: "POST" }),
+					await fetch(`/api/exams/${examId}/share`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ includeAnswerKey }),
+					}),
 				)) as { shareUrl?: string };
 				if (typeof body.shareUrl === "string") {
 					setShareUrl(body.shareUrl);
@@ -188,10 +197,26 @@ export function ExamActions({
 						Create another like this
 					</Button>
 				)}
-				<Button type="button" onClick={shareExam} disabled={isPending}>
-					<Share2 aria-hidden="true" size={18} />
-					Share exam
-				</Button>
+				{canCreateShareLink ? (
+					<div className="space-y-2">
+						{canShareAnswerKey ? (
+							<label className="flex items-center gap-2 text-sm text-muted">
+								<input
+									type="checkbox"
+									checked={includeAnswerKey}
+									onChange={(event) => setIncludeAnswerKey(event.target.checked)}
+									className="h-4 w-4 rounded border-glass-border"
+									disabled={isPending}
+								/>
+								Include answer key
+							</label>
+						) : null}
+						<Button type="button" onClick={shareExam} disabled={isPending}>
+							<Share2 aria-hidden="true" size={18} />
+							Share exam
+						</Button>
+					</div>
+				) : null}
 				<Button type="button" onClick={toggleBookmark} disabled={isPending}>
 					<Bookmark
 						aria-hidden="true"

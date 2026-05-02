@@ -20,6 +20,10 @@ export const examUpdateSchema = z.object({
 	reportReason: z.string().trim().min(8).max(1200).optional(),
 });
 
+export const createShareSchema = z.object({
+	includeAnswerKey: z.boolean().default(false),
+});
+
 export const examBulkActionSchema = z
 	.object({
 		examIds: z.array(z.string().trim().min(1).max(160)).min(1).max(100),
@@ -37,6 +41,7 @@ export const examBulkActionSchema = z
 	});
 
 export type ExamUpdateInput = z.infer<typeof examUpdateSchema>;
+export type CreateShareInput = z.infer<typeof createShareSchema>;
 export type ExamBulkActionInput = z.infer<typeof examBulkActionSchema>;
 
 export type SharedExam = {
@@ -48,6 +53,7 @@ export type SharedExam = {
 	questionCount: number;
 	status: string;
 	examPdfReady: boolean;
+	answerKeyAvailable: boolean;
 	examPdfBase64: string | null;
 	createdAt: string;
 };
@@ -107,6 +113,16 @@ function pdfReady(data: FirebaseFirestore.DocumentData, type: "exam" | "answer")
 	const storageField = type === "answer" ? "answerKeyPdfStoragePath" : "examPdfStoragePath";
 
 	return typeof data[base64Field] === "string" || typeof data[storageField] === "string";
+}
+
+function paidTier(value: unknown) {
+	return value === "scholar" || value === "guru";
+}
+
+async function ownerCanExposeAnswerKey(ownerUid: string) {
+	const ownerSnapshot = await adminDb.collection("users").doc(ownerUid).get();
+
+	return paidTier(ownerSnapshot.get("tier"));
 }
 
 async function pdfBase64FromData(data: FirebaseFirestore.DocumentData, type: "exam" | "answer") {
@@ -548,7 +564,11 @@ export async function cloneExamForUser(user: CurrentUser, examId: string) {
 	return createExamForUser({ user, input });
 }
 
-export async function createShareForExam(user: CurrentUser, examId: string) {
+export async function createShareForExam(
+	user: CurrentUser,
+	examId: string,
+	input: CreateShareInput = { includeAnswerKey: false },
+) {
 	const ref = examRef(user.uid, examId);
 	const snapshot = await ref.get();
 
@@ -556,21 +576,39 @@ export async function createShareForExam(user: CurrentUser, examId: string) {
 		return null;
 	}
 
+	if (user.tier === "free") {
+		throw new Error("Share links are available on Scholar and Guru.");
+	}
+
+	const data = snapshot.data() ?? {};
+	const includeAnswerKey = input.includeAnswerKey === true;
+
+	if (snapshot.get("status") !== "complete" || !pdfReady(data, "exam")) {
+		throw new Error("Share links are available after the exam PDF is ready.");
+	}
+
+	if (includeAnswerKey && !pdfReady(data, "answer")) {
+		throw new Error("Answer key PDF is not ready.");
+	}
+
 	const existing = await shareCollection
 		.where("ownerUid", "==", user.uid)
 		.where("examId", "==", examId)
 		.where("revoked", "==", false)
-		.limit(1)
+		.limit(20)
 		.get();
-
-	const shareId = existing.docs[0]?.id ?? randomUUID();
+	const matchingShare = existing.docs.find(
+		(doc) => Boolean(doc.get("includeAnswerKey")) === includeAnswerKey,
+	);
+	const shareId = matchingShare?.id ?? randomUUID();
 	const shareRef = shareCollection.doc(shareId);
 	const now = Timestamp.now();
 
-	if (existing.empty) {
+	if (!matchingShare) {
 		await shareRef.create({
 			ownerUid: user.uid,
 			examId,
+			includeAnswerKey,
 			revoked: false,
 			createdAt: now,
 			updatedAt: now,
@@ -585,7 +623,7 @@ export async function createShareForExam(user: CurrentUser, examId: string) {
 			{ merge: true },
 		);
 	} else {
-		await shareRef.update({ updatedAt: now });
+		await shareRef.update({ includeAnswerKey, updatedAt: now });
 		await ref.set({ lastSharedAt: now, updatedAt: now }, { merge: true });
 	}
 
@@ -616,6 +654,10 @@ export async function getSharedExam(shareId: string): Promise<SharedExam | null>
 	}
 
 	const data = snapshot.data() ?? {};
+	const answerKeyAvailable =
+		shareSnapshot.get("includeAnswerKey") === true &&
+		(await ownerCanExposeAnswerKey(ownerUid)) &&
+		pdfReady(data, "answer");
 
 	return {
 		shareId,
@@ -626,12 +668,13 @@ export async function getSharedExam(shareId: string): Promise<SharedExam | null>
 		questionCount: Number(data.questionCount ?? 0),
 		status: typeof data.status === "string" ? data.status : "queued",
 		examPdfReady: pdfReady(data, "exam"),
+		answerKeyAvailable,
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		createdAt: isoDate(data.createdAt),
 	};
 }
 
-export async function getSharedExamPdf(shareId: string) {
+export async function getSharedExamPdf(shareId: string, type: "exam" | "answer" = "exam") {
 	const shareSnapshot = await shareCollection.doc(shareId).get();
 
 	if (!shareSnapshot.exists || shareSnapshot.get("revoked") === true) {
@@ -652,7 +695,16 @@ export async function getSharedExamPdf(shareId: string) {
 	}
 
 	const data = snapshot.data() ?? {};
-	const pdfBase64 = await pdfBase64FromData(data, "exam");
+
+	if (
+		type === "answer" &&
+		(shareSnapshot.get("includeAnswerKey") !== true ||
+			!(await ownerCanExposeAnswerKey(ownerUid)))
+	) {
+		return null;
+	}
+
+	const pdfBase64 = await pdfBase64FromData(data, type);
 
 	if (!pdfBase64) {
 		return null;
