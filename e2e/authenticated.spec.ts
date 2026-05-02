@@ -455,6 +455,30 @@ test("phone conflict blocks an active prior account during session creation", as
 	expect(payload.error).toContain("previously linked email or Google account");
 });
 
+test("signup session rejects auth tokens without verified phone", async ({ page }) => {
+	const incoming = await createTestAuthUser(
+		page,
+		`unverified-phone-signup-${Date.now()}@exampull.test`,
+		{
+			authPhoneNumber: false,
+			writeUserDoc: false,
+		},
+	);
+	const idToken = await idTokenForCustomToken(incoming);
+
+	const response = await page.context().request.post("/api/auth/session", {
+		data: {
+			idToken,
+			mode: "signup",
+			displayName: "Unverified Phone E2E",
+			testSignupToken: testSignupToken(),
+		},
+	});
+	expect(response.status()).toBe(400);
+	const payload = (await response.json()) as { error?: string };
+	expect(payload.error).toContain("Phone verification is required");
+});
+
 test("dormant phone conflict releases the number without inheriting old data", async ({ page }) => {
 	const phoneNumber = `+1${String(Date.now() + 17)
 		.slice(-10)

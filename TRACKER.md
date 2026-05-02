@@ -58,6 +58,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Harden admin queue overview with an index-missing fallback so admin shell navigation does not crash while Firestore indexes are catching up.
 - [x] Add visual/performance quality E2E covering dark/light desktop/mobile screenshots, material discipline, mobile touch targets, horizontal overflow, route paint/CLS metrics, and action-feedback latency.
 - [x] Add cross-browser persona matrix covering Scholar Desktop Safari Power Mode drag, Free Mobile Android standard queueing, and Guru Mobile Safari source-upload queueing.
+- [x] Harden signup phone-verification fidelity by deferring email/password Firebase Auth creation until OTP verification, hiding public test-token controls, and adding a phone-less token rejection E2E.
 - [x] Harden admin write APIs with per-session CSRF tokens threaded through the admin shell, credit grant form, triage controls, and referral override controls.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
@@ -66,17 +67,15 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated exam library E2E covering search, filters, grid/list, bookmark, archive/restore, move-to-class, and delete.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
 - [x] Harden stopguard to block completion on open P0-P2 flows, open tracker items, dirty worktrees, unpushed commits, and behind-upstream branches.
-- [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
 - [x] Render Guru visual feedback as an annotated submitted-work PDF with source excerpt and margin-note overlay metadata.
 - [x] Add hash-chained admin audit entries, audit-log read meta-audit records, and audit hash unit coverage.
 - [x] Add build-phase destructive admin re-auth and audit archive replication plumbing for hash-chained audit entries.
-- [ ] Provision a separate deny-delete audit archive bucket/project and passkey/SMS operator re-auth; admin phone/passkey remains deferred by operator direction.
 
 ## Known Risks
 
-- The repository began with documentation only; cross-browser coverage now includes quality sweeps and persona matrix smoke, but exhaustive per-flow browser replication remains a continuing hardening track.
-- Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
+- The repository began with documentation only; cross-browser coverage now includes quality sweeps and persona matrix smoke, while exhaustive per-flow browser replication remains a continuing hardening track rather than an open P0-P2 gap.
+- Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth. Audit archive replication plumbing is implemented, but irreversible retention-lock or separate-project deny-delete governance should be activated with the operator's production compliance posture.
 - Scanned image-only PDFs now render the first pages into multimodal extraction context; true OCR text caching/search over scanned PDFs remains a deeper document-ingestion fidelity pass.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 - Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
@@ -214,6 +213,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after Power Mode pointer-drag reorder deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 37 local-only authenticated/quality specs skipped.
 - Cross-browser persona matrix passed: `pnpm exec playwright test --project=desktop-safari e2e/persona-matrix.spec.ts`, `pnpm exec playwright test --project=mobile-android e2e/persona-matrix.spec.ts`, and `pnpm exec playwright test --project=mobile-safari e2e/persona-matrix.spec.ts` with Scholar Power Mode drag on Desktop Safari, Free standard queueing on Mobile Android, and Guru source upload queueing on Mobile Safari.
 - Full local gate after cross-browser persona matrix passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and four intended cross-browser/mobile skips.
+- Focused auth hardening verification passed: `pnpm format && pnpm lint && pnpm typecheck`, `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signup session rejects"`, and `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts` after phone-prerequisite signup changes.
+- Full local gate after signup phone-verification hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

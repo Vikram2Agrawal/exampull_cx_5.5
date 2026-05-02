@@ -43,8 +43,6 @@ test("keyboard user can traverse signup details without pointer input", async ({
 	await page.keyboard.type("KeyboardPass123!");
 	await tabTo(page, page.getByLabel("Phone number"));
 	await page.keyboard.type("+15555550123");
-	await tabTo(page, page.getByLabel("Test signup token"));
-	await page.keyboard.type("keyboard-only");
 
 	const sendCodeButton = page.getByRole("button", { name: "Send verification code" });
 	await tabTo(page, sendCodeButton);

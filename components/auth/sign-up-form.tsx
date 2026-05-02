@@ -3,6 +3,7 @@
 import { FirebaseError } from "firebase/app";
 import {
 	createUserWithEmailAndPassword,
+	deleteUser,
 	GoogleAuthProvider,
 	linkWithCredential,
 	PhoneAuthProvider,
@@ -69,7 +70,6 @@ async function createSession({
 	});
 
 	if (!response.ok) {
-		await signOut(firebaseAuth);
 		const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 		throw new Error(payload?.error ?? "ExamPull could not create the account.");
 	}
@@ -108,6 +108,10 @@ export function SignUpForm() {
 			setPreviewId(cleanPreview);
 			window.localStorage.setItem("exampull_preview_id", cleanPreview);
 		}
+		const testToken = params.get("testToken");
+		if (testToken) {
+			setTestSignupToken(testToken.trim().slice(0, 512));
+		}
 	}, []);
 
 	function verifier() {
@@ -120,8 +124,8 @@ export function SignUpForm() {
 		return verifierRef.current;
 	}
 
-	async function sendCode(user: User) {
-		pendingUserRef.current = user;
+	async function sendCode(user?: User) {
+		pendingUserRef.current = user ?? null;
 		const provider = new PhoneAuthProvider(firebaseAuth);
 		const id = await provider.verifyPhoneNumber(phone, verifier());
 		setVerificationId(id);
@@ -134,13 +138,7 @@ export function SignUpForm() {
 		setError(null);
 
 		try {
-			const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-
-			if (displayName.trim()) {
-				await updateProfile(credential.user, { displayName: displayName.trim() });
-			}
-
-			await sendCode(credential.user);
+			await sendCode();
 		} catch (cause) {
 			setError(signupMessage(cause));
 		} finally {
@@ -182,25 +180,49 @@ export function SignUpForm() {
 
 			await sendCode(credential.user);
 		} catch (cause) {
+			await signOut(firebaseAuth).catch(() => undefined);
 			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
 		}
 	}
 
+	async function deleteTransientUser(user: User) {
+		await deleteUser(user).catch(async () => {
+			await signOut(firebaseAuth).catch(() => undefined);
+		});
+	}
+
+	async function onEditDetails() {
+		pendingUserRef.current = null;
+		setVerificationId("");
+		setCode("");
+		setPhase("details");
+		await signOut(firebaseAuth).catch(() => undefined);
+	}
+
 	async function onVerify(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setIsSubmitting(true);
 		setError(null);
+		let transientUser: User | null = null;
+		let sessionCreated = false;
+		let phoneLinked = false;
 
 		try {
-			const user = pendingUserRef.current ?? firebaseAuth.currentUser;
-			if (!user) {
-				throw new Error("Signup session expired. Start again.");
+			const credential = PhoneAuthProvider.credential(verificationId, code);
+			const pendingUser = pendingUserRef.current ?? firebaseAuth.currentUser;
+			const user =
+				pendingUser ??
+				(await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password)).user;
+			transientUser = pendingUser ? null : user;
+
+			if (displayName.trim() && user.displayName !== displayName.trim()) {
+				await updateProfile(user, { displayName: displayName.trim() });
 			}
 
-			const credential = PhoneAuthProvider.credential(verificationId, code);
 			await linkWithCredential(user, credential);
+			phoneLinked = true;
 			const idToken = await user.getIdToken(true);
 			const session = await createSession({
 				idToken,
@@ -209,12 +231,18 @@ export function SignUpForm() {
 				referralCode,
 				previewId,
 			});
+			sessionCreated = true;
 			if (session.claimedExamId) {
 				window.localStorage.removeItem("exampull_preview_id");
 			}
 			router.push(session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard");
 			router.refresh();
 		} catch (cause) {
+			if (transientUser && !sessionCreated) {
+				await deleteTransientUser(transientUser);
+			} else if (phoneLinked && !sessionCreated) {
+				await signOut(firebaseAuth).catch(() => undefined);
+			}
 			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
@@ -283,18 +311,6 @@ export function SignUpForm() {
 							placeholder="+1 555 555 0100"
 						/>
 					</div>
-					<div>
-						<label className="text-sm font-medium" htmlFor="test-token">
-							Test signup token
-						</label>
-						<input
-							id="test-token"
-							value={testSignupToken}
-							onChange={(event) => setTestSignupToken(event.target.value)}
-							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 text-foreground outline-none focus:ring-2 focus:ring-brand"
-							placeholder="Optional"
-						/>
-					</div>
 					{error ? (
 						<div className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
 							<p>{error}</p>
@@ -358,7 +374,7 @@ export function SignUpForm() {
 						<ShieldCheck aria-hidden="true" size={18} />
 						{isSubmitting ? "Creating account" : "Verify and create account"}
 					</Button>
-					<Button type="button" className="w-full" onClick={() => setPhase("details")}>
+					<Button type="button" className="w-full" onClick={() => void onEditDetails()}>
 						Edit details
 					</Button>
 				</form>
