@@ -230,6 +230,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after account deletion upload cleanup passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
 - Focused preview kill-switch verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`, `pnpm exec playwright test --project=desktop-chrome e2e/smoke.spec.ts e2e/accessibility.spec.ts -g "landing page|admin sections"`, and `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs"`.
 - Full local gate after preview kill-switch implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 39 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after preview kill-switch implementation passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after preview kill-switch deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 41 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
