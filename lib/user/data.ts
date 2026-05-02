@@ -40,6 +40,16 @@ export type UserNotification = {
 	createdAt: string;
 };
 
+export type UserRefundHistory = {
+	id: string;
+	refundType: string;
+	creditAmount: number;
+	cashAmountCents: number;
+	status: string;
+	note: string;
+	createdAt: string;
+};
+
 function isoDate(value: unknown) {
 	if (value instanceof Timestamp) {
 		return value.toDate().toISOString();
@@ -50,6 +60,20 @@ function isoDate(value: unknown) {
 	}
 
 	return new Date().toISOString();
+}
+
+function textValue(value: unknown, fallback = "") {
+	return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function firestoreCode(error: unknown) {
+	if (!error || typeof error !== "object" || !("code" in error)) {
+		return null;
+	}
+
+	const code = (error as { code?: unknown }).code;
+
+	return typeof code === "number" ? code : null;
 }
 
 function notificationFromDoc(id: string, data: FirebaseFirestore.DocumentData): UserNotification {
@@ -108,6 +132,45 @@ export async function listUserNotifications(userId: string, limit = 50) {
 		.get();
 
 	return snapshot.docs.map((doc) => notificationFromDoc(doc.id, doc.data()));
+}
+
+export async function listUserRefundHistory(
+	userId: string,
+	limit = 20,
+): Promise<UserRefundHistory[]> {
+	let snapshot: FirebaseFirestore.QuerySnapshot;
+
+	try {
+		snapshot = await adminDb
+			.collection("refunds")
+			.where("userId", "==", userId)
+			.orderBy("createdAt", "desc")
+			.limit(limit)
+			.get();
+	} catch (error) {
+		if (firestoreCode(error) !== 9) {
+			throw error;
+		}
+
+		snapshot = await adminDb
+			.collection("refunds")
+			.where("userId", "==", userId)
+			.limit(Math.max(limit, limit * 3))
+			.get();
+	}
+
+	return snapshot.docs
+		.map((doc) => ({
+			id: doc.id,
+			refundType: textValue(doc.get("refundType"), "credit"),
+			creditAmount: Number(doc.get("creditAmount") ?? 0),
+			cashAmountCents: Number(doc.get("cashAmountCents") ?? 0),
+			status: textValue(doc.get("status"), "approved"),
+			note: textValue(doc.get("note"), ""),
+			createdAt: isoDate(doc.get("createdAt")),
+		}))
+		.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+		.slice(0, limit);
 }
 
 export async function createUserNotification({
@@ -374,7 +437,7 @@ async function attemptWithExportedArtifacts(attempt: ExportedDocument): Promise<
 
 export async function exportUserData(userId: string) {
 	const base = userRef(userId);
-	const [profile, rawExams, classes, examUploads, notifications, communications] =
+	const [profile, rawExams, classes, examUploads, notifications, communications, refunds] =
 		await Promise.all([
 			base.get(),
 			collectionToJson(base.collection("exams")),
@@ -382,6 +445,7 @@ export async function exportUserData(userId: string) {
 			collectionToJson(base.collection("examUploads")),
 			collectionToJson(base.collection("notifications")),
 			queryToJson(adminDb.collection("communications").where("userId", "==", userId)),
+			queryToJson(adminDb.collection("refunds").where("userId", "==", userId)),
 		]);
 	const exams = await Promise.all(rawExams.map(examWithExportedArtifacts));
 
@@ -422,6 +486,7 @@ export async function exportUserData(userId: string) {
 		examUploads,
 		notifications,
 		communications,
+		refunds,
 	};
 }
 

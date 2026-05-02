@@ -217,11 +217,22 @@ export async function listAdminQueueItems(limit = 100): Promise<AdminQueueItem[]
 			throw error;
 		}
 
-		snapshot = await adminDb
-			.collectionGroup("exams")
-			.orderBy("createdAt", "desc")
-			.limit(Math.max(limit, limit * 3))
-			.get();
+		try {
+			snapshot = await adminDb
+				.collectionGroup("exams")
+				.orderBy("createdAt", "desc")
+				.limit(Math.max(limit, limit * 3))
+				.get();
+		} catch (fallbackError) {
+			if (firestoreCode(fallbackError) !== 9) {
+				throw fallbackError;
+			}
+
+			snapshot = await adminDb
+				.collectionGroup("exams")
+				.limit(Math.max(limit, limit * 3))
+				.get();
+		}
 	}
 
 	return snapshot.docs

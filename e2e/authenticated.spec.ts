@@ -605,6 +605,89 @@ test("admin global search finds users exams classes and support items", async ({
 	await expect(page.getByRole("heading", { name: feedbackTitle, exact: true })).toBeVisible();
 });
 
+test("admin refund workflow approves credits and exposes user refund history", async ({ page }) => {
+	const suffix = Date.now().toString();
+	const email = `refund-ops-${suffix}@exampull.test`;
+	const { uid } = await signInAsTestUser(page, email, {
+		tier: "scholar",
+		credits: 12,
+	});
+	const refundTitle = `Refund request ${suffix}`;
+	const refundBody = "Please restore credits for a billing support regression request.";
+	const feedbackResponse = await page.context().request.post("/api/feedback", {
+		data: {
+			kind: "refund",
+			title: refundTitle,
+			body: refundBody,
+			source: "support_page",
+		},
+	});
+	expect(feedbackResponse.status()).toBe(201);
+	const feedbackPayload = (await feedbackResponse.json()) as { feedbackId: string };
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/operations");
+	await expect(page.getByRole("heading", { name: "Refund requests" })).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const deniedResponse = await page.context().request.post("/api/admin/refunds/action", {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+		},
+		data: {
+			sourceCollection: "feedback",
+			sourceId: feedbackPayload.feedbackId,
+			action: "approve",
+			creditAmount: 7,
+			note: "Missing re-auth should fail.",
+		},
+	});
+	expect(deniedResponse.status()).toBe(403);
+
+	const row = page.locator("tr").filter({ hasText: refundTitle });
+	await expect(row).toBeVisible();
+	await row.getByLabel("Credit refund amount").fill("7");
+	await row.getByLabel("Refund note").fill(`Approved refund ${suffix}`);
+	await row.getByLabel("Admin re-auth password").fill(adminAgentPassword());
+	await row.getByRole("button", { name: "Record" }).click();
+	await expect(page.getByRole("heading", { name: "Refund history" })).toBeVisible();
+	await expect(page.locator("tr").filter({ hasText: `Approved refund ${suffix}` })).toBeVisible();
+
+	await page.goto("/admin/communications");
+	await expect(
+		page
+			.locator("tr")
+			.filter({ hasText: "Your ExamPull refund is confirmed" })
+			.filter({ hasText: email }),
+	).toHaveCount(1);
+
+	await page.goto("/notifications");
+	await expect(page.getByText("Refund approved")).toBeVisible();
+	await expect(page.getByText("7 credits")).toBeVisible();
+
+	await page.goto("/billing");
+	await expect(page.getByRole("heading", { name: "Refund history" })).toBeVisible();
+	await expect(page.getByText("7 credits · approved")).toBeVisible();
+	await expect(page.getByText(`Approved refund ${suffix}`)).toBeVisible();
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: { credits?: number; totalCreditsRefunded?: number } | null;
+		refunds?: Array<{ userId?: string; creditAmount?: number; note?: string }>;
+	};
+	expect(exportPayload.profile?.credits).toBe(19);
+	expect(exportPayload.profile?.totalCreditsRefunded).toBe(7);
+	expect(exportPayload.refunds).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				userId: uid,
+				creditAmount: 7,
+				note: `Approved refund ${suffix}`,
+			}),
+		]),
+	);
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;

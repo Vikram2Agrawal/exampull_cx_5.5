@@ -45,6 +45,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Surface top-level outbound communications in the admin Communications tab alongside support inbox feedback.
 - [x] Add audited admin Communications composer: templates, preview interpolation, single-user/test/broadcast modes, URL allowlist enforcement, email/SMS/in-app channels, communication history rows, user notifications, broadcast records, and re-auth-protected send API.
 - [x] Add authenticated admin global search: top-bar autocomplete, `/admin/search` results page, search API, and cross-index user/exam/class/feedback/share/abuse matching.
+- [x] Add admin refund operations: queue aggregation from support/exam reports, re-authenticated approve/decline/escalate API, credit/cash refund records, audit logging, user notification/email, billing refund history, and export inclusion.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
 - [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
@@ -313,6 +314,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after admin global search passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 48 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after admin global search passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after admin global search deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 50 local-only authenticated/quality specs skipped.
+- Focused admin refund workflow verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin refund workflow"` with missing re-auth rejection, credit refund approval, communication row, notification, billing refund history, and export coverage.
+- Full local gate after admin refund operations passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 49 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

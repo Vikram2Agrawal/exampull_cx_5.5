@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/site-nav";
 import { GlassPanel, SectionHeader } from "@/components/ui/surface";
 import { getCurrentUser } from "@/lib/auth/session";
 import { CREDIT_PACK_PRICES, TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
+import { listUserRefundHistory } from "@/lib/user/data";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function BillingPage() {
@@ -14,6 +15,8 @@ export default async function BillingPage() {
 	if (!user) {
 		redirect("/sign-in");
 	}
+
+	const refunds = await listUserRefundHistory(user.uid);
 
 	return (
 		<AppShell
@@ -97,6 +100,50 @@ export default async function BillingPage() {
 					<div className="mt-5">
 						<PortalButton />
 					</div>
+				</GlassPanel>
+				<GlassPanel className="p-6">
+					<h2 className="text-xl font-semibold">Refund history</h2>
+					{refunds.length > 0 ? (
+						<div className="mt-4 divide-y divide-border">
+							{refunds.map((refund) => (
+								<div key={refund.id} className="py-3 text-sm">
+									<div className="flex flex-wrap items-center justify-between gap-3">
+										<p className="font-medium capitalize">
+											{refund.refundType} refund
+										</p>
+										<p className="text-muted">
+											{new Intl.DateTimeFormat("en", {
+												month: "short",
+												day: "numeric",
+												hour: "numeric",
+												minute: "2-digit",
+											}).format(new Date(refund.createdAt))}
+										</p>
+									</div>
+									<p className="mt-1 text-muted">
+										{refund.creditAmount > 0
+											? `${refund.creditAmount} credits`
+											: null}
+										{refund.creditAmount > 0 && refund.cashAmountCents > 0
+											? " and "
+											: null}
+										{refund.cashAmountCents > 0
+											? formatCurrency(refund.cashAmountCents)
+											: null}
+										{" · "}
+										{refund.status}
+									</p>
+									{refund.note ? (
+										<p className="mt-1 text-xs text-muted">{refund.note}</p>
+									) : null}
+								</div>
+							))}
+						</div>
+					) : (
+						<p className="mt-2 text-sm text-muted">
+							Approved refunds and credit restorations will appear here.
+						</p>
+					)}
 				</GlassPanel>
 			</div>
 		</AppShell>
