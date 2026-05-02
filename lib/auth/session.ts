@@ -2,6 +2,10 @@ import { cookies } from "next/headers";
 import { type LinkedAuthProvider, linkedAuthProvidersFromDocument } from "@/lib/auth/providers";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { Tier } from "@/lib/product/constants";
+import {
+	type NotificationPreferences,
+	normalizeNotificationPreferences,
+} from "@/lib/user/notification-preferences";
 
 export const userSessionCookieName = "session";
 export const userSessionMaxAgeSeconds = 60 * 60 * 24 * 5;
@@ -16,6 +20,7 @@ export type CurrentUser = {
 	reservedCredits: number;
 	subscriptionStatus: string | null;
 	paymentFailureGraceUntil: string | null;
+	notificationPreferences: NotificationPreferences;
 	unreadNotificationCount: number;
 	isTestAccount: boolean;
 	linkedAuthProviders: LinkedAuthProvider[];
@@ -78,6 +83,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 			subscriptionStatus:
 				typeof data.subscriptionStatus === "string" ? data.subscriptionStatus : null,
 			paymentFailureGraceUntil: optionalTimestampIso(data.paymentFailureGraceUntil),
+			notificationPreferences: normalizeNotificationPreferences(data.notificationPreferences),
 			unreadNotificationCount: Number(data.unreadNotificationCount ?? 0),
 			isTestAccount: Boolean(data.isTestAccount ?? false),
 			linkedAuthProviders: linkedAuthProvidersFromDocument(data.linkedAuthProviders),

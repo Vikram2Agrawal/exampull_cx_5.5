@@ -11,6 +11,7 @@ import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
 import { claimAnonymousPreview } from "@/lib/preview/claim";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 import { ensureReferralCode } from "@/lib/referrals";
+import { defaultNotificationPreferences } from "@/lib/user/notification-preferences";
 
 export const runtime = "nodejs";
 
@@ -120,11 +121,7 @@ export async function POST(request: Request) {
 					grantedAt: accountTimestamp,
 					tier: input.tier,
 				},
-				notificationPreferences: {
-					email: true,
-					sms: false,
-					inApp: true,
-				},
+				notificationPreferences: defaultNotificationPreferences(),
 			},
 			{ merge: true },
 		);

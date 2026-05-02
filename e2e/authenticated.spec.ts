@@ -231,6 +231,11 @@ test("settings shows synced linked auth sources without duplicate account state"
 	await expect(page.getByText(email).first()).toBeVisible();
 	await expect(page.getByText("Phone")).toBeVisible();
 	await expect(page.getByRole("button", { name: "Link Google" })).toBeVisible();
+	await expect(page.getByLabel("Payment failure SMS")).toBeChecked();
+	await page.getByLabel("Payment failure SMS").uncheck();
+	await page.getByLabel("Low credits email").check();
+	await page.getByRole("button", { name: "Save notifications" }).click();
+	await expect(page.getByText("Settings saved.")).toBeVisible();
 
 	const exportResponse = await page.context().request.get("/api/settings/export");
 	expect(exportResponse.status()).toBe(200);
@@ -243,6 +248,10 @@ test("settings shows synced linked auth sources without duplicate account state"
 				identifier?: string;
 				label?: string;
 			}[];
+			notificationPreferences?: {
+				payment_failure?: { sms?: boolean };
+				low_credits?: { email?: boolean };
+			};
 		} | null;
 	};
 	expect(exportPayload.profile?.email).toBe(email);
@@ -260,6 +269,8 @@ test("settings shows synced linked auth sources without duplicate account state"
 			}),
 		]),
 	);
+	expect(exportPayload.profile?.notificationPreferences?.payment_failure?.sms).toBe(false);
+	expect(exportPayload.profile?.notificationPreferences?.low_credits?.email).toBe(true);
 });
 
 test("admin write APIs reject missing or invalid CSRF tokens and destructive writes require reauth", async ({

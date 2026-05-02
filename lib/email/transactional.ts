@@ -6,7 +6,8 @@ export type EmailStatus =
 	| "failed"
 	| "skipped_test"
 	| "skipped_unconfigured"
-	| "skipped_no_recipient";
+	| "skipped_no_recipient"
+	| "skipped_preferences";
 
 type TransactionalEmailInput = {
 	to: string | null;
@@ -14,6 +15,7 @@ type TransactionalEmailInput = {
 	text: string;
 	html?: string;
 	testMode?: boolean;
+	enabled?: boolean;
 };
 
 type TransactionalEmailResult = {
@@ -35,6 +37,7 @@ export async function sendTransactionalEmail({
 	text,
 	html,
 	testMode = false,
+	enabled = true,
 }: TransactionalEmailInput): Promise<TransactionalEmailResult> {
 	if (!to) {
 		return { status: "skipped_no_recipient", providerId: null };
@@ -42,6 +45,10 @@ export async function sendTransactionalEmail({
 
 	if (testMode) {
 		return { status: "skipped_test", providerId: null };
+	}
+
+	if (enabled === false) {
+		return { status: "skipped_preferences", providerId: null };
 	}
 
 	if (!env.RESEND_API_KEY || !env.RESEND_FROM_ADDRESS) {

@@ -8,6 +8,7 @@ import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
 import { createExamForUser, createExamRequestSchema } from "@/lib/exams/create";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { createUserNotification } from "@/lib/user/data";
+import { notificationChannelEnabled } from "@/lib/user/notification-preferences";
 
 const shareCollection = adminDb.collection("share_links");
 const abuseCollection = adminDb.collection("abuseReports");
@@ -951,6 +952,11 @@ export async function startShareAnswerKeyDowngradeGrace({
 			subject,
 			text: body,
 			testMode: isTestData,
+			enabled: notificationChannelEnabled({
+				preferences: userSnapshot.get("notificationPreferences"),
+				eventType: "share_link_feature_change",
+				channel: "email",
+			}),
 		});
 	} catch (error) {
 		emailResult = {

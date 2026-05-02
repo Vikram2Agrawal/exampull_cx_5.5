@@ -18,6 +18,11 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import type { LinkedAuthProvider } from "@/lib/auth/providers";
 import { firebaseAuth } from "@/lib/firebase/client";
+import {
+	type NotificationEventType,
+	type NotificationPreferences,
+	notificationEventDefinitions,
+} from "@/lib/user/notification-preferences";
 
 export function SettingsPanel({
 	displayName,
@@ -26,6 +31,7 @@ export function SettingsPanel({
 	referralCode,
 	referralUrl,
 	initialTheme,
+	initialNotificationPreferences,
 }: {
 	displayName: string;
 	email: string | null;
@@ -33,11 +39,13 @@ export function SettingsPanel({
 	referralCode: string;
 	referralUrl: string;
 	initialTheme: "system" | "light" | "dark";
+	initialNotificationPreferences: NotificationPreferences;
 }) {
 	const router = useRouter();
 	const [name, setName] = useState(displayName);
-	const [emailNotifications, setEmailNotifications] = useState(true);
-	const [productNotifications, setProductNotifications] = useState(true);
+	const [notificationPreferences, setNotificationPreferences] = useState(
+		initialNotificationPreferences,
+	);
 	const [theme, setTheme] = useState<"system" | "light" | "dark">(initialTheme);
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
@@ -104,8 +112,9 @@ export function SettingsPanel({
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						displayName: name,
-						notificationEmail: emailNotifications,
-						notificationProduct: productNotifications,
+						notificationEmail: true,
+						notificationProduct: true,
+						notificationPreferences,
 						theme,
 					}),
 				});
@@ -121,6 +130,21 @@ export function SettingsPanel({
 				setStatus(error instanceof Error ? error.message : "Settings update failed.");
 			}
 		});
+	}
+
+	function setNotificationPreference(
+		eventType: NotificationEventType,
+		channel: "email" | "sms",
+		checked: boolean,
+	) {
+		setNotificationPreferences((current) => ({
+			...current,
+			[eventType]: {
+				...current[eventType],
+				[channel]: checked,
+				inApp: true,
+			},
+		}));
 	}
 
 	function deleteAccount() {
@@ -146,8 +170,8 @@ export function SettingsPanel({
 	}
 
 	return (
-		<div className="grid gap-4 lg:grid-cols-2">
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+		<div className="grid min-w-0 gap-4 lg:grid-cols-2">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Link2 aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Profile and linked accounts</h2>
 				<p className="mt-2 text-sm text-muted">{email ?? "Email address unavailable"}</p>
@@ -194,27 +218,73 @@ export function SettingsPanel({
 					Save profile
 				</Button>
 			</section>
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Bell aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Notification preferences</h2>
-				<label className="mt-5 flex min-h-11 items-center gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={emailNotifications}
-						onChange={(event) => setEmailNotifications(event.target.checked)}
-					/>
-					Email receipts, exports, and account events
-				</label>
-				<label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={productNotifications}
-						onChange={(event) => setProductNotifications(event.target.checked)}
-					/>
-					In-product exam and grading updates
-				</label>
+				<div className="mt-5 overflow-x-auto rounded-lg border border-glass-border">
+					<table className="w-full min-w-[520px] text-left text-sm">
+						<thead className="bg-background/50 text-muted">
+							<tr>
+								<th className="px-3 py-2 font-medium">Event</th>
+								<th className="w-24 px-3 py-2 text-center font-medium">Email</th>
+								<th className="w-24 px-3 py-2 text-center font-medium">SMS</th>
+								<th className="w-24 px-3 py-2 text-center font-medium">In-app</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-glass-border">
+							{notificationEventDefinitions.map((event) => (
+								<tr key={event.key}>
+									<td className="px-3 py-3">
+										<p className="font-medium">{event.label}</p>
+										<p className="text-xs text-muted">{event.description}</p>
+									</td>
+									<td className="px-3 py-3 text-center">
+										<input
+											aria-label={`${event.label} email`}
+											type="checkbox"
+											checked={notificationPreferences[event.key].email}
+											onChange={(changeEvent) =>
+												setNotificationPreference(
+													event.key,
+													"email",
+													changeEvent.target.checked,
+												)
+											}
+										/>
+									</td>
+									<td className="px-3 py-3 text-center">
+										<input
+											aria-label={`${event.label} SMS`}
+											type="checkbox"
+											checked={notificationPreferences[event.key].sms}
+											onChange={(changeEvent) =>
+												setNotificationPreference(
+													event.key,
+													"sms",
+													changeEvent.target.checked,
+												)
+											}
+										/>
+									</td>
+									<td className="px-3 py-3 text-center">
+										<input
+											aria-label={`${event.label} in-app`}
+											type="checkbox"
+											checked
+											disabled
+											readOnly
+										/>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
+					Save notifications
+				</Button>
 			</section>
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Moon aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Appearance</h2>
 				<select
@@ -233,7 +303,7 @@ export function SettingsPanel({
 					Save appearance
 				</Button>
 			</section>
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Network aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Refer friends</h2>
 				<p className="mt-2 text-sm leading-6 text-muted">
@@ -255,7 +325,7 @@ export function SettingsPanel({
 					Copy link
 				</Button>
 			</section>
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<CreditCard aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Subscription and billing</h2>
 				<p className="mt-2 text-sm leading-6 text-muted">
@@ -268,7 +338,7 @@ export function SettingsPanel({
 					Open billing
 				</a>
 			</section>
-			<section className="rounded-lg border border-glass-border bg-glass p-6">
+			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Download aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Data export</h2>
 				<p className="mt-2 text-sm leading-6 text-muted">
@@ -282,7 +352,7 @@ export function SettingsPanel({
 					Download export
 				</a>
 			</section>
-			<section className="rounded-lg border border-error/40 bg-error/10 p-6">
+			<section className="min-w-0 rounded-lg border border-error/40 bg-error/10 p-6">
 				<Shield aria-hidden="true" className="text-error" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Account deletion</h2>
 				<p className="mt-2 text-sm leading-6 text-muted">

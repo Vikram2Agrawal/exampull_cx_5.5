@@ -20,6 +20,7 @@ import { claimAnonymousPreview } from "@/lib/preview/claim";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 import { createReferralSignup, ensureReferralCode } from "@/lib/referrals";
 import { createUserNotification } from "@/lib/user/data";
+import { defaultNotificationPreferences } from "@/lib/user/notification-preferences";
 
 export const runtime = "nodejs";
 
@@ -260,11 +261,7 @@ export async function POST(request: Request) {
 				grantedAt: now,
 				tier: "free",
 			},
-			notificationPreferences: {
-				email: true,
-				sms: true,
-				inApp: true,
-			},
+			notificationPreferences: defaultNotificationPreferences(),
 		});
 		await ensureReferralCode(decoded.uid);
 		await createReferralSignup({

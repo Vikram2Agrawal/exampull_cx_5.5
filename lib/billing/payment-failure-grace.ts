@@ -5,6 +5,7 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import type { Tier } from "@/lib/product/constants";
 import { type SmsStatus, sendTransactionalSms } from "@/lib/sms/transactional";
 import { createUserNotification } from "@/lib/user/data";
+import { notificationChannelEnabled } from "@/lib/user/notification-preferences";
 
 const paymentFailureGraceMs = 14 * 24 * 60 * 60 * 1000;
 const paymentFailureReminderMs = 3 * 24 * 60 * 60 * 1000;
@@ -47,11 +48,13 @@ async function sendEmail({
 	subject,
 	body,
 	testMode,
+	enabled,
 }: {
 	to: string | null;
 	subject: string;
 	body: string;
 	testMode: boolean;
+	enabled: boolean;
 }): Promise<CommunicationResult<EmailStatus>> {
 	try {
 		return await sendTransactionalEmail({
@@ -59,6 +62,7 @@ async function sendEmail({
 			subject,
 			text: body,
 			testMode,
+			enabled,
 		});
 	} catch (error) {
 		return {
@@ -73,13 +77,15 @@ async function sendSms({
 	to,
 	body,
 	testMode,
+	enabled,
 }: {
 	to: string | null;
 	body: string;
 	testMode: boolean;
+	enabled: boolean;
 }): Promise<CommunicationResult<SmsStatus>> {
 	try {
-		return await sendTransactionalSms({ to, body, testMode });
+		return await sendTransactionalSms({ to, body, testMode, enabled });
 	} catch (error) {
 		return {
 			status: "failed",
@@ -183,9 +189,29 @@ async function notifyPaymentFailure({
 		kind === "payment_failure" && graceUntil
 			? paymentFailureSms({ tier, graceUntil })
 			: `ExamPull: your ${tier} payment grace period ended. Your account is now Free. Restore paid features: ${publicBaseUrl()}/billing`;
+	const preferences = userSnapshot.get("notificationPreferences");
 	const [emailResult, smsResult] = await Promise.all([
-		sendEmail({ to: email, subject: title, body, testMode: isTestData }),
-		sendSms({ to: phoneNumber, body: smsBody, testMode: isTestData }),
+		sendEmail({
+			to: email,
+			subject: title,
+			body,
+			testMode: isTestData,
+			enabled: notificationChannelEnabled({
+				preferences,
+				eventType: "payment_failure",
+				channel: "email",
+			}),
+		}),
+		sendSms({
+			to: phoneNumber,
+			body: smsBody,
+			testMode: isTestData,
+			enabled: notificationChannelEnabled({
+				preferences,
+				eventType: "payment_failure",
+				channel: "sms",
+			}),
+		}),
 	]);
 
 	await Promise.all([

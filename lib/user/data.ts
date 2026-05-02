@@ -2,6 +2,10 @@ import { z } from "zod";
 import type { CurrentUser } from "@/lib/auth/session";
 import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { adminAuth, adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import {
+	normalizeNotificationPreferences,
+	notificationPreferencesSchema,
+} from "@/lib/user/notification-preferences";
 
 export const feedbackSchema = z.object({
 	kind: z.enum(["feature", "bug", "general"]),
@@ -13,8 +17,9 @@ export const feedbackSchema = z.object({
 
 export const profileSettingsSchema = z.object({
 	displayName: z.string().trim().min(2).max(80),
-	notificationEmail: z.boolean().default(true),
-	notificationProduct: z.boolean().default(true),
+	notificationEmail: z.boolean().optional(),
+	notificationProduct: z.boolean().optional(),
+	notificationPreferences: notificationPreferencesSchema.optional(),
 	theme: z.enum(["system", "light", "dark"]).default("system"),
 });
 
@@ -259,16 +264,22 @@ export async function clearNotifications(userId: string) {
 
 export async function updateProfileSettings(user: CurrentUser, input: ProfileSettingsInput) {
 	const parsed = profileSettingsSchema.parse(input);
+	const notificationPreferences = parsed.notificationPreferences
+		? normalizeNotificationPreferences(parsed.notificationPreferences)
+		: normalizeNotificationPreferences({
+				email: parsed.notificationEmail ?? true,
+			});
 
 	await Promise.all([
 		userRef(user.uid).set(
 			{
 				displayName: parsed.displayName,
 				settings: {
-					notificationEmail: parsed.notificationEmail,
-					notificationProduct: parsed.notificationProduct,
+					notificationEmail: parsed.notificationEmail ?? true,
+					notificationProduct: parsed.notificationProduct ?? true,
 					theme: parsed.theme,
 				},
+				notificationPreferences,
 				updatedAt: Timestamp.now(),
 			},
 			{ merge: true },

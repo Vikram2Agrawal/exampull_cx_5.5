@@ -34,6 +34,7 @@ export default async function SettingsPage() {
 					referralCode={code}
 					referralUrl={referralUrl(code)}
 					initialTheme={user.theme}
+					initialNotificationPreferences={user.notificationPreferences}
 				/>
 			</div>
 		</AppShell>

@@ -6,12 +6,14 @@ export type SmsStatus =
 	| "failed"
 	| "skipped_test"
 	| "skipped_unconfigured"
-	| "skipped_no_recipient";
+	| "skipped_no_recipient"
+	| "skipped_preferences";
 
 type TransactionalSmsInput = {
 	to: string | null;
 	body: string;
 	testMode?: boolean;
+	enabled?: boolean;
 };
 
 type TransactionalSmsResult = {
@@ -23,6 +25,7 @@ export async function sendTransactionalSms({
 	to,
 	body,
 	testMode = false,
+	enabled = true,
 }: TransactionalSmsInput): Promise<TransactionalSmsResult> {
 	if (!to) {
 		return { status: "skipped_no_recipient", providerId: null };
@@ -30,6 +33,10 @@ export async function sendTransactionalSms({
 
 	if (testMode) {
 		return { status: "skipped_test", providerId: null };
+	}
+
+	if (enabled === false) {
+		return { status: "skipped_preferences", providerId: null };
 	}
 
 	if (
