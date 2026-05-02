@@ -1,5 +1,7 @@
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
+import { BulkCreditGrantForm } from "@/components/admin/bulk-credit-grant-form";
 import { RefundActionForm } from "@/components/admin/refund-action-form";
+import { listBulkCreditGrants } from "@/lib/admin/credits";
 import { listAdminQueueItems } from "@/lib/admin/data";
 import { listAdminRefundHistory, listAdminRefundRequests } from "@/lib/admin/refunds";
 import { formatCurrency } from "@/lib/utils";
@@ -16,15 +18,17 @@ function dateLabel(value: string) {
 }
 
 export default async function AdminOperationsPage() {
-	const [queueItems, refundRequests, refundHistory] = await Promise.all([
+	const [queueItems, refundRequests, refundHistory, bulkGrants] = await Promise.all([
 		listAdminQueueItems(),
 		listAdminRefundRequests(),
 		listAdminRefundHistory(),
+		listBulkCreditGrants(),
 	]);
 
 	return (
 		<AdminShell active="Operations">
 			<div className="space-y-6">
+				<BulkCreditGrantForm />
 				<AdminTable
 					title="Refund requests"
 					description="Open refund and chargeback-adjacent requests from support, exam reports, and recovery flows."
@@ -117,6 +121,37 @@ export default async function AdminOperationsPage() {
 								{refund.note}
 							</p>,
 							dateLabel(refund.createdAt),
+						],
+					}))}
+				/>
+				<AdminTable
+					title="Bulk credit grant history"
+					description="Dry-run backed bulk grants, total credit exposure, and rollback window metadata."
+					headers={[
+						"Reason",
+						"Audience",
+						"Amount",
+						"Recipients",
+						"Total",
+						"Status",
+						"Rollback until",
+						"Created",
+					]}
+					empty="No bulk grants yet."
+					rows={bulkGrants.map((grant) => ({
+						key: grant.id,
+						cells: [
+							<div key="reason">
+								<p className="font-medium text-slate-950">{grant.reason}</p>
+								<p className="mt-1 text-xs text-slate-500">{grant.id}</p>
+							</div>,
+							grant.audienceLabel,
+							grant.amount,
+							grant.recipientCount,
+							grant.totalCredits,
+							grant.status,
+							dateLabel(grant.rollbackExpiresAt),
+							dateLabel(grant.createdAt),
 						],
 					}))}
 				/>

@@ -688,6 +688,76 @@ test("admin refund workflow approves credits and exposes user refund history", a
 	);
 });
 
+test("admin bulk credit grants require dry run and credit matching users", async ({ page }) => {
+	const suffix = Date.now().toString();
+	const firstUser = await createTestAuthUser(page, `bulk-grant-${suffix}-a@exampull.test`, {
+		tier: "free",
+		credits: 3,
+	});
+	await createTestAuthUser(page, `bulk-grant-${suffix}-b@exampull.test`, {
+		tier: "free",
+		credits: 4,
+	});
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/operations");
+	await expect(
+		page.getByRole("heading", { name: "Bulk credit grant", exact: true }),
+	).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const executeWithoutPreview = await page.context().request.post("/api/admin/credits/bulk", {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+			"x-admin-reauth-password": adminAgentPassword(),
+		},
+		data: {
+			mode: "execute",
+			audience: {
+				tier: "free",
+				testAccounts: "only",
+				emailContains: suffix,
+				limit: 10,
+			},
+			amount: 11,
+			reason: `Bulk grant ${suffix}`,
+		},
+	});
+	expect(executeWithoutPreview.status()).toBe(400);
+
+	await page.getByLabel("Bulk grant tier").selectOption("free");
+	await page.getByLabel("Bulk grant test accounts").selectOption("only");
+	await page.getByLabel("Bulk grant email filter").fill(suffix);
+	await page.getByLabel("Bulk grant recipient limit").fill("10");
+	await page.getByLabel("Bulk grant amount").fill("11");
+	await page.getByLabel("Bulk grant reason").fill(`Bulk grant ${suffix}`);
+	await page.getByRole("button", { name: "Dry run" }).click();
+	await expect(page.getByRole("status")).toHaveText("Dry run ready.");
+	await expect(page.getByText("2 recipient(s), 22 total credits.")).toBeVisible();
+	await expect(page.getByText(`bulk-grant-${suffix}-a@exampull.test`)).toBeVisible();
+	await expect(page.getByText(`bulk-grant-${suffix}-b@exampull.test`)).toBeVisible();
+	await page.getByLabel("Bulk grant re-auth password").fill(adminAgentPassword());
+	await page.getByRole("button", { name: "Execute" }).click();
+	await expect(page.getByRole("status")).toHaveText("Bulk grant recorded for 2 recipient(s).");
+	await expect(page.locator("tr").filter({ hasText: `Bulk grant ${suffix}` })).toContainText(
+		"22",
+	);
+
+	const firstIdToken = await idTokenForCustomToken(firstUser);
+	const sessionResponse = await page.context().request.put("/api/test/session", {
+		data: { token: testSignupToken(), idToken: firstIdToken },
+	});
+	expect(sessionResponse.status()).toBe(200);
+	await page.goto("/notifications");
+	await expect(page.getByText("Credits granted")).toBeVisible();
+	await expect(page.getByText("11 credits were added")).toBeVisible();
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: { credits?: number; manualCreditGrantCount?: number } | null;
+	};
+	expect(exportPayload.profile?.credits).toBe(14);
+	expect(exportPayload.profile?.manualCreditGrantCount).toBe(1);
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;
