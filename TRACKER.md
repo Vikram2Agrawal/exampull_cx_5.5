@@ -49,6 +49,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
 - [x] Add referral fraud detection, admin reward override controls/API, and authenticated E2E covering clean rewards, suspicious alias review holds, manual grant, and manual revoke.
 - [x] Add notification-center unread badge, click-to-read navigation, individual delete, clear-all APIs/UI, and authenticated event-matrix E2E.
+- [x] Add wizard refresh-resilience E2E covering source details, manual topics, Power Mode controls, per-slot edits, successful queueing, and draft clearing.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -156,6 +157,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after notification center implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 27 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after notification center implementation passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after notification center deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome`.
+- Focused wizard refresh E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "wizard preserves"`.
+- Full local gate after wizard refresh resilience passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 28 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

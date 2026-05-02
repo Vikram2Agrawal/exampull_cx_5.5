@@ -932,6 +932,77 @@ test("long PDF upload shows TOC progress and extracts focused topics", async ({ 
 	await expect(page.getByText("5 topics ready")).toBeVisible();
 });
 
+test("new exam wizard preserves source topic and configure drafts across refresh", async ({
+	page,
+}) => {
+	await signInAsTestUser(page, `wizard-refresh-${Date.now()}@exampull.test`, {
+		tier: "guru",
+		credits: 500,
+	});
+
+	await page.goto("/exams/new");
+	await page.getByLabel("Exam title").fill("Refresh preserved exam");
+	await page.getByLabel("Class label").fill("Chaos Biology");
+	await page.getByLabel("Focus for next upload").fill("Chapters 4-6 only");
+	await page.getByLabel("Style reference").check();
+	await page.reload();
+	await expect(page.getByLabel("Exam title")).toHaveValue("Refresh preserved exam");
+	await expect(page.getByLabel("Class label")).toHaveValue("Chaos Biology");
+	await expect(page.getByLabel("Focus for next upload")).toHaveValue("Chapters 4-6 only");
+	await expect(page.getByLabel("Style reference")).toBeChecked();
+
+	await page
+		.getByRole("textbox", { name: "Topics" })
+		.fill("Cell signaling\nSignal transduction\nSecond messengers");
+	await page
+		.getByLabel("Source notes")
+		.fill("Favor diagram interpretation and multi-step pathway reasoning.");
+	await page.reload();
+	await expect(page.getByRole("textbox", { name: "Topics" })).toHaveValue(
+		"Cell signaling\nSignal transduction\nSecond messengers",
+	);
+	await expect(page.getByLabel("Source notes")).toHaveValue(
+		"Favor diagram interpretation and multi-step pathway reasoning.",
+	);
+
+	await page.getByRole("button", { name: "Power" }).click();
+	await page.getByLabel("Quick-add topic").fill("Signal transduction");
+	await page.getByLabel("Quick-add count").fill("2");
+	await page.getByLabel("Quick-add style").selectOption("calculation");
+	await page.getByLabel("Quick-add difficulty").selectOption("hardcore");
+	await page.getByLabel("Quick-add points").fill("12");
+	await page.getByLabel("Range topic").fill("Second messengers");
+	await page.getByLabel("Range points").fill("9");
+	await page.reload();
+	await expect(page.getByLabel("Quick-add topic")).toHaveValue("Signal transduction");
+	await expect(page.getByLabel("Quick-add count")).toHaveValue("2");
+	await expect(page.getByLabel("Quick-add style")).toHaveValue("calculation");
+	await expect(page.getByLabel("Quick-add difficulty")).toHaveValue("hardcore");
+	await expect(page.getByLabel("Quick-add points")).toHaveValue("12");
+	await expect(page.getByLabel("Range topic")).toHaveValue("Second messengers");
+	await expect(page.getByLabel("Range points")).toHaveValue("9");
+
+	await page.getByRole("button", { name: "Remove question 1" }).click();
+	await page.getByRole("button", { name: "Quick-add" }).click();
+	await expect(page.getByLabel("Question 1 topic")).toHaveValue("Signal transduction");
+	await page.getByLabel("Question 1 topic").fill("Receptor tyrosine kinase signaling");
+	await page.reload();
+	await expect(page.getByLabel("Question 1 topic")).toHaveValue(
+		"Receptor tyrosine kinase signaling",
+	);
+	await expect(page.getByLabel("Question 2 points")).toHaveValue("12");
+
+	await page.getByRole("button", { name: "Generate", exact: true }).click();
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Refresh preserved exam" }),
+	).toBeVisible();
+	await expect(page.getByText("Chaos Biology - 2 questions - queued")).toBeVisible();
+	const storedDraft = await page.evaluate(() =>
+		window.localStorage.getItem("exampull:new-exam-draft"),
+	);
+	expect(storedDraft).toBeNull();
+});
+
 test("topic extraction failure keeps best-effort source topics available", async ({ page }) => {
 	const { uid } = await signInAsTestUser(page, `fallback-source-${Date.now()}@exampull.test`, {
 		tier: "free",

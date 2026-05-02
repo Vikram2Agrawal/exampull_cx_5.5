@@ -107,6 +107,18 @@ function stringArray(value: unknown) {
 		: [];
 }
 
+function boundedNumber(value: unknown, min: number, max: number) {
+	return typeof value === "number" ? Math.max(min, Math.min(max, value)) : null;
+}
+
+function isQuestionStyle(value: unknown): value is QuestionStyle {
+	return styleOptions.some((option) => option.value === value);
+}
+
+function isQuestionDifficulty(value: unknown): value is QuestionDifficulty {
+	return difficultyOptions.some((option) => option.value === value);
+}
+
 function powerSlotDrafts(value: unknown): PowerSlotDraft[] {
 	if (!Array.isArray(value)) {
 		return [];
@@ -279,6 +291,10 @@ export function NewExamForm({
 			if (typeof draft.classId === "string") setClassId(draft.classId);
 			if (typeof draft.topicsText === "string") setTopicsText(draft.topicsText);
 			if (typeof draft.sourceNotes === "string") setSourceNotes(draft.sourceNotes);
+			if (typeof draft.uploadFocus === "string") setUploadFocus(draft.uploadFocus);
+			if (typeof draft.uploadStyleReference === "boolean") {
+				setUploadStyleReference(draft.uploadStyleReference);
+			}
 			if (typeof draft.questionCount === "number") {
 				setQuestionCount(Math.max(1, Math.min(maxQuestions, draft.questionCount)));
 			}
@@ -292,6 +308,26 @@ export function NewExamForm({
 			setSelectedMaterialIds(stringArray(draft.selectedMaterialIds));
 			setSourceUploads(sourceUploadDrafts(draft.sourceUploads));
 			setPowerSlots(powerSlotDrafts(draft.powerSlots));
+			if (typeof draft.quickTopic === "string") setQuickTopic(draft.quickTopic);
+			const savedQuickCount = boundedNumber(draft.quickCount, 1, 20);
+			if (savedQuickCount) setQuickCount(savedQuickCount);
+			if (isQuestionStyle(draft.quickStyle)) setQuickStyle(draft.quickStyle);
+			if (isQuestionDifficulty(draft.quickDifficulty)) {
+				setQuickDifficulty(draft.quickDifficulty);
+			}
+			const savedQuickPoints = boundedNumber(draft.quickPoints, 1, 100);
+			if (savedQuickPoints) setQuickPoints(savedQuickPoints);
+			const savedRangeStart = boundedNumber(draft.rangeStart, 1, maxQuestions);
+			if (savedRangeStart) setRangeStart(savedRangeStart);
+			const savedRangeEnd = boundedNumber(draft.rangeEnd, 1, maxQuestions);
+			if (savedRangeEnd) setRangeEnd(savedRangeEnd);
+			if (typeof draft.rangeTopic === "string") setRangeTopic(draft.rangeTopic);
+			if (isQuestionStyle(draft.rangeStyle)) setRangeStyle(draft.rangeStyle);
+			if (isQuestionDifficulty(draft.rangeDifficulty)) {
+				setRangeDifficulty(draft.rangeDifficulty);
+			}
+			const savedRangePoints = boundedNumber(draft.rangePoints, 1, 100);
+			if (savedRangePoints) setRangePoints(savedRangePoints);
 		} catch {
 			window.localStorage.removeItem(draftStorageKey);
 		}
@@ -307,11 +343,24 @@ export function NewExamForm({
 				sourceUploads,
 				topicsText,
 				sourceNotes,
+				uploadFocus,
+				uploadStyleReference,
 				questionCount,
 				mode,
 				powerSlots,
 				mirrorInstructorStyle,
 				useScholarBoost,
+				quickTopic,
+				quickStyle,
+				quickDifficulty,
+				quickPoints,
+				quickCount,
+				rangeStart,
+				rangeEnd,
+				rangeTopic,
+				rangeStyle,
+				rangeDifficulty,
+				rangePoints,
 			}),
 		);
 	}, [
@@ -322,12 +371,30 @@ export function NewExamForm({
 		sourceUploads,
 		topicsText,
 		sourceNotes,
+		uploadFocus,
+		uploadStyleReference,
 		questionCount,
 		mode,
 		powerSlots,
 		mirrorInstructorStyle,
 		useScholarBoost,
+		quickTopic,
+		quickStyle,
+		quickDifficulty,
+		quickPoints,
+		quickCount,
+		rangeStart,
+		rangeEnd,
+		rangeTopic,
+		rangeStyle,
+		rangeDifficulty,
+		rangePoints,
 	]);
+	useEffect(() => {
+		const maxRange = Math.max(1, powerSlots.length);
+		setRangeStart((current) => Math.max(1, Math.min(current, maxRange)));
+		setRangeEnd((current) => Math.max(1, Math.min(current, maxRange)));
+	}, [powerSlots.length]);
 	const pendingUploadIds = useMemo(
 		() =>
 			sourceUploads

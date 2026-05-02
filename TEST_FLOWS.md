@@ -38,7 +38,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P2 Resilience And Quality Flows
 
-- [!] P2-CHAOS-001 Refresh at every wizard step preserves draft state; new-exam draft persistence is implemented, full browser E2E remains.
+- [x] P2-CHAOS-001 Refresh at every wizard step preserves draft state; authenticated E2E verifies source details, manual topics, Power Mode configure controls, per-slot edits, successful queueing, and draft clearing.
 - [!] P2-CHAOS-002 LaTeX 503 retries without burning visual QA budget; transient compile retries are implemented, chaos E2E remains.
 - [ ] P2-CHAOS-003 Stripe webhook during generation preserves tier snapshot.
 - [ ] P2-A11Y-001 Keyboard-only signup, wizard, library, modal, and admin navigation.
@@ -96,6 +96,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused notification center E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "notification center"` with event-matrix seed data, unread badge, click-to-read navigation, individual delete, mark-all-read, and clear-all.
 - Full local gate after notification center implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 27 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after notification center deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and local-only authenticated specs skipped.
+- Focused wizard refresh E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "wizard preserves"` with source details, manual topics, Power Mode controls, per-slot edits, queueing, and draft clearing.
+- Full local gate after wizard refresh resilience: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 28 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
