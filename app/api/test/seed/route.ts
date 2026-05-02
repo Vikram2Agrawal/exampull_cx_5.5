@@ -23,6 +23,11 @@ const requestSchema = z.discriminatedUnion("kind", [
 	}),
 	z.object({
 		token: z.string().min(1),
+		kind: z.literal("complete_exam"),
+		examId: z.string().min(1),
+	}),
+	z.object({
+		token: z.string().min(1),
 		kind: z.literal("exam_upload_progress"),
 		uploadId: z.string().min(1),
 		stage: z.string().trim().min(1).max(80),
@@ -138,6 +143,31 @@ export async function POST(request: Request) {
 			);
 
 		return NextResponse.json({ uploadId: input.uploadId });
+	}
+
+	if (input.kind === "complete_exam") {
+		await adminDb
+			.collection("users")
+			.doc(user.uid)
+			.collection("exams")
+			.doc(input.examId)
+			.set(
+				{
+					status: "complete",
+					creditsReserved: 0,
+					examPdfBase64: Buffer.from("%PDF-1.4\n% synthetic completed exam\n").toString(
+						"base64",
+					),
+					answerKeyPdfBase64: Buffer.from(
+						"%PDF-1.4\n% synthetic completed answer key\n",
+					).toString("base64"),
+					completedAt: now,
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+
+		return NextResponse.json({ examId: input.examId });
 	}
 
 	if (input.kind === "notification") {

@@ -666,6 +666,17 @@ test("completed exam rating captures feedback and hides on incomplete exams", as
 	const rejectedRatingPayload = (await rejectedRatingResponse.json()) as { error?: string };
 	expect(rejectedRatingPayload.error).toContain("completed exams");
 
+	const rejectedReportResponse = await page
+		.context()
+		.request.patch(`/api/exams/${queuedPayload.examId}`, {
+			data: {
+				reportReason: "Queued exams should not enter abuse review before completion.",
+			},
+		});
+	expect(rejectedReportResponse.status()).toBe(400);
+	const rejectedReportPayload = (await rejectedReportResponse.json()) as { error?: string };
+	expect(rejectedReportPayload.error).toContain("completed exams");
+
 	const exportResponse = await page.context().request.get("/api/settings/export");
 	expect(exportResponse.status()).toBe(200);
 	const exportPayload = (await exportResponse.json()) as {
@@ -1819,6 +1830,15 @@ test("Scholar Boost is atomically consumed across two tabs and restored on repor
 	expect(boostedExam?.answerKeyUnlocked).toBe(true);
 	expect(boostedExam?.boostGradingIncluded).toBe(true);
 	expect(boostedExam?.creditsReserved).toBe(0);
+
+	const completeBoostResponse = await page.context().request.post("/api/test/seed", {
+		data: {
+			token: testSignupToken(),
+			kind: "complete_exam",
+			examId,
+		},
+	});
+	expect(completeBoostResponse.status()).toBe(200);
 
 	const reportResponse = await page.context().request.patch(`/api/exams/${examId}`, {
 		data: { reportReason: "Boost regret recovery E2E report reason." },

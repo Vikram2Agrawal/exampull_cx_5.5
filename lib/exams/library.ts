@@ -164,6 +164,14 @@ export async function updateExamForUser({
 		throw new Error("Rating is only available for completed exams.");
 	}
 
+	if (
+		parsed.reportReason !== undefined &&
+		existingStatus !== "complete" &&
+		existingStatus !== "reported"
+	) {
+		throw new Error("Report is only available for completed exams.");
+	}
+
 	if (parsed.ratingDismissed === true) {
 		updateData.ratingDismissedAt = Timestamp.now();
 	}
