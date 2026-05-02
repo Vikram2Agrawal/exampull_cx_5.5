@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { appendAdminAudit } from "@/lib/admin/audit";
 import { publicBaseUrl } from "@/lib/env";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { TIER_MONTHLY_CREDITS, type Tier } from "@/lib/product/constants";
@@ -476,11 +477,10 @@ export async function overrideReferralReward({
 		return { referrerUserId, notification };
 	});
 
-	await adminDb.collection("audit_log").add({
+	await appendAdminAudit({
 		action: "referral_override",
 		target: `referrals/${referralId}`,
 		details: `${action}: ${reason}`,
-		createdAt: Timestamp.now(),
 	});
 
 	if (result.notification) {

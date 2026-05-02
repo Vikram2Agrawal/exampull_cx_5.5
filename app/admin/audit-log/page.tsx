@@ -20,17 +20,21 @@ export default async function AdminAuditLogPage() {
 			<AdminTable
 				title="Audit log"
 				description="Operator actions, sensitive reads, credits, refunds, and account operations."
-				headers={["Action", "Target", "Details", "Created"]}
+				headers={["Seq", "Action", "Target", "Details", "Hash", "Created"]}
 				empty="No admin actions recorded yet."
 				rows={rows.map((row) => ({
 					key: row.id,
 					cells: [
+						row.sequence ?? "--",
 						<p key="action" className="font-medium text-slate-950">
 							{row.action}
 						</p>,
 						row.target,
 						<p key="details" className="line-clamp-3 text-slate-600">
 							{row.details}
+						</p>,
+						<p key="hash" className="font-mono text-xs text-slate-500">
+							{row.hash ? row.hash.slice(0, 12) : "legacy"}
 						</p>,
 						dateLabel(row.createdAt),
 					],

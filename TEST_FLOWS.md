@@ -46,6 +46,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P2-VISUAL-001 Primary screens pass dark/light/mobile/desktop design soft oracle; quality E2E captures dashboard, library, wizard, detail, and settings screenshots in dark/light across desktop and mobile, and asserts theme application, mobile nav, no horizontal overflow, glass/paper material discipline, and mobile touch targets.
 - [x] P2-PERF-001 Primary flows meet LCP, INP, CLS, and action-feedback latency budgets; quality E2E records dashboard, library, wizard, and detail paint/CLS metrics plus library list-view action feedback under `artifacts/quality`.
 - [x] P2-ADMIN-SEC-001 Admin write APIs require per-session CSRF tokens; authenticated E2E verifies missing/invalid tokens are rejected and referral override writes succeed only with the admin shell token.
+- [x] P2-ADMIN-SEC-002 Admin audit entries are hash-chained and audit-log reads are meta-audited; unit tests verify hash determinism/tamper sensitivity, and focused authenticated E2E covers CSRF-protected referral override plus dormant phone reclaim audit paths.
 - [x] P2-EVAL-001 Quick exam eval suite produces local artifacts without paid evaluator SDK calls.
 
 ## Coverage Notes
@@ -115,6 +116,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused admin CSRF E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin write APIs|referrals reward"` plus `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts -g "admin sections"` with missing/invalid token rejection, valid referral override writes, and admin shell navigation.
 - Full local gate after admin CSRF hardening: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 37 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after admin CSRF hardening deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
+- Focused audit hardening verification passed: `pnpm format && pnpm typecheck && pnpm test`, `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "referrals reward|dormant phone|admin write APIs"`, and `pnpm exec playwright test --project=desktop-chrome e2e/accessibility.spec.ts -g "admin sections"`.
+- Full local gate after audit hash-chain hardening: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 37 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

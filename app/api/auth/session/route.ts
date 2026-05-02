@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { appendAdminAuditInTransaction } from "@/lib/admin/audit";
 import { decidePhoneConflict, latestAccountActivityMillis } from "@/lib/auth/phone-conflicts";
 import {
 	emailIdentifiersFromProviders,
@@ -93,6 +94,13 @@ async function releaseDormantPhoneOwner({
 			return false;
 		}
 
+		await appendAdminAuditInTransaction(transaction, {
+			action: "phone_dormant_reclaim",
+			target: `users/${ownerUid}`,
+			details: `Released ${phoneNumber} to users/${incomingUid} after inactivity since ${decision.dormantSince}.`,
+			operatorId: "system",
+			authMethod: "system",
+		});
 		transaction.set(
 			ownerRef,
 			{
@@ -105,12 +113,6 @@ async function releaseDormantPhoneOwner({
 			},
 			{ merge: true },
 		);
-		transaction.create(adminDb.collection("audit_log").doc(), {
-			action: "phone_dormant_reclaim",
-			target: `users/${ownerUid}`,
-			details: `Released ${phoneNumber} to users/${incomingUid} after inactivity since ${decision.dormantSince}.`,
-			createdAt: now,
-		});
 
 		return true;
 	});

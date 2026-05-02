@@ -1,3 +1,4 @@
+import { appendAdminAudit, recordAdminAuditAccess } from "@/lib/admin/audit";
 import { env } from "@/lib/env";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
@@ -51,6 +52,9 @@ export type AdminAuditRow = {
 	target: string;
 	details: string;
 	createdAt: string;
+	hash: string | null;
+	previousHash: string | null;
+	sequence: number | null;
 };
 
 export type AdminReferralRow = {
@@ -259,6 +263,7 @@ export async function listAdminAudit(limit = 100): Promise<AdminAuditRow[]> {
 		.orderBy("createdAt", "desc")
 		.limit(limit)
 		.get();
+	await recordAdminAuditAccess();
 
 	return snapshot.docs.map((doc) => ({
 		id: doc.id,
@@ -266,6 +271,9 @@ export async function listAdminAudit(limit = 100): Promise<AdminAuditRow[]> {
 		target: text(doc.get("target"), "system"),
 		details: text(doc.get("details"), ""),
 		createdAt: isoDate(doc.get("createdAt")),
+		hash: typeof doc.get("hash") === "string" ? doc.get("hash") : null,
+		previousHash: typeof doc.get("previousHash") === "string" ? doc.get("previousHash") : null,
+		sequence: typeof doc.get("sequence") === "number" ? Number(doc.get("sequence")) : null,
 	}));
 }
 
@@ -339,11 +347,10 @@ export async function writeAdminAudit({
 	target: string;
 	details: string;
 }) {
-	await adminDb.collection("audit_log").add({
+	await appendAdminAudit({
 		action,
 		target,
 		details,
-		createdAt: Timestamp.now(),
 	});
 }
 
