@@ -250,6 +250,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after in-flight class deletion coverage passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - Focused paid-exam report/refund regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "free user can complete a full 12-question worker generation"` with credit restoration, refund metadata, notification, and no double-refund assertions.
 - Full local gate after paid-exam report/refund recourse passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after paid-exam report/refund recourse passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after paid-exam report/refund deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 43 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
