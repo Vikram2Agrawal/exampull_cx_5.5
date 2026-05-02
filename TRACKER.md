@@ -39,6 +39,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Complete exam rating recourse: completed-only inline rating form, optional text feedback, dismissal, server-side queued/failed gating, top-level admin feedback rows, export metadata, and E2E coverage.
 - [x] Gate exam reports to completed/reported exams so queued/generating work cannot be moved to review while credits are still reserved; E2E preserves paid and Scholar Boost completed-report recovery.
 - [x] Gate share-link creation to Scholar/Guru, support per-link answer-key inclusion, and remove shared answer-key access live after creator downgrade while preserving the student-copy PDF.
+- [x] Add public share-viewer defect reports with unauthenticated share-page UI, abuse triage rows, per-exam/share counters, and creator notifications.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -272,6 +273,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after answer-key share links passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 44 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after answer-key share links passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after answer-key share-link deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 46 local-only authenticated/quality specs skipped.
+- Focused share-viewer report regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "share viewers can flag"` with unauthenticated share-page reporting, creator share notification, exam report counter, and admin abuse-row visibility.
+- Full local gate after share-viewer report flow passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 45 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

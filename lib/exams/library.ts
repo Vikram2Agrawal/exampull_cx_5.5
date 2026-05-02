@@ -24,6 +24,11 @@ export const createShareSchema = z.object({
 	includeAnswerKey: z.boolean().default(false),
 });
 
+export const shareReportSchema = z.object({
+	body: z.string().trim().max(1200).default(""),
+	reporterEmail: z.string().trim().email().max(160).optional().or(z.literal("")),
+});
+
 export const examBulkActionSchema = z
 	.object({
 		examIds: z.array(z.string().trim().min(1).max(160)).min(1).max(100),
@@ -42,6 +47,7 @@ export const examBulkActionSchema = z
 
 export type ExamUpdateInput = z.infer<typeof examUpdateSchema>;
 export type CreateShareInput = z.infer<typeof createShareSchema>;
+export type ShareReportInput = z.infer<typeof shareReportSchema>;
 export type ExamBulkActionInput = z.infer<typeof examBulkActionSchema>;
 
 export type SharedExam = {
@@ -713,6 +719,112 @@ export async function getSharedExamPdf(shareId: string, type: "exam" | "answer" 
 	const title = typeof data.title === "string" ? data.title : "Shared practice exam";
 
 	return { title, pdfBase64 };
+}
+
+export async function reportSharedExam(shareId: string, input: ShareReportInput) {
+	const parsed = shareReportSchema.parse(input);
+	const shareRef = shareCollection.doc(shareId);
+	const reportRef = abuseCollection.doc(randomUUID());
+	const now = Timestamp.now();
+	const context =
+		parsed.body.trim() || "Viewer flagged this shared exam without additional context.";
+	const reporterEmail = parsed.reporterEmail?.trim() || null;
+
+	const result = await adminDb.runTransaction(async (transaction) => {
+		const shareSnapshot = await transaction.get(shareRef);
+
+		if (!shareSnapshot.exists || shareSnapshot.get("revoked") === true) {
+			throw new Error("Shared exam not found.");
+		}
+
+		const ownerUid = shareSnapshot.get("ownerUid");
+		const examId = shareSnapshot.get("examId");
+
+		if (typeof ownerUid !== "string" || typeof examId !== "string") {
+			throw new Error("Shared exam not found.");
+		}
+
+		const ownerRef = adminDb.collection("users").doc(ownerUid);
+		const examDocRef = examRef(ownerUid, examId);
+		const [ownerSnapshot, examSnapshot] = await Promise.all([
+			transaction.get(ownerRef),
+			transaction.get(examDocRef),
+		]);
+
+		if (!ownerSnapshot.exists || !examSnapshot.exists) {
+			throw new Error("Shared exam not found.");
+		}
+
+		const title =
+			typeof examSnapshot.get("title") === "string"
+				? examSnapshot.get("title")
+				: "Shared practice exam";
+		const ownerEmail =
+			typeof ownerSnapshot.get("email") === "string" ? ownerSnapshot.get("email") : null;
+		const aggregateCreatorShareReportCount =
+			Number(ownerSnapshot.get("shareViewerReportCount") ?? 0) + 1;
+		const isTestData =
+			shareSnapshot.get("isTestData") === true ||
+			examSnapshot.get("isTestData") === true ||
+			ownerSnapshot.get("isTestAccount") === true;
+
+		transaction.create(reportRef, {
+			kind: "share_viewer_report",
+			title,
+			body: context,
+			reason: context,
+			userId: ownerUid,
+			ownerUid,
+			email: ownerEmail,
+			examId,
+			shareId,
+			reporterEmail,
+			source: "share_link",
+			aggregateCreatorShareReportCount,
+			status: "open",
+			isTestData,
+			createdAt: now,
+			updatedAt: now,
+		});
+		transaction.set(
+			shareRef,
+			{
+				reportCount: FieldValue.increment(1),
+				lastReportedAt: now,
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+		transaction.set(
+			examDocRef,
+			{
+				shareViewerReportCount: FieldValue.increment(1),
+				lastShareViewerReportAt: now,
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+		transaction.set(
+			ownerRef,
+			{
+				shareViewerReportCount: FieldValue.increment(1),
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+
+		return { ownerUid, examId, title };
+	});
+
+	await createUserNotification({
+		userId: result.ownerUid,
+		title: "Shared exam flagged",
+		body: `A viewer flagged "${result.title}" from its public share page.`,
+		kind: "share",
+		href: `/exams/${result.examId}`,
+	});
+
+	return { reportId: reportRef.id };
 }
 
 export async function getExamPdfForUser({

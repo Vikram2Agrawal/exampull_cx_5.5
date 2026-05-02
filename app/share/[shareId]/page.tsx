@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PublicNav } from "@/components/layout/site-nav";
+import { ShareReportForm } from "@/components/share/share-report-form";
 import { ButtonLink } from "@/components/ui/button";
 import { GlassPanel, Paper, SectionHeader } from "@/components/ui/surface";
 import { getSharedExam } from "@/lib/exams/library";
@@ -91,9 +92,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
 						<ButtonLink href="/sign-up" variant="primary" className="w-full">
 							Customize for yourself
 						</ButtonLink>
-						<a href="/feedback" className="mt-4 block text-sm text-secondary">
-							Something wrong with this exam?
-						</a>
+						<ShareReportForm shareId={exam.shareId} />
 					</GlassPanel>
 				</div>
 			</main>

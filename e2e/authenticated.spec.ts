@@ -657,6 +657,58 @@ test("scholar share link can include answer key until creator downgrade", async 
 	expect(examResponse.status()).toBe(200);
 });
 
+test("share viewers can flag defective public exams", async ({ page, browser, baseURL }) => {
+	const email = `share-report-${Date.now()}@exampull.test`;
+	await signInAsTestUser(page, email, {
+		tier: "scholar",
+		credits: 100,
+	});
+	const examId = await seedExam(page, `Shared viewer report exam ${Date.now()}`);
+	const shareResponse = await page.context().request.post(`/api/exams/${examId}/share`, {
+		data: { includeAnswerKey: false },
+	});
+	expect(shareResponse.status()).toBe(201);
+	const sharePayload = (await shareResponse.json()) as { shareId: string; shareUrl: string };
+	const sharePath = new URL(sharePayload.shareUrl).pathname;
+	const reportContext = `The final integration prompt is missing bounds for ${examId}.`;
+	const viewerContext = await browser.newContext({ baseURL });
+
+	try {
+		const viewerPage = await viewerContext.newPage();
+		await viewerPage.goto(sharePath);
+		await viewerPage.getByRole("button", { name: "Something wrong with this exam?" }).click();
+		await viewerPage.getByLabel("What looked wrong?").fill(reportContext);
+		await viewerPage.getByRole("button", { name: "Flag shared exam" }).click();
+		await expect(viewerPage.getByText("Thanks. The creator has been notified.")).toBeVisible();
+	} finally {
+		await viewerContext.close();
+	}
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		notifications: { title?: string; body?: string; kind?: string; href?: string }[];
+		exams: { id?: string; shareViewerReportCount?: number }[];
+	};
+	expect(exportPayload.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				title: "Shared exam flagged",
+				kind: "share",
+				href: `/exams/${examId}`,
+			}),
+		]),
+	);
+	expect(exportPayload.exams.find((exam) => exam.id === examId)?.shareViewerReportCount).toBe(1);
+
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/abuse");
+	const reportRow = page.getByRole("row").filter({ hasText: reportContext });
+	await expect(reportRow).toHaveCount(1);
+	await expect(reportRow.getByText("share_viewer_report")).toBeVisible();
+	await expect(reportRow.getByText(reportContext)).toBeVisible();
+});
+
 test("completed exam rating captures feedback and hides on incomplete exams", async ({ page }) => {
 	await signInAsTestUser(page, `exam-rating-${Date.now()}@exampull.test`, {
 		tier: "scholar",
