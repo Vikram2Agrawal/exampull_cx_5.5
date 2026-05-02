@@ -43,6 +43,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add PRD downgrade grace for answer-key share links: Stripe downgrade starts 7-day grace, notifies creator, records email communication, preserves answer-key downloads during grace, and removes answer-key access after grace expiry.
 - [x] Add PRD payment-failure grace: Stripe past-due starts a 14-day paid-capability grace, records email/SMS reminders, exposes billing-page warning, pauses downgrade until worker expiry, and starts share-key downgrade grace after payment-grace expiry.
 - [x] Surface top-level outbound communications in the admin Communications tab alongside support inbox feedback.
+- [x] Add audited admin Communications composer: templates, preview interpolation, single-user/test/broadcast modes, URL allowlist enforcement, email/SMS/in-app channels, communication history rows, user notifications, broadcast records, and re-auth-protected send API.
 - [x] Add per-event notification preferences: Settings matrix stores Email/SMS preferences per event, keeps in-app always on, and outbound email/SMS helpers record `skipped_preferences` when users opt out.
 - [x] Add Featurebase customer-voice wiring: signed one-hour SSO JWTs, public board/roadmap/changelog embeds, SSO return route, authenticated in-app launcher, changelog seen-state acknowledgement, and Support Inbox fallback submissions.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
@@ -303,6 +304,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after Featurebase/customer-voice wiring passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 46 desktop Chrome tests and four intended cross-browser/mobile skips.
 - App Hosting deploy after Featurebase/customer-voice wiring passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after Featurebase/customer-voice deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 48 local-only authenticated/quality specs skipped.
+- Focused admin communications composer verification passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "admin communications composer"` with URL allowlist rejection, re-authenticated single-user email/in-app send, outbound rows, recipient notification, and bounded broadcast.
+- Full local gate after admin communications composer passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 47 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

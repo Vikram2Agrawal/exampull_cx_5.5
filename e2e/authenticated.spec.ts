@@ -452,6 +452,82 @@ test("admin write APIs reject missing or invalid CSRF tokens and destructive wri
 	expect(exported.profile?.credits).toBe(15);
 });
 
+test("admin communications composer sends audited single-user messages", async ({ page }) => {
+	const { uid } = await signInAsTestUser(page, `admin-message-${Date.now()}@exampull.test`, {
+		tier: "scholar",
+		credits: 42,
+	});
+	await signInAsAdminAgent(page);
+	await page.goto("/admin/communications");
+	await expect(page.getByRole("heading", { name: "Compose message" })).toBeVisible();
+	const csrfToken = await adminCsrfTokenFromPage(page);
+	const blockedUrlResponse = await page.context().request.post("/api/admin/communications/send", {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+			"x-admin-reauth-password": adminAgentPassword(),
+		},
+		data: {
+			mode: "single",
+			userId: uid,
+			channels: ["email"],
+			subject: "Blocked URL test",
+			body: "Please visit https://malicious.example/phish for details.",
+		},
+	});
+	expect(blockedUrlResponse.status()).toBe(400);
+
+	const singleSubject = `Admin note ${Date.now().toString()} for {{display_name}}`;
+	const renderedSingleSubject = singleSubject.replace("{{display_name}}", "ExamPull E2E");
+	await page.getByPlaceholder("User ID").fill(uid);
+	await page.getByPlaceholder("Subject").fill(singleSubject);
+	await page
+		.getByPlaceholder("Message body")
+		.fill("Hi {{display_name}}, your {{tier}} account has {{credit_balance}} credits.");
+	await page.getByPlaceholder("Re-auth password").fill(adminAgentPassword());
+	await page.getByRole("button", { name: "Send" }).click();
+	await expect(page.getByText("Sent 2 message(s) to 1 recipient(s).")).toBeVisible();
+
+	const row = page.locator("tr").filter({ hasText: renderedSingleSubject });
+	await expect(row).toHaveCount(2);
+	await expect(row.filter({ hasText: "skipped_test" })).toHaveCount(1);
+	await expect(row.filter({ hasText: "sent" })).toHaveCount(1);
+
+	const broadcastSubject = `Broadcast test ${Date.now().toString()}`;
+	const broadcastResponse = await page.context().request.post("/api/admin/communications/send", {
+		headers: {
+			"x-admin-csrf-token": csrfToken,
+			"x-admin-reauth-password": adminAgentPassword(),
+		},
+		data: {
+			mode: "broadcast",
+			channels: ["email"],
+			subject: broadcastSubject,
+			body: "A bounded test-account broadcast from the communications composer.",
+			audience: {
+				tier: "scholar",
+				testAccounts: "only",
+				limit: 1,
+			},
+		},
+	});
+	expect(broadcastResponse.status()).toBe(200);
+	const broadcastPayload = (await broadcastResponse.json()) as {
+		broadcastId?: string;
+		recipientCount?: number;
+		communicationCount?: number;
+	};
+	expect(broadcastPayload.broadcastId).toBeTruthy();
+	expect(broadcastPayload.recipientCount).toBe(1);
+	expect(broadcastPayload.communicationCount).toBe(1);
+	await page.goto("/admin/communications");
+	await expect(page.locator("tr").filter({ hasText: broadcastSubject })).toHaveCount(1);
+
+	await page.goto("/notifications");
+	await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+	await expect(page.getByText(renderedSingleSubject)).toBeVisible();
+	await expect(page.getByText("your scholar account has 42 credits")).toBeVisible();
+});
+
 test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
 	test.setTimeout(180_000);
 	const fingerprint = `preview-claim-${Date.now()}`;

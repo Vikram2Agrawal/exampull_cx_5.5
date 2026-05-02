@@ -1,4 +1,5 @@
 import { AdminShell, AdminTable } from "@/components/admin/admin-shell";
+import { CommunicationComposer } from "@/components/admin/communication-composer";
 import { TriageAction } from "@/components/admin/triage-action";
 import { listAdminCommunications, listAdminFeedback } from "@/lib/admin/data";
 
@@ -22,6 +23,7 @@ export default async function AdminCommunicationsPage() {
 	return (
 		<AdminShell active="Communications">
 			<div className="space-y-6">
+				<CommunicationComposer />
 				<AdminTable
 					title="Outbound Communications"
 					description="Transactional email and SMS sends, provider outcomes, and user-facing bodies."
