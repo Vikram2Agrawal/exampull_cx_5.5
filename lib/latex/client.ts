@@ -19,6 +19,10 @@ function shouldRetry(status: number) {
 	return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
+export function canUseDeterministicLatexFallback(nodeEnv: string | undefined) {
+	return nodeEnv !== "production";
+}
+
 function testOnlyChaosStatus(latex: string) {
 	if (process.env.TEST_SESSION_API_ENABLED !== "true" || !latex.includes(testChaosMarker)) {
 		return null;
@@ -43,6 +47,10 @@ export async function compileLatex({
 	engine?: "pdflatex" | "xelatex";
 }) {
 	if (!env.LATEX_SERVICE_URL) {
+		if (!canUseDeterministicLatexFallback(process.env.NODE_ENV)) {
+			throw new Error("LATEX_SERVICE_URL is required in production.");
+		}
+
 		return {
 			pdfBase64: Buffer.from(`PDF fallback for:\n${latex}`).toString("base64"),
 			pages: [],

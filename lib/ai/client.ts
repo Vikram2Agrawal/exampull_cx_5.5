@@ -36,6 +36,16 @@ export type LlmResult = {
 	latencyMs: number;
 };
 
+export function canUseDeterministicAiFallback({
+	nodeEnv,
+	mockEnabled,
+}: {
+	nodeEnv: string | undefined;
+	mockEnabled: boolean;
+}) {
+	return mockEnabled || nodeEnv !== "production";
+}
+
 function contentText(content: LlmMessage["content"]) {
 	if (typeof content === "string") {
 		return content;
@@ -103,6 +113,15 @@ export async function callLlm({
 	}
 
 	if (!env.OPENROUTER_API_KEY) {
+		if (
+			!canUseDeterministicAiFallback({
+				nodeEnv: process.env.NODE_ENV,
+				mockEnabled: false,
+			})
+		) {
+			throw new Error("OPENROUTER_API_KEY is required in production.");
+		}
+
 		return {
 			content: "OpenRouter key missing. Build-phase deterministic fallback response.",
 			model: modelForStage(stage, tier),

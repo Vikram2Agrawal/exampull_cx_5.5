@@ -62,6 +62,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add accessibility E2E and UI semantics covering keyboard-only signup, wizard, library alert dialog, admin navigation/search, generation tracker labeling, and form live regions.
 - [x] Harden admin queue overview with an index-missing fallback so admin shell navigation does not crash while Firestore indexes are catching up.
 - [x] Add visual/performance quality E2E covering dark/light desktop/mobile screenshots, material discipline, mobile touch targets, horizontal overflow, route paint/CLS metrics, and action-feedback latency.
+- [x] Block deterministic AI and LaTeX fallback artifacts in production while preserving explicit local/test mock gates.
 - [x] Add cross-browser persona matrix covering Scholar Desktop Safari Power Mode drag, Free Mobile Android standard queueing, and Guru Mobile Safari source-upload queueing.
 - [x] Harden signup phone-verification fidelity by deferring email/password Firebase Auth creation until OTP verification, hiding public test-token controls, and adding a phone-less token rejection E2E.
 - [x] Harden admin write APIs with per-session CSRF tokens threaded through the admin shell, credit grant form, triage controls, and referral override controls.
@@ -240,6 +241,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after expired-preview purge deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
 - Cloud Scheduler automation for expired-preview purge provisioned with `pnpm setup:preview-purge-scheduler`; manual Scheduler invocation logged a `200` response for `/api/workers/purge-expired-previews`.
 - Static/script gate after scheduler provisioning passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 32 unit tests.
+- Production deterministic fallback hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` with 34 unit tests covering AI/LaTeX production fallback gates.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
