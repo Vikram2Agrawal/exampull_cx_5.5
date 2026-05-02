@@ -260,6 +260,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after deleted-source-class clone guard deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 44 local-only authenticated/quality specs skipped.
 - Focused completed-exam rating regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "completed exam rating"` with optional feedback, dismissal, complete-only UI, queued API rejection, export fields, and admin feedback row visibility.
 - Full local gate after completed-exam rating flow passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 43 desktop Chrome tests and four intended cross-browser/mobile skips.
+- App Hosting deploy after completed-exam rating flow passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
+- Hosted smoke after completed-exam rating deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 45 local-only authenticated/quality specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
