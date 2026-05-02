@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import Stripe from "stripe";
 import {
 	createTestAuthUser,
+	envValue,
 	idTokenForCustomToken,
 	seedExam,
 	seedVisualAttempt,
@@ -57,6 +59,24 @@ function textPdfBuffer(pages: string[]) {
 	pdf += `trailer\n<< /Size ${orderedIds.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
 
 	return Buffer.from(pdf, "utf8");
+}
+
+async function postSignedStripeEvent(page: Page, event: Record<string, unknown>) {
+	const secret = envValue("STRIPE_WEBHOOK_SECRET");
+	expect(secret, "STRIPE_WEBHOOK_SECRET must be set for billing E2E").toBeTruthy();
+	const payload = JSON.stringify(event);
+	const signature = Stripe.webhooks.generateTestHeaderString({
+		payload,
+		secret: secret ?? "",
+	});
+
+	return page.context().request.post("/api/webhooks/stripe", {
+		headers: {
+			"Content-Type": "application/json",
+			"stripe-signature": signature,
+		},
+		data: payload,
+	});
 }
 
 test.skip(
@@ -1185,6 +1205,147 @@ test("Scholar Boost is atomically consumed across two tabs and restored on repor
 	expect(recoveredExam?.boostedScholar).toBe(true);
 
 	await secondTab.close();
+});
+
+test("signed Stripe billing webhooks grant credits, change tiers, and remain idempotent", async ({
+	page,
+}) => {
+	const { uid } = await signInAsTestUser(page, `billing-webhook-${Date.now()}@exampull.test`, {
+		tier: "free",
+		credits: 40,
+	});
+	const suffix = Date.now();
+	const unsignedResponse = await page.context().request.post("/api/webhooks/stripe", {
+		headers: { "Content-Type": "application/json" },
+		data: JSON.stringify({ id: `evt_unsigned_${suffix}`, type: "checkout.session.completed" }),
+	});
+	expect(unsignedResponse.status()).toBe(400);
+
+	const subscriptionCheckout = {
+		id: `evt_sub_checkout_${suffix}`,
+		object: "event",
+		type: "checkout.session.completed",
+		data: {
+			object: {
+				id: `cs_sub_${suffix}`,
+				object: "checkout.session",
+				customer: `cus_${suffix}`,
+				subscription: `sub_${suffix}`,
+				metadata: {
+					userId: uid,
+					purchaseType: "subscription",
+					tier: "guru",
+					interval: "month",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, subscriptionCheckout)).status()).toBe(200);
+
+	const creditCheckout = {
+		id: `evt_credit_checkout_${suffix}`,
+		object: "event",
+		type: "checkout.session.completed",
+		data: {
+			object: {
+				id: `cs_credit_${suffix}`,
+				object: "checkout.session",
+				customer: `cus_${suffix}`,
+				metadata: {
+					userId: uid,
+					purchaseType: "credits",
+					credits: "100",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, creditCheckout)).status()).toBe(200);
+	expect((await postSignedStripeEvent(page, creditCheckout)).status()).toBe(200);
+
+	const invoicePaid = {
+		id: `evt_invoice_${suffix}`,
+		object: "event",
+		type: "invoice.paid",
+		data: {
+			object: {
+				id: `in_${suffix}`,
+				object: "invoice",
+				billing_reason: "subscription_cycle",
+				parent: {
+					subscription_details: {
+						metadata: {
+							userId: uid,
+							tier: "guru",
+						},
+					},
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, invoicePaid)).status()).toBe(200);
+	expect((await postSignedStripeEvent(page, invoicePaid)).status()).toBe(200);
+
+	const downgrade = {
+		id: `evt_sub_downgrade_${suffix}`,
+		object: "event",
+		type: "customer.subscription.updated",
+		data: {
+			object: {
+				id: `sub_${suffix}`,
+				object: "subscription",
+				status: "active",
+				metadata: {
+					userId: uid,
+					tier: "scholar",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, downgrade)).status()).toBe(200);
+
+	const cancelled = {
+		id: `evt_sub_cancel_${suffix}`,
+		object: "event",
+		type: "customer.subscription.deleted",
+		data: {
+			object: {
+				id: `sub_${suffix}`,
+				object: "subscription",
+				status: "canceled",
+				metadata: {
+					userId: uid,
+					tier: "scholar",
+				},
+			},
+		},
+	};
+	expect((await postSignedStripeEvent(page, cancelled)).status()).toBe(200);
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			tier?: string;
+			credits?: number;
+			subscriptionStatus?: string;
+			stripeCustomerId?: string;
+			stripeSubscriptionId?: string;
+		} | null;
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(exportPayload.profile?.tier).toBe("free");
+	expect(exportPayload.profile?.credits).toBe(8100);
+	expect(exportPayload.profile?.subscriptionStatus).toBe("canceled");
+	expect(exportPayload.profile?.stripeCustomerId).toBe(`cus_${suffix}`);
+	expect(exportPayload.profile?.stripeSubscriptionId).toBe(`sub_${suffix}`);
+	expect(exportPayload.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ title: "guru is active", kind: "billing" }),
+			expect.objectContaining({ title: "Credits added", kind: "billing" }),
+			expect.objectContaining({ title: "Monthly credits refreshed", kind: "billing" }),
+			expect.objectContaining({ title: "Subscription updated", kind: "billing" }),
+		]),
+	);
 });
 
 test("user-scoped exam APIs deny another user's exam id", async ({ browser }) => {

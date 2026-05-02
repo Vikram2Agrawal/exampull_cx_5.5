@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-function envValue(name: string) {
+export function envValue(name: string) {
 	if (process.env[name]) {
 		return process.env[name];
 	}

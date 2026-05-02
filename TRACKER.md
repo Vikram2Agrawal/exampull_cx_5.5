@@ -46,6 +46,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Implement long-PDF source upload extraction progress with TOC/headings stage, page-read metadata, focus-scoped topic prompts, and Next server PDF parser packaging.
 - [x] Add Mobile Safari Power Mode E2E covering tap reorder controls, range bulk edit, and queued mobile Power Mode creation.
 - [x] Add Scholar Boost two-tab E2E covering atomic once-per-account consumption, included grading, report-window refund, and recovered boost reuse.
+- [x] Add signed Stripe billing E2E covering signature rejection, subscription activation/downgrade/cancellation, credit packs, subscription-cycle grants, billing notifications, and duplicate-event idempotency.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -142,6 +143,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after long-PDF wizard deployment passed on desktop Chrome with 2 public smoke tests and local-only authenticated specs skipped.
 - Mobile Safari Power Mode E2E passed: `pnpm exec playwright test --project=mobile-safari e2e/authenticated.spec.ts -g "mobile user can tap reorder"`.
 - Focused Scholar Boost two-tab E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "Scholar Boost is atomically"`.
+- Focused signed Stripe billing E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "signed Stripe billing"`.
+- TypeScript verification after signed Stripe billing E2E passed: `pnpm typecheck`.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
