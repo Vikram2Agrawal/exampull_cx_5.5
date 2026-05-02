@@ -33,6 +33,7 @@ export function AnonymousPreview() {
 		"Second law of thermodynamics\nIsothermal expansion\nEntropy statements",
 	);
 	const [previewImageBase64, setPreviewImageBase64] = useState("");
+	const [previewId, setPreviewId] = useState("");
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
 	const imageSrc = previewImageBase64.startsWith("data:")
@@ -57,14 +58,21 @@ export function AnonymousPreview() {
 				});
 				const body = (await response.json().catch(() => ({}))) as {
 					error?: string;
+					previewId?: string;
 					previewImageBase64?: string;
 				};
 
-				if (!response.ok || typeof body.previewImageBase64 !== "string") {
+				if (
+					!response.ok ||
+					typeof body.previewImageBase64 !== "string" ||
+					typeof body.previewId !== "string"
+				) {
 					throw new Error(body.error ?? "Preview generation failed.");
 				}
 
 				setPreviewImageBase64(body.previewImageBase64);
+				setPreviewId(body.previewId);
+				window.localStorage.setItem("exampull_preview_id", body.previewId);
 				setStatus("Preview ready.");
 			} catch (error) {
 				setStatus(error instanceof Error ? error.message : "Preview generation failed.");
@@ -125,7 +133,7 @@ export function AnonymousPreview() {
 									Create a free account to claim the complete PDF.
 								</p>
 								<Link
-									href="/sign-up"
+									href={previewId ? `/sign-up?preview=${previewId}` : "/sign-up"}
 									className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-hover"
 								>
 									Sign up free

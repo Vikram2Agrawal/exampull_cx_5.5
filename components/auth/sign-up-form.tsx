@@ -43,11 +43,13 @@ async function createSession({
 	displayName,
 	testSignupToken,
 	referralCode,
+	previewId,
 }: {
 	idToken: string;
 	displayName: string;
 	testSignupToken: string;
 	referralCode: string;
+	previewId: string;
 }) {
 	const response = await fetch("/api/auth/session", {
 		method: "POST",
@@ -58,6 +60,7 @@ async function createSession({
 			displayName,
 			testSignupToken,
 			referralCode,
+			previewId,
 		}),
 	});
 
@@ -66,6 +69,8 @@ async function createSession({
 		const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 		throw new Error(payload?.error ?? "ExamPull could not create the account.");
 	}
+
+	return (await response.json()) as { claimedExamId?: string };
 }
 
 export function SignUpForm() {
@@ -79,6 +84,7 @@ export function SignUpForm() {
 	const [phone, setPhone] = useState("");
 	const [testSignupToken, setTestSignupToken] = useState("");
 	const [referralCode, setReferralCode] = useState("");
+	const [previewId, setPreviewId] = useState("");
 	const [verificationId, setVerificationId] = useState("");
 	const [code, setCode] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,6 +97,12 @@ export function SignUpForm() {
 			const cleanCode = code.trim().slice(0, 80);
 			setReferralCode(cleanCode);
 			window.localStorage.setItem("exampull_referral_code", cleanCode);
+		}
+		const preview = params.get("preview") ?? window.localStorage.getItem("exampull_preview_id");
+		if (preview) {
+			const cleanPreview = preview.trim().slice(0, 120);
+			setPreviewId(cleanPreview);
+			window.localStorage.setItem("exampull_preview_id", cleanPreview);
 		}
 	}, []);
 
@@ -163,8 +175,17 @@ export function SignUpForm() {
 			const credential = PhoneAuthProvider.credential(verificationId, code);
 			await linkWithCredential(user, credential);
 			const idToken = await user.getIdToken(true);
-			await createSession({ idToken, displayName, testSignupToken, referralCode });
-			router.push("/dashboard");
+			const session = await createSession({
+				idToken,
+				displayName,
+				testSignupToken,
+				referralCode,
+				previewId,
+			});
+			if (session.claimedExamId) {
+				window.localStorage.removeItem("exampull_preview_id");
+			}
+			router.push(session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard");
 			router.refresh();
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : signupMessage(cause));

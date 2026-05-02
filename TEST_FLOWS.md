@@ -6,7 +6,7 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 
 ## P0 Primary Flows
 
-- [!] P0-AUTH-001 Anonymous preview renders a blurred first-page image without exposing PDF data; full anonymous-to-verified account preservation still needs E2E coverage.
+- [x] P0-AUTH-001 Anonymous preview renders a blurred first-page image without exposing PDF data; authenticated E2E verifies the preview artifact is claimed into a verified account with credits preserved.
 - [ ] P0-AUTH-002 Existing account linking handles email/provider conflict without creating duplicate accounts.
 - [!] P0-AUTH-003 Phone-number conflict requires prior auth source unless dormant 180+ days; server-side policy and unit coverage exist, Firebase credential-collision E2E remains.
 - [x] P0-EXAM-001 Free user queues and completes a 12-question Standard exam from manual topics through the worker; authenticated E2E verifies credit settlement, PDF download, and exported artifacts.
@@ -67,6 +67,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome smoke after phone conflict policy: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome smoke after security-rule regression coverage: `pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome authenticated ownership/security suite: `pnpm exec playwright test --project=desktop-chrome` passed with own exam render plus cross-user exam/class denial.
+- Desktop Chrome anonymous-preview claim suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "anonymous preview can be claimed"` passed with public preview UI, no-PDF response assertion, claim token, verified test account claim, PDF download, and exported artifact.
 - Desktop Chrome authenticated Free manual-topics exam suite: `pnpm exec playwright test --project=desktop-chrome` passed with a 12-question queued Standard exam.
 - Desktop Chrome authenticated Power Mode suite: `pnpm exec playwright test --project=desktop-chrome` passed with Scholar slot edits, reorder, range bulk edit, queueing, and created metadata.
 - Desktop Chrome authenticated one-time source upload suite: `pnpm exec playwright test --project=desktop-chrome` passed with signed Storage upload, ready fallback extraction, exam queueing, and detail-page source retention.
@@ -75,6 +76,7 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Desktop Chrome authenticated Guru visual-feedback worker suite: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"` passed with signed upload, grading, Storage-backed visual feedback artifact, credit settlement, PDF download, and exported base64 artifact.
 - Full local gate after full-worker E2E and Storage-backed exam artifacts: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Full local gate after Storage-backed visual-feedback artifacts: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
+- Full local gate after anonymous-preview claim implementation: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.
@@ -101,4 +103,5 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Hosted production smoke after class style-reference fallback deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Hosted production smoke after Storage-backed exam artifact deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Hosted production smoke after Storage-backed visual-feedback artifact deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
+- Hosted production smoke after anonymous-preview claim deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with local-only authenticated specs skipped.
 - Eval smoke: `pnpm eval:run` wrote `artifacts/eval/2026-05-01T21-59-10-970Z`.

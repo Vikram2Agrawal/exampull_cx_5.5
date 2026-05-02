@@ -37,6 +37,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
 - [x] Add authenticated Guru attempt upload-to-worker E2E covering signed Storage upload, grading, visual feedback generation, credit settlement, PDF download, and data export.
+- [x] Implement no-account preview claim bundles with Storage-backed artifacts, session-time account claiming, and full-credit preservation.
+- [x] Add authenticated anonymous-preview claim E2E covering public preview UI, no-PDF preview response, sign-up CTA preview token, claim into a verified test account, PDF download, and data export.
 - [x] Fix generated paid-tier exams to mark answer keys unlocked at creation time.
 - [x] Add authenticated Scholar completed-exam E2E proving answer key access is visible for paid-tier users.
 - [x] Add authenticated Guru completed-attempt E2E proving downloadable visual feedback PDF access.
@@ -54,7 +56,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Visual annotation now creates a Storage-backed rendered feedback PDF; true overlay-on-original-attempt rendering remains a fidelity improvement.
 - OCR for scanned image-only PDFs is not complete; text PDFs are extracted server-side, and supported image uploads are passed to the AI gateway as multimodal context during extraction and generation.
 - Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
-- Anonymous preview claim-to-account preservation still needs full Firebase anonymous-linking E2E; preview delivery itself no longer exposes the source PDF.
+- Anonymous preview claim-to-account preservation is covered through the verified test-session path; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 
 ## Latest Verification
 
@@ -113,6 +115,9 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Focused Guru visual-feedback worker E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "upload an attempt and complete visual feedback worker"`.
 - Full local gate after Storage-backed visual-feedback artifacts passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
 - Hosted smoke after Storage-backed visual-feedback artifact deployment passed on desktop Chrome with local-only authenticated specs skipped.
+- Focused anonymous-preview claim E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "anonymous preview can be claimed"`.
+- Full local gate after anonymous-preview claim implementation passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome`.
+- Hosted smoke after anonymous-preview claim deployment passed on desktop Chrome with local-only authenticated specs skipped.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

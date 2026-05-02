@@ -4,6 +4,7 @@ import { z } from "zod";
 import { userSessionCookieName, userSessionMaxAgeSeconds } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
+import { claimAnonymousPreview } from "@/lib/preview/claim";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 import { ensureReferralCode } from "@/lib/referrals";
 
@@ -20,6 +21,7 @@ const createSchema = z.object({
 const exchangeSchema = z.object({
 	token: z.string().min(1),
 	idToken: z.string().min(1),
+	previewId: z.string().trim().max(120).optional(),
 });
 
 function assertEnabled(token: string) {
@@ -131,11 +133,16 @@ export async function PUT(request: Request) {
 		},
 		{ merge: true },
 	);
+	const claimedPreview = await claimAnonymousPreview({
+		previewId: input.previewId,
+		userId: decoded.uid,
+		isTestData: true,
+	});
 
 	const sessionCookie = await adminAuth.createSessionCookie(input.idToken, {
 		expiresIn: userSessionMaxAgeSeconds * 1000,
 	});
-	const response = NextResponse.json({ ok: true, uid: decoded.uid });
+	const response = NextResponse.json({ ok: true, uid: decoded.uid, ...claimedPreview });
 	response.cookies.set(userSessionCookieName, sessionCookie, {
 		httpOnly: true,
 		maxAge: userSessionMaxAgeSeconds,

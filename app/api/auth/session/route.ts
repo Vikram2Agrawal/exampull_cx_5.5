@@ -4,6 +4,7 @@ import { decidePhoneConflict, latestAccountActivityMillis } from "@/lib/auth/pho
 import { userSessionCookieName, userSessionMaxAgeSeconds } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { adminAuth, adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { claimAnonymousPreview } from "@/lib/preview/claim";
 import { TIER_MONTHLY_CREDITS } from "@/lib/product/constants";
 import { createReferralSignup, ensureReferralCode } from "@/lib/referrals";
 
@@ -15,6 +16,7 @@ const requestSchema = z.object({
 	displayName: z.string().trim().max(80).optional(),
 	testSignupToken: z.string().optional(),
 	referralCode: z.string().trim().max(80).optional(),
+	previewId: z.string().trim().max(120).optional(),
 });
 
 async function releaseDormantPhoneOwner({
@@ -193,10 +195,15 @@ export async function POST(request: Request) {
 		await ensureReferralCode(decoded.uid);
 	}
 
+	const claimedPreview = await claimAnonymousPreview({
+		previewId: input.previewId,
+		userId: decoded.uid,
+		isTestData: isTestAccount,
+	});
 	const sessionCookie = await adminAuth.createSessionCookie(input.idToken, {
 		expiresIn: userSessionMaxAgeSeconds * 1000,
 	});
-	const response = NextResponse.json({ ok: true });
+	const response = NextResponse.json({ ok: true, ...claimedPreview });
 	response.cookies.set(userSessionCookieName, sessionCookie, {
 		httpOnly: true,
 		maxAge: userSessionMaxAgeSeconds,

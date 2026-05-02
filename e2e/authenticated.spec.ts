@@ -15,6 +15,95 @@ test("authenticated test user can view own seeded exam", async ({ page }) => {
 	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
 });
 
+test("anonymous preview can be claimed by a verified test account", async ({ page }) => {
+	test.setTimeout(180_000);
+	const fingerprint = `preview-claim-${Date.now()}`;
+	await page.route("**/api/preview", async (route) => {
+		await route.continue({
+			headers: {
+				...route.request().headers(),
+				"x-preview-fingerprint": fingerprint,
+			},
+		});
+	});
+
+	await page.goto("/");
+	await page.getByLabel("Preview title").fill("Claimed anonymous preview exam");
+	await page.getByLabel("Topics").fill("Limits and continuity\nDerivative rules\nOptimization");
+	const previewResponsePromise = page.waitForResponse(
+		(response) =>
+			response.url().includes("/api/preview") && response.request().method() === "POST",
+	);
+	await page.getByRole("button", { name: "Generate preview" }).click();
+	const previewResponse = await previewResponsePromise;
+	expect(previewResponse.status()).toBe(200);
+	const previewPayload = (await previewResponse.json()) as {
+		previewId?: string;
+		previewImageBase64?: string;
+		pdfBase64?: string;
+	};
+	expect(previewPayload.previewId).toBeTruthy();
+	expect(previewPayload.previewImageBase64?.length).toBeGreaterThan(100);
+	expect(previewPayload.pdfBase64).toBeUndefined();
+	await expect(page.getByText("Preview ready.")).toBeVisible();
+	const signUpLink = page.getByRole("link", { name: "Sign up free" });
+	await expect(signUpLink).toBeVisible();
+	const href = await signUpLink.getAttribute("href");
+	expect(href).toContain("/sign-up?preview=");
+	const previewId = new URL(href ?? "", "http://localhost:3100").searchParams.get("preview");
+	expect(previewId).toBe(previewPayload.previewId);
+
+	const { claimedExamId } = await signInAsTestUser(
+		page,
+		`preview-claim-${Date.now()}@exampull.test`,
+		{
+			tier: "free",
+			credits: 40,
+			previewId: previewId ?? undefined,
+		},
+	);
+	expect(claimedExamId).toBeTruthy();
+
+	await page.goto(`/exams/${claimedExamId}`);
+	await expect(
+		page.getByRole("heading", { level: 1, name: "Claimed anonymous preview exam" }),
+	).toBeVisible();
+	await expect(page.getByText("No-account preview - 3 questions - Complete")).toBeVisible();
+	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+	const pdfResponse = await page
+		.context()
+		.request.get(`/api/exams/${claimedExamId}/download?type=exam`);
+	expect(pdfResponse.status()).toBe(200);
+	expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
+
+	const exportResponse = await page.context().request.get("/api/settings/export");
+	expect(exportResponse.status()).toBe(200);
+	const exportPayload = (await exportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			creditsReserved?: number;
+			creditsConsumed?: number;
+			anonymousPreviewId?: string;
+			examPdfBase64?: string;
+		}[];
+	};
+	expect(exportPayload.profile?.credits).toBe(40);
+	expect(exportPayload.profile?.reservedCredits).toBe(0);
+	expect(exportPayload.profile?.totalCreditsConsumed).toBe(0);
+	const claimedExam = exportPayload.exams.find((exam) => exam.id === claimedExamId);
+	expect(claimedExam?.status).toBe("complete");
+	expect(claimedExam?.creditsReserved).toBe(0);
+	expect(claimedExam?.creditsConsumed).toBe(0);
+	expect(claimedExam?.anonymousPreviewId).toBe(previewId);
+	expect(claimedExam?.examPdfBase64?.length).toBeGreaterThan(100);
+});
+
 test("scholar user can open answer key action for a completed paid exam", async ({ page }) => {
 	await signInAsTestUser(page, `scholar-answer-${Date.now()}@exampull.test`, {
 		tier: "scholar",

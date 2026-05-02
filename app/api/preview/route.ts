@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { storeAnonymousPreviewArtifact } from "@/lib/exams/artifacts";
 import { buildExamLatex } from "@/lib/exams/latex";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
 	try {
 		const input = requestSchema.parse(await request.json());
 		await enforcePreviewRateLimit(request);
+		const previewId = randomUUID();
 		const latex = buildExamLatex({
 			title: input.title,
 			topics: input.topics,
@@ -70,8 +72,31 @@ export async function POST(request: Request) {
 		if (!firstPageImageBase64) {
 			throw new Error("Preview image rendering unavailable.");
 		}
+		const artifact = await storeAnonymousPreviewArtifact({
+			previewId,
+			compiled,
+		});
+		const now = Timestamp.now();
+
+		await adminDb
+			.collection("anonymous_previews")
+			.doc(previewId)
+			.create({
+				title: input.title,
+				topics: input.topics,
+				questionCount: input.questionCount,
+				examLatex: latex,
+				examPdfStoragePath: artifact.pdfStoragePath,
+				examRenderedPageStoragePaths: artifact.pageStoragePaths,
+				examPdfBytes: artifact.pdfBytes,
+				examRenderedPageCount: artifact.pageStoragePaths.length,
+				createdAt: now,
+				updatedAt: now,
+				expiresAt: Timestamp.fromMillis(now.toMillis() + 30 * 24 * 60 * 60 * 1000),
+			});
 
 		return NextResponse.json({
+			previewId,
 			previewImageBase64: firstPageImageBase64,
 			imageContentType: "image/png",
 			pageCount: compiled.pages.length,

@@ -106,6 +106,22 @@ export async function storeVisualFeedbackArtifact({
 	});
 }
 
+export async function storeAnonymousPreviewArtifact({
+	previewId,
+	compiled,
+}: {
+	previewId: string;
+	compiled: CompiledLatex;
+}): Promise<StoredExamArtifact> {
+	const prefix = `anonymous/previews/${previewId}/artifacts/exam`;
+
+	return storeCompiledArtifact({
+		pdfStoragePath: `${prefix}.pdf`,
+		pagePrefix: `${prefix}-pages`,
+		compiled,
+	});
+}
+
 export async function readStorageBase64(storagePath: string) {
 	const [buffer] = await adminStorage.bucket().file(storagePath).download();
 

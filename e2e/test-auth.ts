@@ -36,7 +36,7 @@ export function testSignupToken() {
 export async function signInAsTestUser(
 	page: Page,
 	email: string,
-	options: { tier?: "free" | "scholar" | "guru"; credits?: number } = {},
+	options: { tier?: "free" | "scholar" | "guru"; credits?: number; previewId?: string } = {},
 ) {
 	const token = testSignupToken();
 	const createResponse = await page.context().request.post("/api/test/session", {
@@ -68,11 +68,12 @@ export async function signInAsTestUser(
 	expect(identityResponse.status).toBe(200);
 	const identityPayload = (await identityResponse.json()) as { idToken: string };
 	const sessionResponse = await page.context().request.put("/api/test/session", {
-		data: { token, idToken: identityPayload.idToken },
+		data: { token, idToken: identityPayload.idToken, previewId: options.previewId },
 	});
 	expect(sessionResponse.status()).toBe(200);
+	const sessionPayload = (await sessionResponse.json()) as { claimedExamId?: string };
 
-	return { uid: createPayload.uid };
+	return { uid: createPayload.uid, claimedExamId: sessionPayload.claimedExamId };
 }
 
 export async function seedExam(page: Page, title: string) {
