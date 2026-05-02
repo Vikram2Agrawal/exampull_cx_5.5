@@ -62,9 +62,10 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated class lifecycle E2E covering create, edit, archive, restore, delete, and missing-after-delete.
 - [x] Add authenticated exam library E2E covering search, filters, grid/list, bookmark, archive/restore, move-to-class, and delete.
 - [x] Build smoke E2E, unit tests, eval artifact harness, stopguard script, and deployment verification loop.
+- [x] Harden stopguard to block completion on open P0-P2 flows, open tracker items, dirty worktrees, unpushed commits, and behind-upstream branches.
 - [ ] Expand full browser/persona E2E coverage for every PRD flow and attach artifacts per testing docs.
 - [x] Deepen visual annotation from metadata overlays into downloadable Guru visual feedback PDF artifacts.
-- [ ] Complete post-v1 admin hardening: passkey/SMS operator auth, CSRF tokens, immutable external audit replication, and destructive-operation reauth.
+- [ ] Complete remaining post-v1 admin hardening: immutable external audit replication and destructive-operation reauth; passkey/SMS operator auth remains deferred by operator direction.
 
 ## Known Risks
 
@@ -186,6 +187,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after admin CSRF hardening passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 37 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after admin CSRF hardening passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after admin CSRF hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 36 local-only authenticated/quality specs skipped.
+- Stopguard hardening verification passed as an intentional block: `pnpm format && pnpm lint && pnpm test && STOPGUARD_ALLOW_DIRTY=true pnpm stopguard` ran format/lint/unit tests green, then refused completion on the remaining open tracker items.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar
