@@ -34,6 +34,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated one-time source upload E2E covering signed Storage write, ready fallback extraction, queueing, and detail-page source retention.
 - [x] Add authenticated class style-reference E2E covering 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and combined exam queueing.
 - [x] Add authenticated full-worker Free exam E2E covering 12-question generation, LaTeX compilation, Storage-backed PDF artifacts, credit settlement, download, and data export.
+- [x] Add paid-exam report recourse: one-time generation credit refund, refund metadata, user notification, abuse triage record, and no double-refund regression coverage.
 - [x] Move generated exam PDFs and rendered pages out of Firestore documents into private Storage artifact paths while preserving legacy inline-base64 reads.
 - [x] Repair the LaTeX Cloud Run image so `pdflatex` and `xelatex` are installed and exposed on `PATH`.
 - [x] Move Guru visual-feedback PDFs and rendered pages to private Storage artifact paths with legacy inline-base64 read compatibility.
@@ -247,6 +248,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Hosted smoke after deterministic fallback hardening deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 42 local-only authenticated/quality specs skipped.
 - Focused in-flight class deletion regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "class deletion is blocked"` with 34 unit tests and a queued class-backed exam 409 assertion.
 - Full local gate after in-flight class deletion coverage passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
+- Focused paid-exam report/refund regression passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "free user can complete a full 12-question worker generation"` with credit restoration, refund metadata, notification, and no double-refund assertions.
+- Full local gate after paid-exam report/refund recourse passed: `pnpm build && pnpm exec playwright test --project=desktop-chrome` with 41 desktop Chrome tests and four intended cross-browser/mobile skips.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

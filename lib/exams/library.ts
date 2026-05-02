@@ -5,6 +5,7 @@ import { publicBaseUrl } from "@/lib/env";
 import { readStorageBase64 } from "@/lib/exams/artifacts";
 import { createExamForUser, createExamRequestSchema } from "@/lib/exams/create";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
+import { createUserNotification } from "@/lib/user/data";
 
 const shareCollection = adminDb.collection("share_links");
 const abuseCollection = adminDb.collection("abuseReports");
@@ -157,35 +158,78 @@ export async function updateExamForUser({
 		updateData.reportReason = parsed.reportReason;
 	}
 
-	await ref.update(updateData);
-
 	if (parsed.reportReason !== undefined) {
-		const createdAt = snapshot.get("createdAt");
-		const boostedScholar = Boolean(snapshot.get("boostedScholar") ?? false);
-		const boostWithinRegretWindow =
-			boostedScholar &&
-			createdAt instanceof Timestamp &&
-			Date.now() - createdAt.toMillis() <= 24 * 60 * 60 * 1000;
+		const reportResult = await adminDb.runTransaction(async (transaction) => {
+			const userRef = adminDb.collection("users").doc(user.uid);
+			const [freshExam, freshUser] = await Promise.all([
+				transaction.get(ref),
+				transaction.get(userRef),
+			]);
 
-		if (boostWithinRegretWindow) {
-			await adminDb.collection("users").doc(user.uid).set(
-				{
+			if (!freshExam.exists) {
+				throw new Error("Exam not found.");
+			}
+
+			const now = Timestamp.now();
+			const examUpdate = {
+				...updateData,
+				reportedAt: now,
+				updatedAt: now,
+			};
+			const userUpdate: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {};
+			const createdAt = freshExam.get("createdAt");
+			const boostedScholar = Boolean(freshExam.get("boostedScholar") ?? false);
+			const boostAlreadyRefunded = freshExam.get("boostRefundedAt") instanceof Timestamp;
+			const boostWithinRegretWindow =
+				boostedScholar &&
+				!boostAlreadyRefunded &&
+				createdAt instanceof Timestamp &&
+				Date.now() - createdAt.toMillis() <= 24 * 60 * 60 * 1000;
+			const creditsConsumed = Number(freshExam.get("creditsConsumed") ?? 0);
+			const creditsAlreadyRefunded = freshExam.get("creditsRefundedAt") instanceof Timestamp;
+			let creditsRefundedAmount = 0;
+
+			if (boostWithinRegretWindow) {
+				Object.assign(userUpdate, {
 					boostUsedAt: FieldValue.delete(),
 					boostExamId: FieldValue.delete(),
 					boostGradingUsedAt: FieldValue.delete(),
 					boostGradingAttemptId: FieldValue.delete(),
-					updatedAt: Timestamp.now(),
-				},
-				{ merge: true },
-			);
-			await ref.set(
-				{
-					boostRefundedAt: Timestamp.now(),
-					updatedAt: Timestamp.now(),
-				},
-				{ merge: true },
-			);
-		}
+				});
+				Object.assign(examUpdate, { boostRefundedAt: now });
+			}
+
+			if (creditsConsumed > 0 && !creditsAlreadyRefunded) {
+				creditsRefundedAmount = creditsConsumed;
+				Object.assign(userUpdate, {
+					credits: Number(freshUser.get("credits") ?? 0) + creditsRefundedAmount,
+					totalCreditsRefunded:
+						Number(freshUser.get("totalCreditsRefunded") ?? 0) + creditsRefundedAmount,
+				});
+				Object.assign(examUpdate, {
+					creditsRefundedAt: now,
+					creditsRefundedAmount,
+				});
+			}
+
+			transaction.set(ref, examUpdate, { merge: true });
+
+			if (Object.keys(userUpdate).length > 0) {
+				transaction.set(
+					userRef,
+					{
+						...userUpdate,
+						updatedAt: now,
+					},
+					{ merge: true },
+				);
+			}
+
+			return {
+				boostRefunded: boostWithinRegretWindow,
+				creditsRefundedAmount,
+			};
+		});
 
 		await abuseCollection.add({
 			kind: "exam_report",
@@ -193,11 +237,24 @@ export async function updateExamForUser({
 			examId,
 			reason: parsed.reportReason,
 			status: "open",
-			boostRefunded: boostWithinRegretWindow,
+			boostRefunded: reportResult.boostRefunded,
+			creditsRefundedAmount: reportResult.creditsRefundedAmount,
 			isTestData: user.isTestAccount,
 			createdAt: Timestamp.now(),
 			updatedAt: Timestamp.now(),
 		});
+
+		if (reportResult.creditsRefundedAmount > 0) {
+			await createUserNotification({
+				userId: user.uid,
+				title: "Credits refunded",
+				body: `${reportResult.creditsRefundedAmount} credits were restored while your exam report is reviewed.`,
+				kind: "exam",
+				href: `/exams/${examId}`,
+			});
+		}
+	} else {
+		await ref.update(updateData);
 	}
 
 	return { examId };

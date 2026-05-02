@@ -809,6 +809,62 @@ test("free user can complete a full 12-question worker generation", async ({ pag
 	expect(completedExam?.creditsConsumed).toBe(24);
 	expect(completedExam?.examPdfBase64?.length).toBeGreaterThan(100);
 	expect(completedExam?.answerKeyPdfBase64?.length).toBeGreaterThan(100);
+
+	const reportResponse = await page
+		.context()
+		.request.patch(`/api/exams/${createPayload.examId}`, {
+			data: { reportReason: "Generated exam refund regression coverage." },
+		});
+	expect(reportResponse.status()).toBe(200);
+	const refundExportResponse = await page.context().request.get("/api/settings/export");
+	expect(refundExportResponse.status()).toBe(200);
+	const refundPayload = (await refundExportResponse.json()) as {
+		profile: {
+			credits?: number;
+			reservedCredits?: number;
+			totalCreditsConsumed?: number;
+			totalCreditsRefunded?: number;
+		} | null;
+		exams: {
+			id: string;
+			status?: string;
+			creditsConsumed?: number;
+			creditsRefundedAmount?: number;
+			creditsRefundedAt?: unknown;
+		}[];
+		notifications: { title?: string; kind?: string }[];
+	};
+	expect(refundPayload.profile?.credits).toBe(24);
+	expect(refundPayload.profile?.reservedCredits).toBe(0);
+	expect(refundPayload.profile?.totalCreditsConsumed).toBe(24);
+	expect(refundPayload.profile?.totalCreditsRefunded).toBe(24);
+	const reportedExam = refundPayload.exams.find((exam) => exam.id === createPayload.examId);
+	expect(reportedExam?.status).toBe("reported");
+	expect(reportedExam?.creditsConsumed).toBe(24);
+	expect(reportedExam?.creditsRefundedAmount).toBe(24);
+	expect(reportedExam?.creditsRefundedAt).toBeTruthy();
+	expect(refundPayload.notifications).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ title: "Credits refunded", kind: "exam" }),
+		]),
+	);
+
+	const duplicateReportResponse = await page
+		.context()
+		.request.patch(`/api/exams/${createPayload.examId}`, {
+			data: { reportReason: "Second report should not double-refund credits." },
+		});
+	expect(duplicateReportResponse.status()).toBe(200);
+	const duplicateRefundExport = await page.context().request.get("/api/settings/export");
+	expect(duplicateRefundExport.status()).toBe(200);
+	const duplicateRefundPayload = (await duplicateRefundExport.json()) as {
+		profile: {
+			credits?: number;
+			totalCreditsRefunded?: number;
+		} | null;
+	};
+	expect(duplicateRefundPayload.profile?.credits).toBe(24);
+	expect(duplicateRefundPayload.profile?.totalCreditsRefunded).toBe(24);
 });
 
 test("LaTeX 503 retry completes generation without duplicate credits or QA budget", async ({
