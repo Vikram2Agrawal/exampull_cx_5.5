@@ -876,7 +876,9 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 	await page.getByLabel("Question 2 style").selectOption("calculation");
 	await page.getByLabel("Question 2 difficulty").selectOption("hardcore");
 	await page.getByLabel("Question 2 points").fill("12");
-	await page.getByRole("button", { name: "Move question 2 up" }).click();
+	await page
+		.getByRole("button", { name: "Drag question 2" })
+		.dragTo(page.getByTestId("power-slot-1"));
 	await expect(page.getByLabel("Question 1 topic")).toHaveValue("Reaction kinetics");
 	await expect(page.getByLabel("Question 2 topic")).toHaveValue("Entropy");
 
@@ -938,6 +940,14 @@ test("mobile user can tap reorder and bulk edit Power Mode slots", async ({ page
 	await page.getByLabel("Question 1 topic").fill("Photosynthesis");
 	await page.getByRole("button", { name: "Add slot" }).click();
 	await page.getByLabel("Question 2 topic").fill("Calvin cycle");
+	const moveButtonBox = await page
+		.getByRole("button", { name: "Move question 2 up" })
+		.boundingBox();
+	if (!moveButtonBox) {
+		throw new Error("Mobile Power Mode move button did not render.");
+	}
+	expect(moveButtonBox.width).toBeGreaterThanOrEqual(44);
+	expect(moveButtonBox.height).toBeGreaterThanOrEqual(44);
 	await page.getByRole("button", { name: "Move question 2 up" }).click();
 	await expect(page.getByLabel("Question 1 topic")).toHaveValue("Calvin cycle");
 	await expect(page.getByLabel("Question 2 topic")).toHaveValue("Photosynthesis");

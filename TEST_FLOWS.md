@@ -25,8 +25,8 @@ Legend: `[ ]` untested, `[x]` passing, `[!]` failing or blocked.
 - [x] P1-WIZARD-002 Long PDF with focus shows TOC-reading progress and extracts scoped topics; authenticated E2E verifies PDF upload progress, page-read metadata, worker extraction, and focus-scoped topics.
 - [x] P1-WIZARD-003 Topic extraction failure offers best-effort/manual fallback; authenticated E2E verifies warning status, fallback topics, and use in exam creation.
 - [x] P1-WIZARD-004 Scanned or image-only PDF upload renders page images for multimodal topic extraction; authenticated E2E verifies rendered-page metadata, ready status, and focus-scoped topics without fallback warning.
-- [x] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; authenticated E2E covers slot edits, reorder, range bulk edit, queueing, and created metadata.
-- [x] P1-POWER-002 Mobile Power Mode uses tap reorder and bulk actions; Mobile Safari E2E verifies tap reorder, range bulk edit, and queueing.
+- [x] P1-POWER-001 Scholar/Guru Power Mode creates and reorders per-question slots on desktop; authenticated E2E covers slot edits, drag-and-drop reorder, range bulk edit, queueing, and created metadata.
+- [x] P1-POWER-002 Mobile Power Mode uses 44px tap targets for reorder and bulk actions; Mobile Safari E2E verifies tap target size, tap reorder, range bulk edit, and queueing.
 - [x] P1-LIBRARY-001 Library search, filter, bookmark, archive, restore, delete, move-to-class, grid/list, and bulk actions pass authenticated E2E.
 - [x] P1-DETAIL-001 Exam detail shows PDF viewer, metadata, sources, attempts, rating, clone, archive, report, and share.
 - [x] P1-SHARE-001 Share link exposes student-copy PDF only; answer key remains private to authenticated creator tier.
@@ -130,6 +130,8 @@ This file starts from the PRD coverage map in `TESTING_PHILOSOPHY.md` §17 and w
 - Focused scanned-PDF topic extraction E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "scanned PDF upload"` with textless PDF upload, rendered page image extraction, ready status, focus-scoped topics, and no best-effort warning.
 - Full local gate after scanned-PDF rendered-page extraction: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 38 desktop Chrome tests and one mobile-only skip.
 - Hosted production smoke after scanned-PDF rendered-page extraction deployment: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` passed with 2 public smoke tests and 37 local-only authenticated/quality specs skipped.
+- Focused Power Mode reorder fidelity E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "reordered Power Mode"` and `pnpm exec playwright test --project=mobile-safari e2e/authenticated.spec.ts -g "mobile user can tap reorder"` with drag-handle desktop reorder plus 44px mobile move-target assertions.
+- Full local gate after Power Mode pointer-drag reorder: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` passed with 38 desktop Chrome tests and one mobile-only skip.
 - Desktop Chrome authenticated credit-race suite: `pnpm exec playwright test --project=desktop-chrome` passed with exactly one of two parallel full-cost Free exam requests accepted.
 - Desktop Chrome authenticated Scholar answer-key suite: `pnpm exec playwright test --project=desktop-chrome` passed with answer key action visible on a completed paid exam.
 - Desktop Chrome authenticated Guru visual-feedback suite: `pnpm exec playwright test --project=desktop-chrome` passed with visual feedback PDF download returning `application/pdf`.

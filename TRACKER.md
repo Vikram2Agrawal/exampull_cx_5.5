@@ -30,6 +30,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Add authenticated Free manual-topics E2E for queuing a 12-question Standard exam without enqueueing Cloud Tasks during local tests.
 - [x] Add authenticated concurrent credit-reservation E2E proving exactly one full-cost Free exam request wins.
 - [x] Add authenticated Scholar Power Mode E2E covering slot edits, reorder, range bulk edit, queueing, and created-exam metadata.
+- [x] Add desktop Power Mode drag-and-drop reorder and mobile 44px tap-target verification while preserving keyboard/fallback move controls.
 - [x] Add authenticated one-time source upload E2E covering signed Storage write, ready fallback extraction, queueing, and detail-page source retention.
 - [x] Add authenticated class style-reference E2E covering 2-credit accounting, fallback style guide, stored material selection, ad hoc upload, manual topics, and combined exam queueing.
 - [x] Add authenticated full-worker Free exam E2E covering 12-question generation, LaTeX compilation, Storage-backed PDF artifacts, credit settlement, download, and data export.
@@ -76,7 +77,6 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - The repository began with documentation only; implementation is new and still needs broad cross-browser exploratory coverage.
 - Admin phone/passkey flows remain out of this loop by operator direction; autonomous testing uses agent admin auth.
 - Scanned image-only PDFs now render the first pages into multimodal extraction context; true OCR text caching/search over scanned PDFs remains a deeper document-ingestion fidelity pass.
-- Power Mode has explicit up/down reordering and bulk range edits; drag-and-drop and tap-to-target mobile reorder remain fidelity improvements.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 - Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
 
@@ -207,6 +207,8 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Full local gate after scanned-PDF rendered-page extraction passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and one mobile-only skip.
 - App Hosting deploy after scanned-PDF rendered-page extraction passed: `pnpm exec firebase deploy --only apphosting --project exampull-gpt-5-5 --non-interactive`.
 - Hosted smoke after scanned-PDF rendered-page extraction deployment passed: `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome` with 2 public smoke tests and 37 local-only authenticated/quality specs skipped.
+- Focused Power Mode reorder fidelity E2E passed: `pnpm exec playwright test --project=desktop-chrome e2e/authenticated.spec.ts -g "reordered Power Mode"` and `pnpm exec playwright test --project=mobile-safari e2e/authenticated.spec.ts -g "mobile user can tap reorder"` with drag-handle desktop reorder plus 44px mobile move-target assertions.
+- Full local gate after Power Mode pointer-drag reorder passed: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test --project=desktop-chrome` with 38 desktop Chrome tests and one mobile-only skip.
 - `pnpm eval:run` writes eval artifacts under `artifacts/eval/`; latest run `artifacts/eval/2026-05-01T21-59-10-970Z`.
 
 ## Completion Bar

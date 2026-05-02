@@ -6,6 +6,7 @@ import {
 	ArrowUp,
 	Copy,
 	FileUp,
+	GripVertical,
 	ListPlus,
 	Plus,
 	RefreshCw,
@@ -13,7 +14,15 @@ import {
 	WandSparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import {
+	type ChangeEvent,
+	type FormEvent,
+	type PointerEvent,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
 import type { ClassSummary, MaterialSummary } from "@/lib/classes/data";
@@ -271,6 +280,8 @@ export function NewExamForm({
 	const [rangeStyle, setRangeStyle] = useState<QuestionStyle>("short_answer");
 	const [rangeDifficulty, setRangeDifficulty] = useState<QuestionDifficulty>("balanced");
 	const [rangePoints, setRangePoints] = useState(10);
+	const [dragOverPowerSlotId, setDragOverPowerSlotId] = useState<string | null>(null);
+	const draggedPowerSlotIdRef = useRef<string | null>(null);
 	const [isUploadingSource, setIsUploadingSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -626,6 +637,82 @@ export function NewExamForm({
 			next[index] = target;
 			return next;
 		});
+	}
+
+	function reorderPowerSlot(draggedSlotId: string, targetSlotId: string) {
+		if (draggedSlotId === targetSlotId) {
+			return;
+		}
+
+		setPowerSlots((current) => {
+			const draggedIndex = current.findIndex((slot) => slot.id === draggedSlotId);
+			if (draggedIndex === -1) {
+				return current;
+			}
+
+			const next = [...current];
+			const [draggedSlot] = next.splice(draggedIndex, 1);
+			const targetIndex = next.findIndex((slot) => slot.id === targetSlotId);
+			if (targetIndex === -1) {
+				return current;
+			}
+
+			next.splice(targetIndex, 0, draggedSlot);
+			return next;
+		});
+	}
+
+	function powerSlotIdFromPoint(clientX: number, clientY: number) {
+		const element = document.elementFromPoint(clientX, clientY);
+		const slotElement = element?.closest("[data-power-slot-id]");
+		return slotElement instanceof HTMLElement
+			? (slotElement.dataset.powerSlotId ?? null)
+			: null;
+	}
+
+	function startPowerSlotPointerDrag(
+		event: PointerEvent<HTMLButtonElement>,
+		slotIdValue: string,
+	) {
+		if (event.button !== 0) {
+			return;
+		}
+
+		event.preventDefault();
+		draggedPowerSlotIdRef.current = slotIdValue;
+		event.currentTarget.setPointerCapture(event.pointerId);
+	}
+
+	function movePowerSlotPointerDrag(event: PointerEvent<HTMLButtonElement>) {
+		const draggedSlotId = draggedPowerSlotIdRef.current;
+		if (!draggedSlotId) {
+			return;
+		}
+
+		const targetSlotId = powerSlotIdFromPoint(event.clientX, event.clientY);
+		setDragOverPowerSlotId(
+			targetSlotId && targetSlotId !== draggedSlotId ? targetSlotId : null,
+		);
+	}
+
+	function finishPowerSlotPointerDrag(event: PointerEvent<HTMLButtonElement>) {
+		const draggedSlotId = draggedPowerSlotIdRef.current;
+		const targetSlotId = powerSlotIdFromPoint(event.clientX, event.clientY);
+		draggedPowerSlotIdRef.current = null;
+		setDragOverPowerSlotId(null);
+
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
+
+		if (draggedSlotId && targetSlotId && draggedSlotId !== targetSlotId) {
+			reorderPowerSlot(draggedSlotId, targetSlotId);
+		}
+	}
+
+	function cancelPowerSlotPointerDrag() {
+		draggedPowerSlotIdRef.current = null;
+		setDragOverPowerSlotId(null);
 	}
 
 	function setAllPowerSlots(update: Partial<PowerQuestionSlot>) {
@@ -1180,12 +1267,32 @@ export function NewExamForm({
 							Apply range
 						</Button>
 					</div>
-					<div className="space-y-3">
+					<ul className="space-y-3" aria-label="Power Mode question slots">
 						{powerSlots.map((slot, index) => (
-							<div
+							<li
 								key={slot.id}
-								className="grid gap-3 rounded-lg border border-glass-border bg-background/55 p-3 lg:grid-cols-[44px_1fr_150px_130px_92px_160px]"
+								data-testid={`power-slot-${index + 1}`}
+								data-power-slot-id={slot.id}
+								className={`grid gap-3 rounded-lg border bg-background/55 p-3 transition lg:grid-cols-[44px_44px_1fr_150px_130px_92px_184px] ${
+									dragOverPowerSlotId === slot.id
+										? "border-brand ring-2 ring-brand/30"
+										: "border-glass-border"
+								}`}
 							>
+								<button
+									type="button"
+									onPointerDown={(event) =>
+										startPowerSlotPointerDrag(event, slot.id)
+									}
+									onPointerMove={movePowerSlotPointerDrag}
+									onPointerUp={finishPowerSlotPointerDrag}
+									onPointerCancel={cancelPowerSlotPointerDrag}
+									onLostPointerCapture={cancelPowerSlotPointerDrag}
+									className="flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground active:cursor-grabbing"
+									aria-label={`Drag question ${index + 1}`}
+								>
+									<GripVertical aria-hidden="true" size={18} />
+								</button>
 								<div className="flex h-11 items-center justify-center rounded-lg bg-glass text-sm font-semibold">
 									{index + 1}
 								</div>
@@ -1277,7 +1384,7 @@ export function NewExamForm({
 								<div className="flex items-start justify-end gap-1">
 									<button
 										type="button"
-										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
 										onClick={() => movePowerSlot(slot.id, -1)}
 										disabled={index === 0}
 										aria-label={`Move question ${index + 1} up`}
@@ -1286,7 +1393,7 @@ export function NewExamForm({
 									</button>
 									<button
 										type="button"
-										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
 										onClick={() => movePowerSlot(slot.id, 1)}
 										disabled={index === powerSlots.length - 1}
 										aria-label={`Move question ${index + 1} down`}
@@ -1295,7 +1402,7 @@ export function NewExamForm({
 									</button>
 									<button
 										type="button"
-										className="rounded-lg p-2 text-muted hover:bg-glass hover:text-foreground"
+										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
 										onClick={() => duplicatePowerSlot(slot.id)}
 										disabled={powerSlots.length >= maxQuestions}
 										aria-label={`Duplicate question ${index + 1}`}
@@ -1304,16 +1411,16 @@ export function NewExamForm({
 									</button>
 									<button
 										type="button"
-										className="rounded-lg p-2 text-error hover:bg-error/10"
+										className="flex h-11 w-11 items-center justify-center rounded-lg text-error transition hover:bg-error/10"
 										onClick={() => removePowerSlot(slot.id)}
 										aria-label={`Remove question ${index + 1}`}
 									>
 										<Trash2 aria-hidden="true" size={16} />
 									</button>
 								</div>
-							</div>
+							</li>
 						))}
-					</div>
+					</ul>
 				</div>
 			) : null}
 			{error ? (
