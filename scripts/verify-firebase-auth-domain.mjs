@@ -156,6 +156,31 @@ async function readAuthConfig(projectId, token) {
 	};
 }
 
+async function readGoogleProviderConfig(projectId, token) {
+	const response = await fetch(
+		`https://identitytoolkit.googleapis.com/v2/projects/${encodeURIComponent(projectId)}/defaultSupportedIdpConfigs/google.com`,
+		{
+			headers: { Authorization: `Bearer ${token}` },
+		},
+	);
+
+	if (response.status === 404) {
+		return { enabled: false };
+	}
+
+	if (!response.ok) {
+		throw new Error(`Google provider config read failed with ${response.status}.`);
+	}
+
+	const payload = await response.json();
+
+	return {
+		enabled: payload.enabled === true,
+		clientId: typeof payload.clientId === "string" ? payload.clientId : "",
+		clientSecret: typeof payload.clientSecret === "string" ? payload.clientSecret : "",
+	};
+}
+
 async function writeAuthConfig(projectId, token, payload, updateMask) {
 	const response = await fetch(
 		`https://identitytoolkit.googleapis.com/v2/projects/${encodeURIComponent(projectId)}/config?updateMask=${encodeURIComponent(updateMask)}`,
@@ -171,6 +196,24 @@ async function writeAuthConfig(projectId, token, payload, updateMask) {
 
 	if (!response.ok) {
 		throw new Error(`Identity Toolkit config patch failed with ${response.status}.`);
+	}
+}
+
+async function writeGoogleProviderConfig(projectId, token, payload, updateMask) {
+	const response = await fetch(
+		`https://identitytoolkit.googleapis.com/v2/projects/${encodeURIComponent(projectId)}/defaultSupportedIdpConfigs/google.com?updateMask=${encodeURIComponent(updateMask)}`,
+		{
+			method: "PATCH",
+			headers: {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(payload),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error(`Google provider config patch failed with ${response.status}.`);
 	}
 }
 
@@ -209,6 +252,7 @@ try {
 	const hostname = new URL(resolvedWebUrl).hostname;
 	const token = await accessToken(env);
 	const config = await readAuthConfig(resolvedProjectId, token);
+	const googleProvider = await readGoogleProviderConfig(resolvedProjectId, token);
 	const missingChecks = [];
 	const phoneTest = testPhoneConfig(env);
 
@@ -218,6 +262,10 @@ try {
 
 	if (!config.phoneNumberEnabled) {
 		missingChecks.push("Phone Auth provider");
+	}
+
+	if (!googleProvider.enabled) {
+		missingChecks.push("Google Auth provider");
 	}
 
 	if (phoneTest && config.testPhoneNumbers[phoneTest.phoneNumber] !== phoneTest.code) {
@@ -263,6 +311,24 @@ try {
 			"signIn.phoneNumber",
 		);
 		console.log("Firebase Phone Auth provider verified.");
+	}
+
+	if (!googleProvider.enabled) {
+		if (!googleProvider.clientId || !googleProvider.clientSecret) {
+			throw new Error("Google Auth provider is disabled and has no OAuth client configured.");
+		}
+
+		await writeGoogleProviderConfig(
+			resolvedProjectId,
+			token,
+			{
+				enabled: true,
+				clientId: googleProvider.clientId,
+				clientSecret: googleProvider.clientSecret,
+			},
+			"enabled",
+		);
+		console.log("Firebase Google Auth provider enabled.");
 	}
 } catch (cause) {
 	console.error(cause instanceof Error ? cause.message : "Firebase Auth domain check failed.");

@@ -541,6 +541,15 @@ Stored at a known location outside the repo (binary/large; referenced by ID in t
 
 Sources: open educational resources (OpenStax, Project Gutenberg, Wikipedia), AI-generated synthetics for fictitious courses, hand-crafted edge cases.
 
+Local real-course fixtures are available at `/Users/vikram/class_uploadables` and must be used when validating upload UX, extraction resilience, and exam grounding. Current curated browser fixtures:
+
+- `Undergrad - CS 270, USC/PDFs/HW 9.pdf` for technical CS/problem-set grounding.
+- `Undergrad - ECON 351, USC/Images/Discussion 9 - Game Theory Part 1.pdf/Discussion 9 - Game Theory Part 1.pdf-02.jpg` for image-page upload and noisy rendered PDF coverage.
+- `Undergrad - BUAD 312 - Data Science And Statistics, USC/PDFs/BUAD312_ Hypothesis testing wrap-up.pdf` for quantitative business/statistics lecture material.
+- `Undergrad - WRIT 150, USC/PDFs/Covid impact survey.pdf.pdf` for writing/reading material and instructor-style-reference coverage.
+
+These fixtures do not replace synthetic edge cases. They prevent the upload suite from passing only because it used tiny, clean files.
+
 ### Payment Resources
 - **Stripe test mode**: real Stripe API, test keys, all standard test cards (`4242...` success, `4000...0002` declined, `4000...3220` 3DS-required, `4000...0069` expired, `4000...9995` insufficient, `4000...0119` processing-error, `4000...0341` network-failure)
 - **Stored payment methods**: at least one account with stored card, one without, one with about-to-expire

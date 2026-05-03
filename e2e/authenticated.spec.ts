@@ -242,6 +242,8 @@ test("settings shows synced linked auth sources without duplicate account state"
 	await expect(page.getByText(email).first()).toBeVisible();
 	await expect(page.getByText("Phone")).toBeVisible();
 	await expect(page.getByRole("button", { name: "Link Google" })).toBeVisible();
+	await page.getByRole("button", { name: "Link Google" }).click();
+	await expect(page.getByText("Sign in again before linking Google.")).toBeVisible();
 	await expect(page.getByLabel("Payment failure SMS")).toBeChecked();
 	await page.getByLabel("Payment failure SMS").uncheck();
 	await page.getByLabel("Low credits email").check();
@@ -1569,7 +1571,7 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Free manual topics exam");
 	await page
-		.getByRole("textbox", { name: "Topics" })
+		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Implicit differentiation\nRelated rates\nOptimization");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
@@ -1838,9 +1840,9 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Power Mode orchestration exam");
-	await page.getByLabel("Class label").fill("Physical Chemistry");
+	await page.getByLabel("Course or class").fill("Physical Chemistry");
 	await page
-		.getByRole("textbox", { name: "Topics" })
+		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Entropy\nReaction kinetics\nElectrochemistry");
 	await page.getByRole("button", { name: "Power" }).click();
 	await expect(page.getByRole("heading", { name: "Power Mode slots" })).toBeVisible();
@@ -1907,9 +1909,9 @@ test("mobile user can tap reorder and bulk edit Power Mode slots", async ({ page
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Mobile Power Mode exam");
-	await page.getByLabel("Class label").fill("AP Biology Mobile");
+	await page.getByLabel("Course or class").fill("AP Biology Mobile");
 	await page
-		.getByRole("textbox", { name: "Topics" })
+		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Photosynthesis\nCalvin cycle\nCellular respiration");
 	await page.getByRole("button", { name: "Power" }).click();
 	await page.getByLabel("Question 1 topic").fill("Photosynthesis");
@@ -1955,8 +1957,10 @@ test("authenticated user can upload one-time source material and queue a grounde
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Ad hoc upload grounded exam");
-	await page.getByLabel("Class label").fill("Chemistry source upload");
-	await page.getByLabel("Focus for next upload").fill("rate laws and Arrhenius equation");
+	await page.getByLabel("Course or class").fill("Chemistry source upload");
+	await page
+		.getByLabel("What should ExamPull focus on?")
+		.fill("rate laws and Arrhenius equation");
 	await page.getByLabel("Upload files").setInputFiles({
 		name: "rate-laws-notes.txt",
 		mimeType: "text/plain",
@@ -1969,7 +1973,7 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
 	await expect(page.getByText(/topics extracted/)).toBeVisible();
 
-	await page.getByRole("textbox", { name: "Topics" }).fill("Activation energy");
+	await page.getByRole("textbox", { name: "Topics to include" }).fill("Activation energy");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -2195,26 +2199,28 @@ test("new exam wizard preserves source topic and configure drafts across refresh
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Refresh preserved exam");
-	await page.getByLabel("Class label").fill("Chaos Biology");
-	await page.getByLabel("Focus for next upload").fill("Chapters 4-6 only");
-	await page.getByLabel("Style reference").check();
+	await page.getByLabel("Course or class").fill("Chaos Biology");
+	await page.getByLabel("What should ExamPull focus on?").fill("Chapters 4-6 only");
+	await page.getByLabel("Use as a format example").check();
 	await page.reload();
 	await expect(page.getByLabel("Exam title")).toHaveValue("Refresh preserved exam");
-	await expect(page.getByLabel("Class label")).toHaveValue("Chaos Biology");
-	await expect(page.getByLabel("Focus for next upload")).toHaveValue("Chapters 4-6 only");
-	await expect(page.getByLabel("Style reference")).toBeChecked();
+	await expect(page.getByLabel("Course or class")).toHaveValue("Chaos Biology");
+	await expect(page.getByLabel("What should ExamPull focus on?")).toHaveValue(
+		"Chapters 4-6 only",
+	);
+	await expect(page.getByLabel("Use as a format example")).toBeChecked();
 
 	await page
-		.getByRole("textbox", { name: "Topics" })
+		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Cell signaling\nSignal transduction\nSecond messengers");
 	await page
-		.getByLabel("Source notes")
+		.getByLabel("Extra directions")
 		.fill("Favor diagram interpretation and multi-step pathway reasoning.");
 	await page.reload();
-	await expect(page.getByRole("textbox", { name: "Topics" })).toHaveValue(
+	await expect(page.getByRole("textbox", { name: "Topics to include" })).toHaveValue(
 		"Cell signaling\nSignal transduction\nSecond messengers",
 	);
-	await expect(page.getByLabel("Source notes")).toHaveValue(
+	await expect(page.getByLabel("Extra directions")).toHaveValue(
 		"Favor diagram interpretation and multi-step pathway reasoning.",
 	);
 
@@ -2415,7 +2421,7 @@ test("authenticated user can upload a class style reference and see credit accou
 	await page.getByLabel("Exam title").fill("Combined stored and ad hoc sources exam");
 	await page.getByLabel("Stored class").selectOption(classPayload.classId);
 	await page.getByLabel(/instructor-style-reference\.txt/).check();
-	await page.getByLabel("Focus for next upload").fill("activation energy supplement");
+	await page.getByLabel("What should ExamPull focus on?").fill("activation energy supplement");
 	await page.getByLabel("Upload files").setInputFiles({
 		name: "activation-energy-supplement.txt",
 		mimeType: "text/plain",
@@ -2424,7 +2430,7 @@ test("authenticated user can upload a class style reference and see credit accou
 	await expect(page.getByText("activation-energy-supplement.txt")).toBeVisible({
 		timeout: 20000,
 	});
-	await page.getByRole("textbox", { name: "Topics" }).fill("Collision theory");
+	await page.getByRole("textbox", { name: "Topics to include" }).fill("Collision theory");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(

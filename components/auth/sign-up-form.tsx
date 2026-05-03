@@ -17,6 +17,7 @@ import { Phone, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { normalizePhoneNumberInput, phonePreview } from "@/lib/auth/phone-format";
 import { firebaseAuth } from "@/lib/firebase/client";
 
 type Phase = "details" | "code";
@@ -141,9 +142,15 @@ export function SignUpForm() {
 	}
 
 	async function sendCode(user?: User) {
+		const normalizedPhone = normalizePhoneNumberInput(phone);
+		if (!normalizedPhone.ok) {
+			throw new Error(normalizedPhone.message);
+		}
+
+		setPhone(normalizedPhone.value);
 		pendingUserRef.current = user ?? null;
 		const provider = new PhoneAuthProvider(firebaseAuth);
-		const id = await provider.verifyPhoneNumber(phone, verifier());
+		const id = await provider.verifyPhoneNumber(normalizedPhone.value, verifier());
 		setVerificationId(id);
 		setPhase("code");
 	}
@@ -324,8 +331,13 @@ export function SignUpForm() {
 							onChange={(event) => setPhone(event.target.value)}
 							required
 							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 text-foreground outline-none focus:ring-2 focus:ring-brand"
-							placeholder="+1 555 555 0100"
+							placeholder="650-555-0123"
 						/>
+						<p className="mt-2 text-xs leading-5 text-muted">
+							{phonePreview(phone)
+								? `We will send the code to ${phonePreview(phone)}.`
+								: "US numbers can be typed as 650-555-0123. Add +country code for international numbers."}
+						</p>
 					</div>
 					{error ? (
 						<div className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">

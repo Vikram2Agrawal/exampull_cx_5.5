@@ -133,7 +133,7 @@ export function FeaturebaseHelpButton({
 						? "Open help and feedback, unread changelog"
 						: "Open help and feedback"
 				}
-				className="fixed bottom-20 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-foreground shadow-glass md:bottom-5"
+				className="fixed bottom-24 right-3 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-foreground shadow-glass md:bottom-5 md:right-5 md:h-12 md:w-12"
 				onClick={() => {
 					initializeFeaturebase();
 					setOpen(true);

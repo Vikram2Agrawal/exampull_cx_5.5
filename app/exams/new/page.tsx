@@ -1,31 +1,11 @@
-import { ClipboardCheck, FileUp, ListPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { NewExamForm } from "@/components/exam/new-exam-form";
 import { AppShell } from "@/components/layout/site-nav";
 import { ButtonLink } from "@/components/ui/button";
-import { GlassPanel, SectionHeader } from "@/components/ui/surface";
+import { GlassPanel, Paper, SectionHeader } from "@/components/ui/surface";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listClassMaterials, listUserClasses } from "@/lib/classes/data";
 import { listUserExams } from "@/lib/exams/data";
-
-const steps = ["Sources", "Topics", "Configure"];
-const sourceOptions = [
-	{
-		title: "Use saved class materials",
-		description: "Pull from slides, notes, and style references already in your classes.",
-		icon: ClipboardCheck,
-	},
-	{
-		title: "Upload files for this exam",
-		description: "Add PDFs, documents, slide decks, text files, or images just for this run.",
-		icon: FileUp,
-	},
-	{
-		title: "Type manual topics",
-		description: "Enter the exact topics or chapters you want represented in the exam.",
-		icon: ListPlus,
-	},
-] as const;
 
 export default async function NewExamPage() {
 	const user = await getCurrentUser();
@@ -85,57 +65,54 @@ export default async function NewExamPage() {
 			<div className="space-y-8">
 				<SectionHeader title="Build a practice exam">
 					<p>
-						Choose your source materials, confirm the topics, then set the length and
-						style before credits are reserved.
+						Add your files or topics, review what ExamPull found, then choose the
+						length. Credits are reserved only when you generate.
 					</p>
 				</SectionHeader>
-				<div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-					<GlassPanel className="p-4 lg:sticky lg:top-24 lg:self-start">
-						<ol className="space-y-2">
-							{steps.map((step, index) => (
-								<li key={step} className="rounded-lg bg-background/40 p-3 text-sm">
-									<span className="mr-2 text-secondary">{index + 1}</span>
-									{step}
+				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+					<NewExamForm
+						tier={user.tier}
+						credits={user.credits}
+						boostAvailable={user.tier === "free" && !user.boostUsedAt}
+						priorExamCount={priorExams.length}
+						classes={sourceClasses}
+					/>
+					<aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+						<Paper className="p-6">
+							<p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+								Output
+							</p>
+							<h2 className="mt-3 text-2xl font-semibold">A printable exam sheet</h2>
+							<ol className="mt-6 space-y-4 text-sm leading-6 text-ink">
+								<li>
+									<strong>1.</strong> Source material defines what the exam should
+									cover.
 								</li>
-							))}
-						</ol>
-					</GlassPanel>
-					<GlassPanel className="p-6">
-						<div className="grid gap-4 md:grid-cols-3">
-							{sourceOptions.map((option) => (
-								<ActionCard key={option.title} {...option} />
-							))}
-						</div>
-						<div className="mt-6">
-							<NewExamForm
-								tier={user.tier}
-								credits={user.credits}
-								boostAvailable={user.tier === "free" && !user.boostUsedAt}
-								priorExamCount={priorExams.length}
-								classes={sourceClasses}
-							/>
-						</div>
-					</GlassPanel>
+								<li>
+									<strong>2.</strong> Topics keep the scope narrow enough to be
+									useful.
+								</li>
+								<li>
+									<strong>3.</strong> Length and mode set how much practice you
+									get.
+								</li>
+							</ol>
+							<div className="mt-6 space-y-2 border-t border-paper-border pt-4">
+								<div className="h-px bg-paper-border" />
+								<div className="h-px bg-paper-border" />
+								<div className="h-px bg-paper-border" />
+							</div>
+						</Paper>
+						<GlassPanel className="p-5">
+							<h2 className="font-semibold">Before credits are reserved</h2>
+							<p className="mt-2 text-sm leading-6 text-muted">
+								Upload, type, edit, and refresh freely. Credits are reserved only
+								after you press Generate.
+							</p>
+						</GlassPanel>
+					</aside>
 				</div>
 			</div>
 		</AppShell>
-	);
-}
-
-function ActionCard({
-	title,
-	description,
-	icon: Icon,
-}: {
-	title: string;
-	description: string;
-	icon: typeof ClipboardCheck;
-}) {
-	return (
-		<div className="min-h-32 rounded-lg border border-glass-border bg-background/40 p-4">
-			<Icon aria-hidden="true" className="text-secondary" size={20} />
-			<h2 className="mt-4 font-semibold">{title}</h2>
-			<p className="mt-1 text-sm text-muted">{description}</p>
-		</div>
 	);
 }

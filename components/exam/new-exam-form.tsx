@@ -18,6 +18,7 @@ import {
 	type ChangeEvent,
 	type FormEvent,
 	type PointerEvent,
+	type ReactNode,
 	useEffect,
 	useMemo,
 	useRef,
@@ -237,6 +238,33 @@ function uploadPageProgressText(progress: SourceExtractionProgress) {
 type SourceClass = ClassSummary & {
 	materials: MaterialSummary[];
 };
+
+function BuilderSection({
+	step,
+	title,
+	description,
+	children,
+}: {
+	step: string;
+	title: string;
+	description: string;
+	children: ReactNode;
+}) {
+	return (
+		<section className="rounded-xl border border-glass-border bg-background/35 p-4 sm:p-5">
+			<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start">
+				<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-sm font-semibold text-secondary">
+					{step}
+				</span>
+				<div>
+					<h2 className="text-lg font-semibold">{title}</h2>
+					<p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{description}</p>
+				</div>
+			</div>
+			{children}
+		</section>
+	);
+}
 
 export function NewExamForm({
 	tier,
@@ -793,662 +821,700 @@ export function NewExamForm({
 	}
 
 	return (
-		<form className="space-y-6" onSubmit={onSubmit}>
-			<div className="grid gap-4 md:grid-cols-2">
-				<div>
-					<label className="text-sm font-medium" htmlFor="title">
-						Exam title
-					</label>
-					<input
-						id="title"
-						value={title}
-						onChange={(event) => setTitle(event.target.value)}
-						className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						maxLength={120}
-					/>
-				</div>
-				<div>
-					<label className="text-sm font-medium" htmlFor="class-name">
-						Class label
-					</label>
-					<input
-						id="class-name"
-						value={className}
-						onChange={(event) => setClassName(event.target.value)}
-						className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						placeholder="MATH 301, AP Bio, Organic Chemistry"
-						maxLength={80}
-					/>
-				</div>
-			</div>
-			{classes.length > 0 ? (
-				<div className="rounded-lg border border-glass-border bg-background/35 p-4">
-					<label className="text-sm font-medium" htmlFor="class-source">
-						Stored class
-					</label>
-					<select
-						id="class-source"
-						value={classId}
-						onChange={(event) => {
-							const nextClassId = event.target.value;
-							setClassId(nextClassId);
-							setSelectedMaterialIds([]);
-							const nextClass = classes.find((course) => course.id === nextClassId);
-							if (nextClass) {
-								setClassName(nextClass.name);
-							}
-						}}
-						className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-					>
-						<option value="">No stored class</option>
-						{classes.map((course) => (
-							<option key={course.id} value={course.id}>
-								{course.name}
-							</option>
-						))}
-					</select>
-					{selectedClass ? (
-						<div className="mt-4 grid gap-2 md:grid-cols-2">
-							{selectedClass.materials.length === 0 ? (
-								<p className="text-sm text-muted">
-									This class has no materials yet.
-								</p>
-							) : null}
-							{selectedClass.materials.map((material) => (
-								<label
-									key={material.id}
-									className="flex items-start gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm"
-								>
-									<input
-										type="checkbox"
-										checked={selectedMaterialIds.includes(material.id)}
-										onChange={(event) => {
-											setSelectedMaterialIds((current) =>
-												event.target.checked
-													? [...current, material.id]
-													: current.filter((id) => id !== material.id),
-											);
-										}}
-										className="mt-1"
-									/>
-									<span>
-										<span className="font-medium">{material.filename}</span>
-										<span className="block text-muted">
-											{material.extractedTopics.length} extracted topics
-										</span>
-									</span>
-								</label>
-							))}
-						</div>
-					) : null}
-				</div>
-			) : null}
-			<div className="rounded-lg border border-glass-border bg-background/35 p-4">
-				<div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+		<form className="space-y-5" onSubmit={onSubmit}>
+			<BuilderSection
+				step="1"
+				title="Add course material"
+				description="Start with a title, then choose saved class files or upload the slides, notes, photos, or PDFs for this exam."
+			>
+				<div className="grid gap-4 md:grid-cols-2">
 					<div>
-						<h2 className="text-sm font-medium">One-time source files</h2>
-						<p className="mt-1 text-sm text-muted">
-							Upload files for this exam only. They will be preserved on the exam
-							record, not added to a class library.
-						</p>
-					</div>
-					<label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white">
-						<FileUp aria-hidden="true" size={18} />
-						{isUploadingSource ? "Uploading" : "Upload files"}
-						<input
-							type="file"
-							multiple
-							onChange={onSourceFilesSelected}
-							disabled={isUploadingSource}
-							className="sr-only"
-						/>
-					</label>
-				</div>
-				<div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-					<label className="text-sm">
-						<span className="font-medium">Focus for next upload</span>
-						<input
-							value={uploadFocus}
-							onChange={(event) => setUploadFocus(event.target.value)}
-							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							placeholder="Chapters 7-9, Unit 4, thermodynamics only"
-							maxLength={500}
-						/>
-					</label>
-					<label className="flex items-center gap-2 self-end rounded-lg border border-glass-border bg-background/45 px-3 py-3 text-sm">
-						<input
-							type="checkbox"
-							checked={uploadStyleReference}
-							onChange={(event) => setUploadStyleReference(event.target.checked)}
-						/>
-						Style reference
-					</label>
-				</div>
-				{sourceUploads.length > 0 ? (
-					<ul className="mt-4 space-y-2">
-						{sourceUploads.map((upload) => (
-							<li
-								key={upload.id}
-								className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm md:flex-row md:items-center"
-							>
-								<div>
-									<p className="font-medium">{upload.filename}</p>
-									<p className="text-muted" role="status" aria-live="polite">
-										{Math.max(1, Math.round(upload.sizeBytes / 1024))} KB -{" "}
-										{uploadStatusText(upload)}
-									</p>
-									{upload.focus ? (
-										<p className="mt-1 text-muted">Focus: {upload.focus}</p>
-									) : null}
-									{upload.extractedTopics.length > 0 ? (
-										<p className="mt-1 text-muted">
-											{upload.extractedTopics.length} topics extracted
-										</p>
-									) : null}
-									{upload.extractionProgress ? (
-										<div className="mt-2 max-w-xl">
-											<div className="flex items-center justify-between gap-3 text-xs text-muted">
-												<span>{upload.extractionProgress.detail}</span>
-												<span>{upload.extractionProgress.percent}%</span>
-											</div>
-											<div
-												className="mt-1 h-2 overflow-hidden rounded-full bg-glass"
-												role="progressbar"
-												aria-label={`${upload.filename} extraction progress`}
-												aria-valuenow={upload.extractionProgress.percent}
-												aria-valuemin={0}
-												aria-valuemax={100}
-											>
-												<div
-													className="h-full bg-secondary"
-													style={{
-														width: `${upload.extractionProgress.percent}%`,
-													}}
-												/>
-											</div>
-											{uploadPageProgressText(upload.extractionProgress) ? (
-												<p className="mt-1 text-xs text-muted">
-													{uploadPageProgressText(
-														upload.extractionProgress,
-													)}
-												</p>
-											) : null}
-										</div>
-									) : null}
-								</div>
-								<div className="flex items-center gap-2">
-									{uploadIsExtracting(upload) ? (
-										<RefreshCw
-											aria-label="Extracting topics"
-											className="animate-spin text-secondary"
-											size={18}
-										/>
-									) : null}
-									<button
-										type="button"
-										className="rounded-lg p-2 text-error hover:bg-error/10"
-										onClick={() => void removeSourceUpload(upload.id)}
-									>
-										<Trash2 aria-label="Remove source upload" size={18} />
-									</button>
-								</div>
-							</li>
-						))}
-					</ul>
-				) : null}
-			</div>
-			<div>
-				<label className="text-sm font-medium" htmlFor="topics">
-					Topics
-				</label>
-				<textarea
-					id="topics"
-					value={topicsText}
-					onChange={(event) => setTopicsText(event.target.value)}
-					className="mt-2 min-h-36 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
-					placeholder="One topic per line, or separate with commas"
-				/>
-				<p className="mt-2 text-sm text-muted" role="status" aria-live="polite">
-					{topics.length} topics ready
-				</p>
-			</div>
-			<div>
-				<label className="text-sm font-medium" htmlFor="source-notes">
-					Source notes
-				</label>
-				<textarea
-					id="source-notes"
-					value={sourceNotes}
-					onChange={(event) => setSourceNotes(event.target.value)}
-					className="mt-2 min-h-24 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
-					placeholder="Optional focus, exam date, instructor preferences, or material notes"
-				/>
-			</div>
-			{tier === "free" && boostAvailable ? (
-				<label className="flex items-start gap-3 rounded-lg border border-premium/40 bg-premium/10 p-4 text-sm">
-					<input
-						type="checkbox"
-						checked={useScholarBoost}
-						disabled={!boostUnlocked}
-						onChange={(event) => toggleScholarBoost(event.target.checked)}
-						className="mt-1"
-					/>
-					<span>
-						<span className="font-semibold text-foreground">
-							Boost this exam to Scholar for free
-						</span>
-						<span className="mt-1 block text-muted">
-							{boostUnlocked
-								? "Unlock up to 25 questions, Power Mode, answer key access, and one grading round for this exam."
-								: "Your once-per-account Scholar Boost appears after your first generated exam."}
-						</span>
-					</span>
-				</label>
-			) : null}
-			<div className="grid gap-4 md:grid-cols-[1fr_220px]">
-				<div className="rounded-lg border border-glass-border bg-background/40 p-4">
-					<div className="flex items-center justify-between">
-						<label className="text-sm font-medium" htmlFor="question-count">
-							Questions
+						<label className="text-sm font-medium" htmlFor="title">
+							Exam title
 						</label>
-						<span className="text-sm text-muted">Max {maxQuestions} on your tier</span>
+						<input
+							id="title"
+							value={title}
+							onChange={(event) => setTitle(event.target.value)}
+							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							maxLength={120}
+						/>
 					</div>
-					{mode === "standard" ? (
-						<>
-							<input
-								id="question-count"
-								type="range"
-								min={1}
-								max={maxQuestions}
-								value={questionCount}
-								onChange={(event) => setQuestionCount(Number(event.target.value))}
-								className="mt-4 h-11 w-full accent-brand"
-							/>
-							<p className="mt-2 text-2xl font-semibold">{questionCount}</p>
-						</>
-					) : (
-						<div className="mt-4 flex items-center justify-between gap-3">
-							<p className="text-2xl font-semibold">{powerSlots.length}</p>
-							<Button
-								type="button"
-								onClick={() => addPowerSlot()}
-								disabled={powerSlots.length >= maxQuestions}
-							>
-								<Plus aria-hidden="true" size={16} />
-								Add slot
-							</Button>
-						</div>
-					)}
-				</div>
-				<div className="rounded-lg border border-glass-border bg-background/40 p-4">
-					<p className="text-sm font-medium">Mode</p>
-					<div className="mt-3 grid grid-cols-2 gap-2">
-						<button
-							type="button"
-							className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
-								mode === "standard"
-									? "border-brand bg-brand text-white"
-									: "border-glass-border bg-background/60"
-							}`}
-							onClick={() => selectMode("standard")}
-						>
-							Standard
-						</button>
-						<button
-							type="button"
-							className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
-								mode === "power"
-									? "border-premium bg-premium text-premium-foreground"
-									: "border-glass-border bg-background/60"
-							}`}
-							onClick={() => selectMode("power")}
-						>
-							Power
-						</button>
+					<div>
+						<label className="text-sm font-medium" htmlFor="class-name">
+							Course or class
+						</label>
+						<input
+							id="class-name"
+							value={className}
+							onChange={(event) => setClassName(event.target.value)}
+							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							placeholder="MATH 301, AP Bio, Organic Chemistry"
+							maxLength={80}
+						/>
 					</div>
 				</div>
-			</div>
-			{mode === "power" ? (
-				<div className="space-y-4 rounded-lg border border-glass-border bg-background/35 p-4">
-					<div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-						<div>
-							<h2 className="text-lg font-semibold">Power Mode slots</h2>
-							<p className="text-sm text-muted">
-								{powerSlots.length} configured of {maxQuestions} available.
-							</p>
-						</div>
-						{selectedClass?.styleGuide ? (
-							<label className="flex items-center gap-2 text-sm">
-								<input
-									type="checkbox"
-									checked={mirrorInstructorStyle}
-									onChange={(event) =>
-										setMirrorInstructorStyle(event.target.checked)
-									}
-								/>
-								Mirror instructor style
-							</label>
+				{classes.length > 0 ? (
+					<div className="mt-5 rounded-lg border border-glass-border bg-background/45 p-4">
+						<label className="text-sm font-medium" htmlFor="class-source">
+							Stored class
+						</label>
+						<select
+							id="class-source"
+							value={classId}
+							onChange={(event) => {
+								const nextClassId = event.target.value;
+								setClassId(nextClassId);
+								setSelectedMaterialIds([]);
+								const nextClass = classes.find(
+									(course) => course.id === nextClassId,
+								);
+								if (nextClass) {
+									setClassName(nextClass.name);
+								}
+							}}
+							className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+						>
+							<option value="">No stored class</option>
+							{classes.map((course) => (
+								<option key={course.id} value={course.id}>
+									{course.name}
+								</option>
+							))}
+						</select>
+						{selectedClass ? (
+							<div className="mt-4 grid gap-2 md:grid-cols-2">
+								{selectedClass.materials.length === 0 ? (
+									<p className="text-sm text-muted">
+										This class has no materials yet.
+									</p>
+								) : null}
+								{selectedClass.materials.map((material) => (
+									<label
+										key={material.id}
+										className="flex items-start gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm"
+									>
+										<input
+											type="checkbox"
+											checked={selectedMaterialIds.includes(material.id)}
+											onChange={(event) => {
+												setSelectedMaterialIds((current) =>
+													event.target.checked
+														? [...current, material.id]
+														: current.filter(
+																(id) => id !== material.id,
+															),
+												);
+											}}
+											className="mt-1"
+										/>
+										<span>
+											<span className="font-medium">{material.filename}</span>
+											<span className="block text-muted">
+												{material.extractedTopics.length} extracted topics
+											</span>
+										</span>
+									</label>
+								))}
+							</div>
 						) : null}
 					</div>
-					<datalist id="power-topic-options">
-						{topics.map((topic) => (
-							<option key={topic} value={topic} />
-						))}
-					</datalist>
-					<div className="grid gap-3 lg:grid-cols-[1.2fr_120px_150px_130px_90px_auto]">
-						<input
-							value={quickTopic}
-							onChange={(event) => setQuickTopic(event.target.value)}
-							list="power-topic-options"
-							placeholder="Quick-add topic"
-							aria-label="Quick-add topic"
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						/>
-						<input
-							type="number"
-							min={1}
-							max={20}
-							value={quickCount}
-							onChange={(event) => setQuickCount(Number(event.target.value))}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							aria-label="Quick-add count"
-						/>
-						<select
-							aria-label="Quick-add style"
-							value={quickStyle}
-							onChange={(event) => setQuickStyle(event.target.value as QuestionStyle)}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						>
-							{styleOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-						<select
-							aria-label="Quick-add difficulty"
-							value={quickDifficulty}
-							onChange={(event) =>
-								setQuickDifficulty(event.target.value as QuestionDifficulty)
-							}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						>
-							{difficultyOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-						<input
-							type="number"
-							min={1}
-							max={100}
-							value={quickPoints}
-							onChange={(event) => setQuickPoints(Number(event.target.value))}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							aria-label="Quick-add points"
-						/>
-						<Button
-							type="button"
-							onClick={quickAddPowerSlots}
-							disabled={powerSlots.length >= maxQuestions}
-						>
-							<ListPlus aria-hidden="true" size={16} />
-							Quick-add
-						</Button>
+				) : null}
+				<div className="mt-5 rounded-lg border border-glass-border bg-background/45 p-4">
+					<div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+						<div>
+							<h2 className="text-sm font-medium">Upload materials</h2>
+							<p className="mt-1 text-sm text-muted">
+								These files are used for this exam and saved on its record. Add them
+								to a class first only if you want to reuse them later.
+							</p>
+						</div>
+						<label className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-brand px-4 text-sm font-medium text-white">
+							<FileUp aria-hidden="true" size={18} />
+							{isUploadingSource ? "Uploading" : "Upload files"}
+							<input
+								type="file"
+								multiple
+								onChange={onSourceFilesSelected}
+								disabled={isUploadingSource}
+								className="sr-only"
+							/>
+						</label>
 					</div>
-					<div className="grid gap-3 rounded-lg border border-glass-border bg-background/45 p-3 lg:grid-cols-[80px_80px_1fr_150px_130px_90px_auto]">
-						<input
-							type="number"
-							min={1}
-							max={Math.max(1, powerSlots.length)}
-							value={rangeStart}
-							onChange={(event) => setRangeStart(Number(event.target.value))}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							aria-label="Range start"
-						/>
-						<input
-							type="number"
-							min={1}
-							max={Math.max(1, powerSlots.length)}
-							value={rangeEnd}
-							onChange={(event) => setRangeEnd(Number(event.target.value))}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							aria-label="Range end"
-						/>
-						<input
-							value={rangeTopic}
-							onChange={(event) => setRangeTopic(event.target.value)}
-							list="power-topic-options"
-							placeholder="Range topic"
-							aria-label="Range topic"
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						/>
-						<select
-							aria-label="Range style"
-							value={rangeStyle}
-							onChange={(event) => setRangeStyle(event.target.value as QuestionStyle)}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						>
-							{styleOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-						<select
-							aria-label="Range difficulty"
-							value={rangeDifficulty}
-							onChange={(event) =>
-								setRangeDifficulty(event.target.value as QuestionDifficulty)
-							}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						>
-							{difficultyOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-						<input
-							type="number"
-							min={1}
-							max={100}
-							value={rangePoints}
-							onChange={(event) => setRangePoints(Number(event.target.value))}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-							aria-label="Range points"
-						/>
-						<Button
-							type="button"
-							onClick={applyRangeUpdate}
-							disabled={powerSlots.length === 0}
-						>
-							Apply range
-						</Button>
+					<div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+						<label className="text-sm">
+							<span className="font-medium">What should ExamPull focus on?</span>
+							<input
+								value={uploadFocus}
+								onChange={(event) => setUploadFocus(event.target.value)}
+								className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								placeholder="Optional, like chapters 7-9 or thermodynamics only"
+								maxLength={500}
+							/>
+						</label>
+						<label className="flex items-center gap-2 self-end rounded-lg border border-glass-border bg-background/45 px-3 py-3 text-sm">
+							<input
+								type="checkbox"
+								checked={uploadStyleReference}
+								onChange={(event) => setUploadStyleReference(event.target.checked)}
+							/>
+							Use as a format example
+						</label>
 					</div>
-					<ul className="space-y-3" aria-label="Power Mode question slots">
-						{powerSlots.map((slot, index) => (
-							<li
-								key={slot.id}
-								data-testid={`power-slot-${index + 1}`}
-								data-power-slot-id={slot.id}
-								className={`grid gap-3 rounded-lg border bg-background/55 p-3 transition lg:grid-cols-[44px_44px_1fr_150px_130px_92px_184px] ${
-									dragOverPowerSlotId === slot.id
-										? "border-brand ring-2 ring-brand/30"
-										: "border-glass-border"
-								}`}
-							>
-								<button
-									type="button"
-									onPointerDown={(event) =>
-										startPowerSlotPointerDrag(event, slot.id)
-									}
-									onPointerMove={movePowerSlotPointerDrag}
-									onPointerUp={finishPowerSlotPointerDrag}
-									onPointerCancel={cancelPowerSlotPointerDrag}
-									onLostPointerCapture={cancelPowerSlotPointerDrag}
-									className="flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground active:cursor-grabbing"
-									aria-label={`Drag question ${index + 1}`}
+					{sourceUploads.length > 0 ? (
+						<ul className="mt-4 space-y-2">
+							{sourceUploads.map((upload) => (
+								<li
+									key={upload.id}
+									className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm md:flex-row md:items-center"
 								>
-									<GripVertical aria-hidden="true" size={18} />
-								</button>
-								<div className="flex h-11 items-center justify-center rounded-lg bg-glass text-sm font-semibold">
-									{index + 1}
-								</div>
-								<input
-									value={slot.topic}
-									onChange={(event) =>
-										updatePowerSlot(slot.id, { topic: event.target.value })
-									}
-									list="power-topic-options"
-									placeholder="Question topic"
-									aria-label={`Question ${index + 1} topic`}
-									className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-								/>
-								<div className="space-y-2">
-									<select
-										aria-label={`Question ${index + 1} style`}
-										value={slot.style}
-										onChange={(event) =>
-											updatePowerSlot(slot.id, {
-												style: event.target.value as QuestionStyle,
-											})
-										}
-										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-									>
-										{styleOptions.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-									<button
-										type="button"
-										className="text-xs text-muted hover:text-foreground"
-										onClick={() => setAllPowerSlots({ style: slot.style })}
-									>
-										Set all
-									</button>
-								</div>
-								<div className="space-y-2">
-									<select
-										aria-label={`Question ${index + 1} difficulty`}
-										value={slot.difficulty}
-										onChange={(event) =>
-											updatePowerSlot(slot.id, {
-												difficulty: event.target
-													.value as QuestionDifficulty,
-											})
-										}
-										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-									>
-										{difficultyOptions.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-									<button
-										type="button"
-										className="text-xs text-muted hover:text-foreground"
-										onClick={() =>
-											setAllPowerSlots({ difficulty: slot.difficulty })
-										}
-									>
-										Set all
-									</button>
-								</div>
-								<div className="space-y-2">
-									<input
-										type="number"
-										min={1}
-										max={100}
-										value={slot.points}
-										onChange={(event) =>
-											updatePowerSlot(slot.id, {
-												points: Number(event.target.value),
-											})
-										}
-										className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-										aria-label={`Question ${index + 1} points`}
-									/>
-									<button
-										type="button"
-										className="text-xs text-muted hover:text-foreground"
-										onClick={() => setAllPowerSlots({ points: slot.points })}
-									>
-										Set all
-									</button>
-								</div>
-								<div className="flex items-start justify-end gap-1">
-									<button
-										type="button"
-										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
-										onClick={() => movePowerSlot(slot.id, -1)}
-										disabled={index === 0}
-										aria-label={`Move question ${index + 1} up`}
-									>
-										<ArrowUp aria-hidden="true" size={16} />
-									</button>
-									<button
-										type="button"
-										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
-										onClick={() => movePowerSlot(slot.id, 1)}
-										disabled={index === powerSlots.length - 1}
-										aria-label={`Move question ${index + 1} down`}
-									>
-										<ArrowDown aria-hidden="true" size={16} />
-									</button>
-									<button
-										type="button"
-										className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
-										onClick={() => duplicatePowerSlot(slot.id)}
-										disabled={powerSlots.length >= maxQuestions}
-										aria-label={`Duplicate question ${index + 1}`}
-									>
-										<Copy aria-hidden="true" size={16} />
-									</button>
-									<button
-										type="button"
-										className="flex h-11 w-11 items-center justify-center rounded-lg text-error transition hover:bg-error/10"
-										onClick={() => removePowerSlot(slot.id)}
-										aria-label={`Remove question ${index + 1}`}
-									>
-										<Trash2 aria-hidden="true" size={16} />
-									</button>
-								</div>
-							</li>
-						))}
-					</ul>
-				</div>
-			) : null}
-			{error ? (
-				<p className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
-					{error}
-				</p>
-			) : null}
-			<div className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-glass p-4 sm:flex-row sm:items-center">
-				<div>
-					<p className="text-sm text-muted">Generation cost</p>
-					<p className="text-2xl font-semibold">
-						{useScholarBoost ? "Scholar Boost" : `${cost} credits`}
-					</p>
-					{useScholarBoost ? (
-						<p className="mt-1 text-sm text-muted">{rawCost} credits waived</p>
+									<div>
+										<p className="font-medium">{upload.filename}</p>
+										<p className="text-muted" role="status" aria-live="polite">
+											{Math.max(1, Math.round(upload.sizeBytes / 1024))} KB -{" "}
+											{uploadStatusText(upload)}
+										</p>
+										{upload.focus ? (
+											<p className="mt-1 text-muted">Focus: {upload.focus}</p>
+										) : null}
+										{upload.extractedTopics.length > 0 ? (
+											<p className="mt-1 text-muted">
+												{upload.extractedTopics.length} topics extracted
+											</p>
+										) : null}
+										{upload.extractionProgress ? (
+											<div className="mt-2 max-w-xl">
+												<div className="flex items-center justify-between gap-3 text-xs text-muted">
+													<span>{upload.extractionProgress.detail}</span>
+													<span>
+														{upload.extractionProgress.percent}%
+													</span>
+												</div>
+												<div
+													className="mt-1 h-2 overflow-hidden rounded-full bg-glass"
+													role="progressbar"
+													aria-label={`${upload.filename} extraction progress`}
+													aria-valuenow={
+														upload.extractionProgress.percent
+													}
+													aria-valuemin={0}
+													aria-valuemax={100}
+												>
+													<div
+														className="h-full bg-secondary"
+														style={{
+															width: `${upload.extractionProgress.percent}%`,
+														}}
+													/>
+												</div>
+												{uploadPageProgressText(
+													upload.extractionProgress,
+												) ? (
+													<p className="mt-1 text-xs text-muted">
+														{uploadPageProgressText(
+															upload.extractionProgress,
+														)}
+													</p>
+												) : null}
+											</div>
+										) : null}
+									</div>
+									<div className="flex items-center gap-2">
+										{uploadIsExtracting(upload) ? (
+											<RefreshCw
+												aria-label="Extracting topics"
+												className="animate-spin text-secondary"
+												size={18}
+											/>
+										) : null}
+										<button
+											type="button"
+											className="rounded-lg p-2 text-error hover:bg-error/10"
+											onClick={() => void removeSourceUpload(upload.id)}
+										>
+											<Trash2 aria-label="Remove source upload" size={18} />
+										</button>
+									</div>
+								</li>
+							))}
+						</ul>
 					) : null}
 				</div>
-				<Button type="submit" variant="primary" disabled={!canGenerate}>
-					<WandSparkles aria-hidden="true" size={18} />
-					{isSubmitting ? "Queuing" : "Generate"}
-					<ArrowRight aria-hidden="true" size={18} />
-				</Button>
-			</div>
-			{cost > credits ? (
-				<p className="text-sm text-error">
-					You need {cost - credits} more credits for this exam.
-				</p>
-			) : null}
+			</BuilderSection>
+			<BuilderSection
+				step="2"
+				title="Choose what to cover"
+				description="Review extracted topics, add anything missing, and leave simple directions for what should or should not appear."
+			>
+				<div>
+					<label className="text-sm font-medium" htmlFor="topics">
+						Topics to include
+					</label>
+					<textarea
+						id="topics"
+						value={topicsText}
+						onChange={(event) => setTopicsText(event.target.value)}
+						className="mt-2 min-h-36 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
+						placeholder="One topic per line, or separate with commas"
+					/>
+					<p className="mt-2 text-sm text-muted" role="status" aria-live="polite">
+						{topics.length} topics ready
+					</p>
+				</div>
+				<div className="mt-5">
+					<label className="text-sm font-medium" htmlFor="source-notes">
+						Extra directions
+					</label>
+					<textarea
+						id="source-notes"
+						value={sourceNotes}
+						onChange={(event) => setSourceNotes(event.target.value)}
+						className="mt-2 min-h-24 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
+						placeholder="Optional, like avoid chapter 3 or make it close to the professor's midterm style"
+					/>
+				</div>
+				{tier === "free" && boostAvailable ? (
+					<label className="mt-5 flex items-start gap-3 rounded-lg border border-premium/40 bg-premium/10 p-4 text-sm">
+						<input
+							type="checkbox"
+							checked={useScholarBoost}
+							disabled={!boostUnlocked}
+							onChange={(event) => toggleScholarBoost(event.target.checked)}
+							className="mt-1"
+						/>
+						<span>
+							<span className="font-semibold text-foreground">
+								Boost this exam to Scholar for free
+							</span>
+							<span className="mt-1 block text-muted">
+								{boostUnlocked
+									? "Unlock up to 25 questions, Power Mode, answer key access, and one grading round for this exam."
+									: "Your once-per-account Scholar Boost appears after your first generated exam."}
+							</span>
+						</span>
+					</label>
+				) : null}
+			</BuilderSection>
+			<BuilderSection
+				step="3"
+				title="Choose the length"
+				description="Most students can use Standard. Power Mode is for exact question-by-question control."
+			>
+				<div className="grid gap-4 md:grid-cols-[1fr_220px]">
+					<div className="rounded-lg border border-glass-border bg-background/40 p-4">
+						<div className="flex items-center justify-between">
+							<label className="text-sm font-medium" htmlFor="question-count">
+								Questions
+							</label>
+							<span className="text-sm text-muted">
+								Max {maxQuestions} on your tier
+							</span>
+						</div>
+						{mode === "standard" ? (
+							<>
+								<input
+									id="question-count"
+									type="range"
+									min={1}
+									max={maxQuestions}
+									value={questionCount}
+									onChange={(event) =>
+										setQuestionCount(Number(event.target.value))
+									}
+									className="mt-4 h-11 w-full accent-brand"
+								/>
+								<p className="mt-2 text-2xl font-semibold">{questionCount}</p>
+							</>
+						) : (
+							<div className="mt-4 flex items-center justify-between gap-3">
+								<p className="text-2xl font-semibold">{powerSlots.length}</p>
+								<Button
+									type="button"
+									onClick={() => addPowerSlot()}
+									disabled={powerSlots.length >= maxQuestions}
+								>
+									<Plus aria-hidden="true" size={16} />
+									Add slot
+								</Button>
+							</div>
+						)}
+					</div>
+					<div className="rounded-lg border border-glass-border bg-background/40 p-4">
+						<p className="text-sm font-medium">Mode</p>
+						<div className="mt-3 grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
+									mode === "standard"
+										? "border-brand bg-brand text-white"
+										: "border-glass-border bg-background/60"
+								}`}
+								onClick={() => selectMode("standard")}
+							>
+								Standard
+							</button>
+							<button
+								type="button"
+								className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${
+									mode === "power"
+										? "border-premium bg-premium text-premium-foreground"
+										: "border-glass-border bg-background/60"
+								}`}
+								onClick={() => selectMode("power")}
+							>
+								Power
+							</button>
+						</div>
+					</div>
+				</div>
+				{mode === "power" ? (
+					<div className="space-y-4 rounded-lg border border-glass-border bg-background/35 p-4">
+						<div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+							<div>
+								<h2 className="text-lg font-semibold">Power Mode slots</h2>
+								<p className="text-sm text-muted">
+									{powerSlots.length} configured of {maxQuestions} available.
+								</p>
+							</div>
+							{selectedClass?.styleGuide ? (
+								<label className="flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										checked={mirrorInstructorStyle}
+										onChange={(event) =>
+											setMirrorInstructorStyle(event.target.checked)
+										}
+									/>
+									Mirror instructor style
+								</label>
+							) : null}
+						</div>
+						<datalist id="power-topic-options">
+							{topics.map((topic) => (
+								<option key={topic} value={topic} />
+							))}
+						</datalist>
+						<div className="grid gap-3 lg:grid-cols-[1.2fr_120px_150px_130px_90px_auto]">
+							<input
+								value={quickTopic}
+								onChange={(event) => setQuickTopic(event.target.value)}
+								list="power-topic-options"
+								placeholder="Quick-add topic"
+								aria-label="Quick-add topic"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							/>
+							<input
+								type="number"
+								min={1}
+								max={20}
+								value={quickCount}
+								onChange={(event) => setQuickCount(Number(event.target.value))}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								aria-label="Quick-add count"
+							/>
+							<select
+								aria-label="Quick-add style"
+								value={quickStyle}
+								onChange={(event) =>
+									setQuickStyle(event.target.value as QuestionStyle)
+								}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							>
+								{styleOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<select
+								aria-label="Quick-add difficulty"
+								value={quickDifficulty}
+								onChange={(event) =>
+									setQuickDifficulty(event.target.value as QuestionDifficulty)
+								}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							>
+								{difficultyOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<input
+								type="number"
+								min={1}
+								max={100}
+								value={quickPoints}
+								onChange={(event) => setQuickPoints(Number(event.target.value))}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								aria-label="Quick-add points"
+							/>
+							<Button
+								type="button"
+								onClick={quickAddPowerSlots}
+								disabled={powerSlots.length >= maxQuestions}
+							>
+								<ListPlus aria-hidden="true" size={16} />
+								Quick-add
+							</Button>
+						</div>
+						<div className="grid gap-3 rounded-lg border border-glass-border bg-background/45 p-3 lg:grid-cols-[80px_80px_1fr_150px_130px_90px_auto]">
+							<input
+								type="number"
+								min={1}
+								max={Math.max(1, powerSlots.length)}
+								value={rangeStart}
+								onChange={(event) => setRangeStart(Number(event.target.value))}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								aria-label="Range start"
+							/>
+							<input
+								type="number"
+								min={1}
+								max={Math.max(1, powerSlots.length)}
+								value={rangeEnd}
+								onChange={(event) => setRangeEnd(Number(event.target.value))}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								aria-label="Range end"
+							/>
+							<input
+								value={rangeTopic}
+								onChange={(event) => setRangeTopic(event.target.value)}
+								list="power-topic-options"
+								placeholder="Range topic"
+								aria-label="Range topic"
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							/>
+							<select
+								aria-label="Range style"
+								value={rangeStyle}
+								onChange={(event) =>
+									setRangeStyle(event.target.value as QuestionStyle)
+								}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							>
+								{styleOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<select
+								aria-label="Range difficulty"
+								value={rangeDifficulty}
+								onChange={(event) =>
+									setRangeDifficulty(event.target.value as QuestionDifficulty)
+								}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+							>
+								{difficultyOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<input
+								type="number"
+								min={1}
+								max={100}
+								value={rangePoints}
+								onChange={(event) => setRangePoints(Number(event.target.value))}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+								aria-label="Range points"
+							/>
+							<Button
+								type="button"
+								onClick={applyRangeUpdate}
+								disabled={powerSlots.length === 0}
+							>
+								Apply range
+							</Button>
+						</div>
+						<ul className="space-y-3" aria-label="Power Mode question slots">
+							{powerSlots.map((slot, index) => (
+								<li
+									key={slot.id}
+									data-testid={`power-slot-${index + 1}`}
+									data-power-slot-id={slot.id}
+									className={`grid gap-3 rounded-lg border bg-background/55 p-3 transition lg:grid-cols-[44px_44px_1fr_150px_130px_92px_184px] ${
+										dragOverPowerSlotId === slot.id
+											? "border-brand ring-2 ring-brand/30"
+											: "border-glass-border"
+									}`}
+								>
+									<button
+										type="button"
+										onPointerDown={(event) =>
+											startPowerSlotPointerDrag(event, slot.id)
+										}
+										onPointerMove={movePowerSlotPointerDrag}
+										onPointerUp={finishPowerSlotPointerDrag}
+										onPointerCancel={cancelPowerSlotPointerDrag}
+										onLostPointerCapture={cancelPowerSlotPointerDrag}
+										className="flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground active:cursor-grabbing"
+										aria-label={`Drag question ${index + 1}`}
+									>
+										<GripVertical aria-hidden="true" size={18} />
+									</button>
+									<div className="flex h-11 items-center justify-center rounded-lg bg-glass text-sm font-semibold">
+										{index + 1}
+									</div>
+									<input
+										value={slot.topic}
+										onChange={(event) =>
+											updatePowerSlot(slot.id, { topic: event.target.value })
+										}
+										list="power-topic-options"
+										placeholder="Question topic"
+										aria-label={`Question ${index + 1} topic`}
+										className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+									/>
+									<div className="space-y-2">
+										<select
+											aria-label={`Question ${index + 1} style`}
+											value={slot.style}
+											onChange={(event) =>
+												updatePowerSlot(slot.id, {
+													style: event.target.value as QuestionStyle,
+												})
+											}
+											className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+										>
+											{styleOptions.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+										<button
+											type="button"
+											className="text-xs text-muted hover:text-foreground"
+											onClick={() => setAllPowerSlots({ style: slot.style })}
+										>
+											Set all
+										</button>
+									</div>
+									<div className="space-y-2">
+										<select
+											aria-label={`Question ${index + 1} difficulty`}
+											value={slot.difficulty}
+											onChange={(event) =>
+												updatePowerSlot(slot.id, {
+													difficulty: event.target
+														.value as QuestionDifficulty,
+												})
+											}
+											className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+										>
+											{difficultyOptions.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+										<button
+											type="button"
+											className="text-xs text-muted hover:text-foreground"
+											onClick={() =>
+												setAllPowerSlots({ difficulty: slot.difficulty })
+											}
+										>
+											Set all
+										</button>
+									</div>
+									<div className="space-y-2">
+										<input
+											type="number"
+											min={1}
+											max={100}
+											value={slot.points}
+											onChange={(event) =>
+												updatePowerSlot(slot.id, {
+													points: Number(event.target.value),
+												})
+											}
+											className="h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+											aria-label={`Question ${index + 1} points`}
+										/>
+										<button
+											type="button"
+											className="text-xs text-muted hover:text-foreground"
+											onClick={() =>
+												setAllPowerSlots({ points: slot.points })
+											}
+										>
+											Set all
+										</button>
+									</div>
+									<div className="flex items-start justify-end gap-1">
+										<button
+											type="button"
+											className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
+											onClick={() => movePowerSlot(slot.id, -1)}
+											disabled={index === 0}
+											aria-label={`Move question ${index + 1} up`}
+										>
+											<ArrowUp aria-hidden="true" size={16} />
+										</button>
+										<button
+											type="button"
+											className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
+											onClick={() => movePowerSlot(slot.id, 1)}
+											disabled={index === powerSlots.length - 1}
+											aria-label={`Move question ${index + 1} down`}
+										>
+											<ArrowDown aria-hidden="true" size={16} />
+										</button>
+										<button
+											type="button"
+											className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition hover:bg-glass hover:text-foreground disabled:opacity-45"
+											onClick={() => duplicatePowerSlot(slot.id)}
+											disabled={powerSlots.length >= maxQuestions}
+											aria-label={`Duplicate question ${index + 1}`}
+										>
+											<Copy aria-hidden="true" size={16} />
+										</button>
+										<button
+											type="button"
+											className="flex h-11 w-11 items-center justify-center rounded-lg text-error transition hover:bg-error/10"
+											onClick={() => removePowerSlot(slot.id)}
+											aria-label={`Remove question ${index + 1}`}
+										>
+											<Trash2 aria-hidden="true" size={16} />
+										</button>
+									</div>
+								</li>
+							))}
+						</ul>
+					</div>
+				) : null}
+				{error ? (
+					<p className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+						{error}
+					</p>
+				) : null}
+				<div className="flex flex-col justify-between gap-3 rounded-lg border border-glass-border bg-glass p-4 sm:flex-row sm:items-center">
+					<div>
+						<p className="text-sm text-muted">Generation cost</p>
+						<p className="text-2xl font-semibold">
+							{useScholarBoost ? "Scholar Boost" : `${cost} credits`}
+						</p>
+						{useScholarBoost ? (
+							<p className="mt-1 text-sm text-muted">{rawCost} credits waived</p>
+						) : null}
+					</div>
+					<Button type="submit" variant="primary" disabled={!canGenerate}>
+						<WandSparkles aria-hidden="true" size={18} />
+						{isSubmitting ? "Queuing" : "Generate"}
+						<ArrowRight aria-hidden="true" size={18} />
+					</Button>
+				</div>
+				{cost > credits ? (
+					<p className="text-sm text-error">
+						You need {cost - credits} more credits for this exam.
+					</p>
+				) : null}
+			</BuilderSection>
 		</form>
 	);
 }

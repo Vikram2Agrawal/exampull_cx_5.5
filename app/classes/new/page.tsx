@@ -19,7 +19,10 @@ export default async function NewClassPage() {
 		>
 			<div className="max-w-3xl space-y-8">
 				<SectionHeader title="Add a class">
-					<p>Education level sets the baseline difficulty for generated exams.</p>
+					<p>
+						Create a reusable home for course files, style examples, and future practice
+						exams.
+					</p>
 				</SectionHeader>
 				<GlassPanel className="p-6">
 					<ClassForm />

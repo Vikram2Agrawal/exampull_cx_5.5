@@ -5,10 +5,22 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EDUCATION_LEVELS } from "@/lib/product/constants";
+import { cn } from "@/lib/utils";
 
 type ClassCreateResponse = {
 	classId?: string;
 	error?: string;
+};
+
+const educationLevelDescriptions: Record<string, string> = {
+	Elementary: "Clear, short questions with basic vocabulary.",
+	"Middle School": "Foundational practice with gentle wording.",
+	"High School": "Standard coursework and unit-test depth.",
+	Honors: "Faster pace with more synthesis.",
+	"AP / IB": "College-style rigor for advanced high school classes.",
+	Undergraduate: "University course depth and notation.",
+	Graduate: "Advanced theory, derivations, and nuance.",
+	Professional: "Credential-style precision and applied judgment.",
 };
 
 export function ClassForm() {
@@ -19,6 +31,8 @@ export function ClassForm() {
 	const [educationLevel, setEducationLevel] = useState<number>(EDUCATION_LEVELS[4]?.value ?? 45);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const selectedEducationLevel =
+		EDUCATION_LEVELS.find((level) => level.value === educationLevel) ?? EDUCATION_LEVELS[4];
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -62,53 +76,62 @@ export function ClassForm() {
 					maxLength={120}
 				/>
 			</div>
-			<div className="grid gap-4 md:grid-cols-2">
-				<div>
-					<label className="block text-sm font-medium" htmlFor="institution">
-						Institution
-					</label>
-					<input
-						id="institution"
-						value={institution}
-						onChange={(event) => setInstitution(event.target.value)}
-						className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						placeholder="Optional"
-						maxLength={120}
-					/>
-				</div>
-				<div>
-					<label className="block text-sm font-medium" htmlFor="education-level">
-						Education level
-					</label>
-					<input
-						id="education-level"
-						type="range"
-						min={0}
-						max={100}
-						value={educationLevel}
-						onChange={(event) => setEducationLevel(Number(event.target.value))}
-						className="mt-5 w-full accent-brand"
-					/>
-					<p className="mt-1 text-sm text-muted">{educationLevel}/100</p>
-				</div>
+			<div>
+				<label className="block text-sm font-medium" htmlFor="institution">
+					School or institution
+				</label>
+				<input
+					id="institution"
+					value={institution}
+					onChange={(event) => setInstitution(event.target.value)}
+					className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+					placeholder="Optional"
+					maxLength={120}
+				/>
 			</div>
-			<div className="grid gap-2 sm:grid-cols-2">
-				{EDUCATION_LEVELS.map((level) => (
-					<button
-						key={level.label}
-						type="button"
-						className={`rounded-lg border px-3 py-3 text-left text-sm ${
-							educationLevel === level.value
-								? "border-brand bg-brand text-white"
-								: "border-glass-border bg-background/40 hover:bg-glass"
-						}`}
-						onClick={() => setEducationLevel(level.value)}
-					>
-						<GraduationCap aria-hidden="true" className="mr-2 inline" size={16} />
-						{level.label}
-						<span className="float-right">{level.value}</span>
-					</button>
-				))}
+			<div>
+				<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+					<div>
+						<p className="text-sm font-medium" id="class-level-label">
+							Class level
+						</p>
+						<p className="mt-1 text-sm text-muted">
+							Pick the closest match. You can change it later.
+						</p>
+					</div>
+					<p className="text-sm text-secondary" aria-live="polite">
+						Selected: {selectedEducationLevel.label}
+					</p>
+				</div>
+				<div className="mt-3 grid gap-2 sm:grid-cols-2">
+					{EDUCATION_LEVELS.map((level) => (
+						<button
+							key={level.label}
+							type="button"
+							aria-pressed={educationLevel === level.value}
+							className={cn(
+								"rounded-lg border px-3 py-3 text-left text-sm transition",
+								educationLevel === level.value
+									? "border-brand bg-brand text-white"
+									: "border-glass-border bg-background/40 hover:bg-glass",
+							)}
+							onClick={() => setEducationLevel(level.value)}
+						>
+							<span className="flex items-center gap-2 font-semibold">
+								<GraduationCap aria-hidden="true" size={16} />
+								{level.label}
+							</span>
+							<span
+								className={cn(
+									"mt-1 block leading-5",
+									educationLevel === level.value ? "text-white/80" : "text-muted",
+								)}
+							>
+								{educationLevelDescriptions[level.label]}
+							</span>
+						</button>
+					))}
+				</div>
 			</div>
 			<div>
 				<label className="block text-sm font-medium" htmlFor="description">

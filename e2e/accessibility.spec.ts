@@ -64,7 +64,7 @@ test("keyboard user can queue a wizard exam and screen readers receive form stat
 	await expect(page.getByRole("status").filter({ hasText: "0 topics ready" })).toBeVisible();
 	await tabTo(page, page.getByLabel("Exam title"));
 	await page.keyboard.type(title);
-	await tabTo(page, page.getByRole("textbox", { name: "Topics" }));
+	await tabTo(page, page.getByRole("textbox", { name: "Topics to include" }));
 	await page.keyboard.insertText("Keyboard navigation\nFocus management");
 	await expect(page.getByRole("status").filter({ hasText: "2 topics ready" })).toBeVisible();
 	const generateButton = page.getByRole("button", { name: "Generate", exact: true });

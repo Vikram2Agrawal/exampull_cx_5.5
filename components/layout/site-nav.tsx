@@ -1,5 +1,6 @@
 import { Bell, BookOpen, FileText, GraduationCap, Settings } from "lucide-react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ExamPullMark } from "@/components/brand/exampull-mark";
 import { FeaturebaseHelpButton } from "@/components/feedback/featurebase-help-button";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,8 +28,8 @@ export function PublicNav() {
 					href="/"
 					className="flex min-h-11 items-center gap-2 font-semibold text-foreground"
 				>
-					<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-						E
+					<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/25">
+						<ExamPullMark className="h-6 w-6" />
 					</span>
 					<span>ExamPull</span>
 				</a>
@@ -84,8 +85,8 @@ export function AppShell({
 					aria-label="Application"
 				>
 					<a href="/dashboard" className="flex min-h-11 items-center gap-2 font-semibold">
-						<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-							E
+						<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/25">
+							<ExamPullMark className="h-6 w-6" />
 						</span>
 						<span>ExamPull</span>
 					</a>

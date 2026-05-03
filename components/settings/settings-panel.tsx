@@ -1,7 +1,7 @@
 "use client";
 
 import { FirebaseError } from "firebase/app";
-import { GoogleAuthProvider, linkWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, linkWithRedirect, signOut } from "firebase/auth";
 import {
 	Bell,
 	Copy,
@@ -14,7 +14,7 @@ import {
 	Shield,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import type { LinkedAuthProvider } from "@/lib/auth/providers";
 import { firebaseAuth } from "@/lib/firebase/client";
@@ -23,6 +23,46 @@ import {
 	type NotificationPreferences,
 	notificationEventDefinitions,
 } from "@/lib/user/notification-preferences";
+
+async function refreshLinkedSession(idToken: string) {
+	const response = await fetch("/api/auth/session", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ idToken, mode: "signin" }),
+	});
+	const body = (await response.json().catch(() => ({}))) as { error?: string };
+
+	if (!response.ok) {
+		await signOut(firebaseAuth);
+		throw new Error(body.error ?? "ExamPull could not refresh linked account data.");
+	}
+}
+
+function googleLinkMessage(error: unknown) {
+	if (error instanceof FirebaseError) {
+		if (error.code === "auth/provider-already-linked") {
+			return "Google sign-in is already linked.";
+		}
+
+		if (error.code === "auth/credential-already-in-use") {
+			return "That Google account is already linked to another ExamPull account. Sign in with that account first.";
+		}
+
+		if (error.code === "auth/requires-recent-login") {
+			return "Sign out and sign back in, then link Google from Settings.";
+		}
+
+		if (error.code === "auth/popup-closed-by-user") {
+			return "The Google window closed before linking finished.";
+		}
+
+		if (error.code === "auth/operation-not-allowed") {
+			return "Google sign-in is not enabled on this deployment. This is a configuration issue.";
+		}
+	}
+
+	return error instanceof Error ? error.message : "Google linking failed.";
+}
 
 export function SettingsPanel({
 	displayName,
@@ -49,59 +89,69 @@ export function SettingsPanel({
 	const [theme, setTheme] = useState<"system" | "light" | "dark">(initialTheme);
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
+	const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
 	const hasGoogle = linkedAuthProviders.some((provider) => provider.type === "google");
 
-	async function refreshSession(idToken: string) {
-		const response = await fetch("/api/auth/session", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ idToken, mode: "signin" }),
-		});
-		const body = (await response.json().catch(() => ({}))) as { error?: string };
-
-		if (!response.ok) {
-			await signOut(firebaseAuth);
-			throw new Error(body.error ?? "ExamPull could not refresh linked account data.");
+	useEffect(() => {
+		if (window.sessionStorage.getItem("exampull:link-google") !== "pending") {
+			return;
 		}
-	}
 
-	function linkGoogle() {
+		let cancelled = false;
+
 		startTransition(async () => {
-			setStatus("");
-
 			try {
-				const user = firebaseAuth.currentUser;
+				const result = await getRedirectResult(firebaseAuth);
+				const user = result?.user ?? firebaseAuth.currentUser;
+
 				if (!user) {
-					throw new Error("Sign in again before linking a new source.");
+					throw new Error("Sign in again before linking Google.");
 				}
 
-				await linkWithPopup(user, new GoogleAuthProvider());
-				await refreshSession(await user.getIdToken(true));
-				setStatus("Google sign-in linked.");
-				router.refresh();
+				const googleLinked =
+					result?.providerId === "google.com" ||
+					user.providerData.some((provider) => provider.providerId === "google.com");
+
+				if (!googleLinked) {
+					throw new Error("Google linking was not completed.");
+				}
+
+				await refreshLinkedSession(await user.getIdToken(true));
+				window.sessionStorage.removeItem("exampull:link-google");
+				if (!cancelled) {
+					setStatus("Google sign-in linked.");
+					router.refresh();
+				}
 			} catch (error) {
-				if (error instanceof FirebaseError) {
-					if (error.code === "auth/provider-already-linked") {
-						setStatus("Google sign-in is already linked.");
-						return;
-					}
-
-					if (error.code === "auth/credential-already-in-use") {
-						setStatus(
-							"That Google account is already linked to another ExamPull account. Sign in with that account first to connect sources.",
-						);
-						return;
-					}
-
-					if (error.code === "auth/popup-closed-by-user") {
-						setStatus("The Google link window was closed.");
-						return;
-					}
+				window.sessionStorage.removeItem("exampull:link-google");
+				if (!cancelled) {
+					setStatus(googleLinkMessage(error));
 				}
-
-				setStatus(error instanceof Error ? error.message : "Google linking failed.");
 			}
 		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [router]);
+
+	async function linkGoogle() {
+		setStatus("Opening Google sign-in...");
+		setIsLinkingGoogle(true);
+
+		try {
+			const user = firebaseAuth.currentUser;
+			if (!user) {
+				throw new Error("Sign in again before linking Google.");
+			}
+
+			window.sessionStorage.setItem("exampull:link-google", "pending");
+			await linkWithRedirect(user, new GoogleAuthProvider());
+		} catch (error) {
+			window.sessionStorage.removeItem("exampull:link-google");
+			setStatus(googleLinkMessage(error));
+			setIsLinkingGoogle(false);
+		}
 	}
 
 	function saveProfile() {
@@ -199,11 +249,15 @@ export function SettingsPanel({
 					<Button
 						type="button"
 						className="mt-3"
-						disabled={isPending || hasGoogle}
-						onClick={linkGoogle}
+						disabled={isPending || isLinkingGoogle || hasGoogle}
+						onClick={() => void linkGoogle()}
 					>
 						<KeyRound aria-hidden="true" size={16} />
-						{hasGoogle ? "Google linked" : "Link Google"}
+						{hasGoogle
+							? "Google linked"
+							: isLinkingGoogle
+								? "Opening Google"
+								: "Link Google"}
 					</Button>
 				</div>
 				<label className="mt-5 block text-sm font-medium">
@@ -221,24 +275,21 @@ export function SettingsPanel({
 			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
 				<Bell aria-hidden="true" className="text-secondary" size={22} />
 				<h2 className="mt-4 text-xl font-semibold">Notification preferences</h2>
-				<div className="mt-5 overflow-x-auto rounded-lg border border-glass-border">
-					<table className="w-full min-w-[520px] text-left text-sm">
-						<thead className="bg-background/50 text-muted">
-							<tr>
-								<th className="px-3 py-2 font-medium">Event</th>
-								<th className="w-24 px-3 py-2 text-center font-medium">Email</th>
-								<th className="w-24 px-3 py-2 text-center font-medium">SMS</th>
-								<th className="w-24 px-3 py-2 text-center font-medium">In-app</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-glass-border">
-							{notificationEventDefinitions.map((event) => (
-								<tr key={event.key}>
-									<td className="px-3 py-3">
-										<p className="font-medium">{event.label}</p>
-										<p className="text-xs text-muted">{event.description}</p>
-									</td>
-									<td className="px-3 py-3 text-center">
+				<div className="mt-5 space-y-2">
+					{notificationEventDefinitions.map((event) => (
+						<div
+							key={event.key}
+							className="rounded-lg border border-glass-border bg-background/45 p-3 text-sm"
+						>
+							<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+								<div>
+									<p className="font-medium">{event.label}</p>
+									<p className="text-xs leading-5 text-muted">
+										{event.description}
+									</p>
+								</div>
+								<div className="grid grid-cols-3 gap-2 text-xs text-muted sm:w-56">
+									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
 										<input
 											aria-label={`${event.label} email`}
 											type="checkbox"
@@ -251,8 +302,9 @@ export function SettingsPanel({
 												)
 											}
 										/>
-									</td>
-									<td className="px-3 py-3 text-center">
+										Email
+									</label>
+									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
 										<input
 											aria-label={`${event.label} SMS`}
 											type="checkbox"
@@ -265,8 +317,9 @@ export function SettingsPanel({
 												)
 											}
 										/>
-									</td>
-									<td className="px-3 py-3 text-center">
+										SMS
+									</label>
+									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
 										<input
 											aria-label={`${event.label} in-app`}
 											type="checkbox"
@@ -274,11 +327,12 @@ export function SettingsPanel({
 											disabled
 											readOnly
 										/>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+										In-app
+									</label>
+								</div>
+							</div>
+						</div>
+					))}
 				</div>
 				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
 					Save notifications

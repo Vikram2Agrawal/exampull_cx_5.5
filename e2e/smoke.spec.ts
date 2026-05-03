@@ -22,6 +22,16 @@ async function attachSmokeScreenshot(page: Page, testInfo: TestInfo, name: strin
 	await testInfo.attach(name, { path, contentType: "image/png" });
 }
 
+function humanPhoneEntry(phoneNumber: string) {
+	const digits = phoneNumber.replace(/\D/g, "");
+
+	if (digits.length === 11 && digits.startsWith("1")) {
+		return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+	}
+
+	return phoneNumber;
+}
+
 test("landing page shows artifact-first CTA", async ({ page }, testInfo) => {
 	await page.goto("/");
 	await expect(page.getByRole("link", { name: "Start with a free exam" })).toBeVisible();
@@ -88,7 +98,7 @@ test("Firebase phone signup verifies through the browser form", async ({ page },
 		await page.getByLabel("Name").fill("Phone Smoke");
 		await page.getByLabel("Email").fill(email);
 		await page.getByLabel("Password").fill("PhoneSmokePassword123!");
-		await page.getByLabel("Phone number").fill(phoneNumber ?? "");
+		await page.getByLabel("Phone number").fill(humanPhoneEntry(phoneNumber ?? ""));
 		await page.getByRole("button", { name: "Send verification code" }).click();
 		await expect(page.getByLabel("6-digit code")).toBeVisible({ timeout: 20_000 });
 		await expect(page.getByText(/operation-not-allowed/i)).toHaveCount(0);
