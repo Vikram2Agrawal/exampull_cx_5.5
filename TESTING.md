@@ -29,7 +29,21 @@ Production smoke must include browser-level Firebase Auth calls from the current
 
 Run `pnpm verify:firebase-auth` before deploy. Use `pnpm setup:firebase-auth` only when a new App Hosting hostname, Phone Auth provider, or Firebase test phone entry must be added.
 
+Browser upload smoke must include a visible `<input type="file">` interaction from the current origin, followed by a real signed Firebase Storage write. API-request uploads are not enough because they bypass browser CORS. Run `pnpm verify:storage-cors` before deploy; run `pnpm setup:storage-cors` whenever a new local test port, App Hosting hostname, or custom domain is introduced.
+
 Public and auth surfaces are not covered by authenticated test-session helpers. Smoke must visually exercise the landing page on desktop and mobile, assert the dark atelier default, assert the paper artifact is visible in the first viewport, check horizontal overflow, and save screenshot artifacts. Signup smoke must continue past OTP into the authenticated dashboard and exam builder before cleanup, with screenshots attached. Smoke must also request unauthenticated protected user routes and fail on any 500; those routes must redirect to sign-in or return a clear 401 before loading heavy worker-only dependencies. Authenticated E2E helpers remain valid for server behavior and data isolation, but they cannot be the only proof that login/signup works or that the first-run public experience honors `DESIGN_PHILOSOPHY.md`.
+
+Full-product UX passes must capture a single desktop/mobile matrix across public, authenticated, admin, and primary workflow routes. Screenshot harnesses must hide development-only framework overlays such as `nextjs-portal`; a red dev badge in an artifact is test-environment noise, not product UI, and must be removed from the harness before visual review. UX sign-off requires looking at the screenshots, reading the visible copy as a real student would, and exercising the changed controls through browser interactions rather than asserting that a component merely exists.
+
+Do not run `next build` against the same checkout while `next dev` is serving browser tests. The production build mutates `.next`, and a concurrent dev server can return manifest-related 500s unrelated to the product. After any production build, restart local dev on a fresh port before running local Playwright, or run the browser gate against the deployed App Hosting URL.
+
+Run `pnpm preflight` before accepting any local QA result. It verifies the active Node and pnpm runtime versions so a fresh shell cannot quietly run incompatible tooling and produce misleading Playwright or package-manager errors.
+
+Hosted smoke is not the same as hosted product E2E. Smoke is the minimum production-safe Firebase/auth/origin check; production canary coverage must keep growing toward real browser signup, visible upload, visible generation, detail review, PDF download, and account cleanup without `/api/test/session`. The current hosted smoke must, at minimum, complete Firebase phone signup, open the deployed exam builder, click the visible Generate button, assert the queued exam detail page, and clean up the test account.
+
+Static tests and unit tests are hygiene, not proof. A changed user flow is not accepted until an agent has used the UI path through a browser, watched the visible state changes, and inspected the resulting artifact when the flow produces one. Playwright is allowed to drive the browser, but it must not only manufacture backend state that gives the appearance of success; any seeded setup must be explicitly separated from the user action under test, and the user-visible controls must be clicked or typed into for the critical path.
+
+When visual evidence is captured, viewport screenshots are the primary artifact because they represent what a user actually sees. Full-page screenshots are secondary layout-audit artifacts only; sticky navigation, browser overlays, or framework chrome in a full-page capture must not be mistaken for product UI.
 
 ## Flow Enumeration Formula
 

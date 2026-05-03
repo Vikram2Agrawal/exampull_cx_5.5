@@ -34,6 +34,12 @@ export const EDUCATION_LEVELS = [
 	{ label: "Professional", value: 95 },
 ] as const;
 
+export function educationLevelLabel(value: number) {
+	return EDUCATION_LEVELS.reduce((closest, current) =>
+		Math.abs(current.value - value) < Math.abs(closest.value - value) ? current : closest,
+	).label;
+}
+
 export const EXAM_STATUSES = [
 	"queued",
 	"generating",

@@ -62,9 +62,11 @@ test("real USC source files can ground a one-time exam upload", async ({ page })
 	await expect(page.getByText(/KB - Ready/)).toHaveCount(2, { timeout: 30_000 });
 	await expect(page.getByText(/topics extracted/)).toHaveCount(2, { timeout: 30_000 });
 
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Dynamic programming recurrence design\nGame theory payoff matrices");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -121,9 +123,11 @@ test("real USC class fixtures upload as course materials and style references", 
 	await page.getByLabel("Exam title").fill("Stored real fixture exam");
 	await page.getByLabel("Stored class").selectOption(classPayload.classId);
 	await page.getByLabel(/BUAD312_ Hypothesis testing wrap-up\.pdf/).check();
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Hypothesis testing\nSurvey interpretation");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(

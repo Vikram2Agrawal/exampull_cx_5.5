@@ -4,6 +4,7 @@ import { getAuth, type UserRecord } from "firebase-admin/auth";
 import {
 	type CollectionReference,
 	type DocumentData,
+	type DocumentReference,
 	getFirestore,
 } from "firebase-admin/firestore";
 import { z } from "zod";
@@ -86,6 +87,25 @@ async function deleteCollection(collection: CollectionReference<DocumentData>) {
 	}
 }
 
+async function deleteUserTree(userRef: DocumentReference<DocumentData>) {
+	for (const subcollection of userSubcollections) {
+		await deleteCollection(userRef.collection(subcollection));
+	}
+
+	await userRef.delete();
+}
+
+async function deleteStaleFirestoreTestUsersByPhone(phoneNumber: string) {
+	const db = getFirestore(adminApp());
+	const snapshot = await db.collection("users").where("phoneNumber", "==", phoneNumber).get();
+
+	for (const doc of snapshot.docs) {
+		if (doc.get("isTestAccount") === true) {
+			await deleteUserTree(doc.ref);
+		}
+	}
+}
+
 export async function cleanupFirebaseTestPhoneAccount(phoneNumber: string) {
 	const app = adminApp();
 	const auth = getAuth(app);
@@ -101,6 +121,7 @@ export async function cleanupFirebaseTestPhoneAccount(phoneNumber: string) {
 			"code" in error &&
 			error.code === "auth/user-not-found"
 		) {
+			await deleteStaleFirestoreTestUsersByPhone(phoneNumber);
 			return;
 		}
 
@@ -117,10 +138,6 @@ export async function cleanupFirebaseTestPhoneAccount(phoneNumber: string) {
 		);
 	}
 
-	for (const subcollection of userSubcollections) {
-		await deleteCollection(userRef.collection(subcollection));
-	}
-
-	await userRef.delete();
+	await deleteUserTree(userRef);
 	await auth.deleteUser(user.uid);
 }

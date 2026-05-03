@@ -9,8 +9,8 @@ export default function SupportPage() {
 			<main className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_460px]">
 				<SectionHeader title="Support">
 					<p>
-						Tell us what happened. Support requests become operator-visible tickets in
-						admin.
+						Tell us what happened and what you were trying to do. We will route it to
+						the right support queue.
 					</p>
 				</SectionHeader>
 				<GlassPanel className="p-6">

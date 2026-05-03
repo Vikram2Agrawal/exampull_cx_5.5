@@ -111,7 +111,15 @@ export function SignInForm() {
 		setError(null);
 
 		try {
-			const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+			const cleanEmail = email.trim();
+			if (!cleanEmail || !password) {
+				throw new Error("Enter your email and password.");
+			}
+			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+				throw new Error("Enter a valid email address.");
+			}
+
+			const credential = await signInWithEmailAndPassword(firebaseAuth, cleanEmail, password);
 			if (pendingGoogleCredential) {
 				await linkWithCredential(credential.user, pendingGoogleCredential);
 				setPendingGoogleCredential(null);
@@ -156,7 +164,7 @@ export function SignInForm() {
 	}
 
 	return (
-		<form className="space-y-5" onSubmit={onSubmit}>
+		<form className="space-y-5" onSubmit={onSubmit} noValidate>
 			<div>
 				<label className="text-sm font-medium" htmlFor="email">
 					Email
@@ -184,7 +192,9 @@ export function SignInForm() {
 				/>
 			</div>
 			{error ? (
-				<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
+				<p className="rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+					{error}
+				</p>
 			) : null}
 			<Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
 				<LogIn aria-hidden="true" size={18} />

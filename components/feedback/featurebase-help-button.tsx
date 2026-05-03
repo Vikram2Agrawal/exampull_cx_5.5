@@ -1,7 +1,7 @@
 "use client";
 
 import { HelpCircle, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -71,6 +71,10 @@ export function FeaturebaseHelpButton({
 	const [session, setSession] = useState<FeaturebaseSession | null>(null);
 	const [sdkInitialized, setSdkInitialized] = useState(false);
 	const [hasUnreadChangelog, setHasUnreadChangelog] = useState(false);
+	const titleId = useId();
+	const dialogRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const closeRef = useRef<HTMLButtonElement>(null);
 
 	useEffect(() => {
 		let active = true;
@@ -124,16 +128,63 @@ export function FeaturebaseHelpButton({
 		setSdkInitialized(true);
 	}
 
+	useEffect(() => {
+		if (!open) {
+			return;
+		}
+
+		closeRef.current?.focus();
+
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") {
+				setOpen(false);
+				return;
+			}
+
+			if (event.key !== "Tab" || !dialogRef.current) {
+				return;
+			}
+
+			const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+			);
+			const focusables = Array.from(focusableElements);
+			if (focusables.length === 0) {
+				return;
+			}
+
+			const first = focusables[0];
+			const last = focusables[focusables.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
+
+		document.body.style.overflow = "hidden";
+		document.addEventListener("keydown", onKeyDown);
+
+		return () => {
+			document.body.style.overflow = "";
+			document.removeEventListener("keydown", onKeyDown);
+			triggerRef.current?.focus();
+		};
+	}, [open]);
+
 	return (
 		<>
 			<button
+				ref={triggerRef}
 				type="button"
 				aria-label={
 					hasUnreadChangelog
 						? "Open help and feedback, unread changelog"
 						: "Open help and feedback"
 				}
-				className="fixed bottom-24 right-3 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-foreground shadow-glass md:bottom-5 md:right-5 md:h-12 md:w-12"
+				className="fixed bottom-5 right-5 z-40 hidden h-12 w-12 items-center justify-center rounded-full border border-glass-border bg-glass-strong text-foreground shadow-glass md:flex"
 				onClick={() => {
 					initializeFeaturebase();
 					setOpen(true);
@@ -149,15 +200,24 @@ export function FeaturebaseHelpButton({
 			</button>
 			{open ? (
 				<div className="fixed inset-0 z-50 bg-black/40">
-					<div className="absolute bottom-0 right-0 max-h-[88vh] w-full overflow-y-auto border-t border-glass-border bg-background p-5 shadow-glass sm:bottom-5 sm:right-5 sm:w-[420px] sm:rounded-lg sm:border">
+					<div
+						ref={dialogRef}
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby={titleId}
+						className="absolute bottom-0 right-0 max-h-[88vh] w-full overflow-y-auto border-t border-glass-border bg-background p-5 shadow-glass sm:bottom-5 sm:right-5 sm:w-[420px] sm:rounded-lg sm:border"
+					>
 						<div className="flex items-start justify-between gap-4">
 							<div>
 								<p className="text-sm font-semibold text-secondary">
 									Help & Feedback
 								</p>
-								<h2 className="mt-1 text-xl font-semibold">Send a note</h2>
+								<h2 id={titleId} className="mt-1 text-xl font-semibold">
+									Send a note
+								</h2>
 							</div>
 							<button
+								ref={closeRef}
 								type="button"
 								aria-label="Close help and feedback"
 								className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-glass"

@@ -4,6 +4,8 @@ import { Archive, Bookmark, Copy, Flag, RotateCcw, Share2, Star, Trash2 } from "
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatusMessage } from "@/components/ui/surface";
 import type { ExamStatus } from "@/lib/product/constants";
 
 type ExamActionsProps = {
@@ -51,6 +53,7 @@ export function ExamActions({
 	const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
 	const [shareUrl, setShareUrl] = useState("");
 	const [status, setStatus] = useState("");
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const canRate = examStatus === "complete" && rating === null && !ratingDismissed;
 	const hasRated = examStatus === "complete" && rating !== null;
 
@@ -122,18 +125,6 @@ export function ExamActions({
 	}
 
 	function deleteExam() {
-		const firstConfirm = window.confirm("Delete this exam permanently?");
-		if (!firstConfirm) {
-			return;
-		}
-
-		const secondConfirm = window.confirm(
-			"Consider archiving instead to preserve your exam history. Delete anyway?",
-		);
-		if (!secondConfirm) {
-			return;
-		}
-
 		startTransition(async () => {
 			try {
 				await readJson(await fetch(`/api/exams/${examId}`, { method: "DELETE" }));
@@ -185,20 +176,25 @@ export function ExamActions({
 
 	return (
 		<div className="space-y-4">
-			<div className="grid gap-2">
+			<div className="grid gap-2 sm:grid-cols-2">
 				{cloneUnavailableReason ? (
-					<div className="flex gap-2 rounded-lg border border-glass-border bg-background/60 p-3 text-sm text-muted">
+					<div className="flex gap-2 rounded-lg border border-glass-border bg-background/60 p-3 text-sm text-muted sm:col-span-2">
 						<RotateCcw aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
 						<span>{cloneUnavailableReason}</span>
 					</div>
 				) : (
-					<Button type="button" onClick={cloneExam} disabled={isPending}>
+					<Button
+						type="button"
+						onClick={cloneExam}
+						disabled={isPending}
+						className="w-full justify-start sm:col-span-2"
+					>
 						<RotateCcw aria-hidden="true" size={18} />
 						Create another like this
 					</Button>
 				)}
 				{canCreateShareLink ? (
-					<div className="space-y-2">
+					<div className="space-y-2 sm:col-span-2">
 						{canShareAnswerKey ? (
 							<label className="flex items-center gap-2 text-sm text-muted">
 								<input
@@ -211,13 +207,23 @@ export function ExamActions({
 								Include answer key
 							</label>
 						) : null}
-						<Button type="button" onClick={shareExam} disabled={isPending}>
+						<Button
+							type="button"
+							onClick={shareExam}
+							disabled={isPending}
+							className="w-full justify-start"
+						>
 							<Share2 aria-hidden="true" size={18} />
 							Share exam
 						</Button>
 					</div>
 				) : null}
-				<Button type="button" onClick={toggleBookmark} disabled={isPending}>
+				<Button
+					type="button"
+					onClick={toggleBookmark}
+					disabled={isPending}
+					className="w-full justify-start"
+				>
 					<Bookmark
 						aria-hidden="true"
 						className={bookmarked ? "fill-premium text-premium" : ""}
@@ -225,25 +231,44 @@ export function ExamActions({
 					/>
 					{bookmarked ? "Bookmarked" : "Bookmark"}
 				</Button>
-				<Button type="button" onClick={archiveExam} disabled={isPending}>
+				<Button
+					type="button"
+					onClick={archiveExam}
+					disabled={isPending}
+					className="w-full justify-start"
+				>
 					<Archive aria-hidden="true" size={18} />
 					{initialArchived ? "Restore" : "Archive"}
 				</Button>
 				{examStatus === "complete" ? (
 					<Button
 						type="button"
-						variant="danger"
+						variant="secondary"
 						onClick={reportExam}
 						disabled={isPending}
+						className="w-full justify-start sm:col-span-2"
 					>
 						<Flag aria-hidden="true" size={18} />
 						Report issue
 					</Button>
 				) : null}
-				<Button type="button" variant="danger" onClick={deleteExam} disabled={isPending}>
-					<Trash2 aria-hidden="true" size={18} />
-					Delete
-				</Button>
+				<details className="mt-2 rounded-lg border border-error/25 bg-error/5 sm:col-span-2">
+					<summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-medium text-error">
+						Danger zone
+					</summary>
+					<div className="border-t border-error/20 p-3">
+						<Button
+							type="button"
+							variant="danger"
+							onClick={() => setDeleteDialogOpen(true)}
+							disabled={isPending}
+							className="w-full"
+						>
+							<Trash2 aria-hidden="true" size={18} />
+							Delete exam
+						</Button>
+					</div>
+				</details>
 			</div>
 			{canRate ? (
 				<div className="space-y-3 rounded-lg border border-glass-border bg-background/50 p-3">
@@ -305,7 +330,21 @@ export function ExamActions({
 					<span className="min-w-0 flex-1 truncate">{shareUrl}</span>
 				</div>
 			) : null}
-			{status ? <p className="text-sm text-muted">{status}</p> : null}
+			{status ? <StatusMessage>{status}</StatusMessage> : null}
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				title="Delete this exam?"
+				confirmLabel="Delete exam"
+				onClose={() => setDeleteDialogOpen(false)}
+				onConfirm={deleteExam}
+				confirmDisabled={isPending}
+			>
+				<p>
+					This permanently removes the exam, answer key, grading attempts, share links,
+					and stored files. Archiving keeps the artifact in your library without making it
+					prominent.
+				</p>
+			</ConfirmDialog>
 		</div>
 	);
 }

@@ -1,14 +1,26 @@
-import type { CloudTasksClient } from "@google-cloud/tasks";
+import { GoogleAuth } from "google-auth-library";
 import { env, publicBaseUrl } from "@/lib/env";
 
-let clientPromise: Promise<CloudTasksClient> | null = null;
+const cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform";
 
-async function cloudTasksClient() {
-	clientPromise ??= import("@google-cloud/tasks").then(
-		({ CloudTasksClient }) => new CloudTasksClient(),
-	);
+let authPromise: Promise<GoogleAuth> | null = null;
 
-	return clientPromise;
+function cloudTasksParent(project: string, location: string, queue: string) {
+	return `projects/${project}/locations/${location}/queues/${queue}`;
+}
+
+async function cloudTasksAccessToken() {
+	authPromise ??= Promise.resolve(new GoogleAuth({ scopes: [cloudPlatformScope] }));
+	const auth = await authPromise;
+	const client = await auth.getClient();
+	const token = await client.getAccessToken();
+	const accessToken = typeof token === "string" ? token : token.token;
+
+	if (!accessToken) {
+		throw new Error("Cloud Tasks auth did not return an access token.");
+	}
+
+	return accessToken;
 }
 
 export async function enqueueWorkerTask({
@@ -27,25 +39,38 @@ export async function enqueueWorkerTask({
 		return { queued: false, reason: "Cloud Tasks env missing" };
 	}
 
-	const client = await cloudTasksClient();
-	const parent = client.queuePath(project, location, queue);
+	const parent = cloudTasksParent(project, location, queue);
 	const url = new URL(route, publicBaseUrl()).toString();
-	const [task] = await client.createTask({
-		parent,
-		task: {
-			httpRequest: {
-				httpMethod: "POST",
-				url,
-				headers: { "Content-Type": "application/json" },
-				body: Buffer.from(JSON.stringify(payload)).toString("base64"),
-				oidcToken: {
-					serviceAccountEmail: invoker,
-					audience: publicBaseUrl(),
-				},
-			},
-			dispatchDeadline: { seconds: 1800 },
+	const response = await fetch(`https://cloudtasks.googleapis.com/v2/${parent}/tasks`, {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${await cloudTasksAccessToken()}`,
+			"Content-Type": "application/json",
 		},
+		body: JSON.stringify({
+			task: {
+				httpRequest: {
+					httpMethod: "POST",
+					url,
+					headers: { "Content-Type": "application/json" },
+					body: Buffer.from(JSON.stringify(payload)).toString("base64"),
+					oidcToken: {
+						serviceAccountEmail: invoker,
+						audience: publicBaseUrl(),
+					},
+				},
+				dispatchDeadline: "1800s",
+			},
+		}),
 	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Cloud Tasks enqueue failed with ${response.status.toString()}: ${await response.text()}`,
+		);
+	}
+
+	const task = (await response.json()) as { name?: string };
 
 	return { queued: true, name: task.name ?? "unknown" };
 }

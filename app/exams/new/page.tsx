@@ -7,11 +7,16 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { listClassMaterials, listUserClasses } from "@/lib/classes/data";
 import { listUserExams } from "@/lib/exams/data";
 
-export default async function NewExamPage() {
+export default async function NewExamPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ classId?: string }>;
+}) {
+	const { classId: requestedClassId } = await searchParams;
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	if (user.accountStatus === "suspended") {
@@ -65,8 +70,8 @@ export default async function NewExamPage() {
 			<div className="space-y-8">
 				<SectionHeader title="Build a practice exam">
 					<p>
-						Add your files or topics, review what ExamPull found, then choose the
-						length. Credits are reserved only when you generate.
+						Choose files or type topics, then review the scope before credits are
+						reserved. The form keeps the next step visible as you work.
 					</p>
 				</SectionHeader>
 				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -76,6 +81,7 @@ export default async function NewExamPage() {
 						boostAvailable={user.tier === "free" && !user.boostUsedAt}
 						priorExamCount={priorExams.length}
 						classes={sourceClasses}
+						initialClassId={requestedClassId}
 					/>
 					<aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
 						<Paper className="p-6">

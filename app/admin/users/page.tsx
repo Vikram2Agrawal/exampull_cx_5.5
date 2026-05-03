@@ -21,6 +21,14 @@ export default async function AdminUsersPage() {
 	return (
 		<AdminShell active="Users">
 			<div className="space-y-6">
+				<section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+					<h2 className="font-semibold">Operator context is required before action</h2>
+					<p className="mt-1">
+						Credit, tier, and suspension controls are still available here, but use the
+						row ID only after confirming the target account from search or support
+						context. Detail sheets are the next admin UX priority.
+					</p>
+				</section>
 				<CreditGrantForm />
 				<TierOverrideForm />
 				<AccountSuspensionForm />

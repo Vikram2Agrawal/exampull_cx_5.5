@@ -8,7 +8,7 @@ export default async function NewClassPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	return (

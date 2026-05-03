@@ -27,6 +27,16 @@ async function getPreviewFingerprint() {
 	return fingerprintPromise;
 }
 
+function samplePrompt(topic: string, index: number) {
+	const prompts = [
+		`Explain ${topic} and identify the assumption that matters most when solving a new problem.`,
+		`A student applies ${topic} to a worked example but skips the setup. Write the missing setup and state the final relationship they should use.`,
+		`Compare two cases where ${topic} does and does not apply. Give one reason for the difference.`,
+	];
+
+	return prompts[index % prompts.length] ?? prompts[0];
+}
+
 export function AnonymousPreview() {
 	const [title, setTitle] = useState("Thermodynamics Midterm");
 	const [topicsText, setTopicsText] = useState(
@@ -108,7 +118,14 @@ export function AnonymousPreview() {
 					<WandSparkles aria-hidden="true" size={18} />
 					{isPending ? "Typesetting" : "Generate preview"}
 				</Button>
-				{status ? <p className="text-sm text-muted">{status}</p> : null}
+				{status ? (
+					<p
+						className="text-sm text-muted"
+						role={status.toLowerCase().includes("failed") ? "alert" : "status"}
+					>
+						{status}
+					</p>
+				) : null}
 			</div>
 			{previewImageBase64 ? (
 				<figure
@@ -156,8 +173,7 @@ export function AnonymousPreview() {
 							.slice(0, 3)
 							.map((topic, index) => (
 								<li key={topic}>
-									<strong>{index + 1}.</strong> Answer a representative question
-									about {topic}.
+									<strong>{index + 1}.</strong> {samplePrompt(topic, index)}
 								</li>
 							))}
 					</ol>

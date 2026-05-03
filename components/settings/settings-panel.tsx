@@ -2,6 +2,7 @@
 
 import { FirebaseError } from "firebase/app";
 import { GoogleAuthProvider, getRedirectResult, linkWithRedirect, signOut } from "firebase/auth";
+import type { LucideIcon } from "lucide-react";
 import {
 	Bell,
 	Copy,
@@ -9,6 +10,7 @@ import {
 	Download,
 	KeyRound,
 	Link2,
+	LogOut,
 	Moon,
 	Network,
 	Shield,
@@ -16,6 +18,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatusMessage } from "@/components/ui/surface";
 import type { LinkedAuthProvider } from "@/lib/auth/providers";
 import { firebaseAuth } from "@/lib/firebase/client";
 import {
@@ -23,6 +27,16 @@ import {
 	type NotificationPreferences,
 	notificationEventDefinitions,
 } from "@/lib/user/notification-preferences";
+
+type SettingsSection = "profile" | "notifications" | "referrals" | "billing" | "data";
+
+const settingsSections = [
+	{ id: "profile", label: "Profile", icon: Link2 },
+	{ id: "notifications", label: "Updates", ariaLabel: "Notifications", icon: Bell },
+	{ id: "referrals", label: "Rewards", icon: Network },
+	{ id: "billing", label: "Plan", icon: CreditCard },
+	{ id: "data", label: "Data", icon: Shield },
+] satisfies { id: SettingsSection; label: string; ariaLabel?: string; icon: LucideIcon }[];
 
 async function refreshLinkedSession(idToken: string) {
 	const response = await fetch("/api/auth/session", {
@@ -90,6 +104,8 @@ export function SettingsPanel({
 	const [status, setStatus] = useState("");
 	const [isPending, startTransition] = useTransition();
 	const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
 	const hasGoogle = linkedAuthProviders.some((provider) => provider.type === "google");
 
 	useEffect(() => {
@@ -220,210 +236,321 @@ export function SettingsPanel({
 	}
 
 	return (
-		<div className="grid min-w-0 gap-4 lg:grid-cols-2">
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<Link2 aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Profile and linked accounts</h2>
-				<p className="mt-2 text-sm text-muted">{email ?? "Email address unavailable"}</p>
-				<div className="mt-5 space-y-2">
-					<p className="text-sm font-medium">Linked sign-in sources</p>
-					<div className="space-y-2">
-						{linkedAuthProviders.length > 0 ? (
-							linkedAuthProviders.map((provider) => (
-								<div
-									key={`${provider.type}:${provider.identifier}`}
-									className="flex items-center justify-between rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm"
-								>
-									<span className="font-medium">{provider.label}</span>
-									<span className="break-all text-right text-muted">
-										{provider.identifier}
-									</span>
-								</div>
-							))
-						) : (
-							<p className="rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm text-muted">
-								Sign in again to sync linked sources.
-							</p>
-						)}
-					</div>
-					<Button
-						type="button"
-						className="mt-3"
-						disabled={isPending || isLinkingGoogle || hasGoogle}
-						onClick={() => void linkGoogle()}
-					>
-						<KeyRound aria-hidden="true" size={16} />
-						{hasGoogle
-							? "Google linked"
-							: isLinkingGoogle
-								? "Opening Google"
-								: "Link Google"}
-					</Button>
-				</div>
-				<label className="mt-5 block text-sm font-medium">
-					Display name
-					<input
-						className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-						value={name}
-						onChange={(event) => setName(event.target.value)}
+		<div className="space-y-4">
+			<div
+				className="flex gap-2 overflow-x-auto rounded-lg border border-glass-border bg-glass p-2"
+				role="tablist"
+				aria-label="Settings sections"
+			>
+				{settingsSections.map((section) => (
+					<TabButton
+						key={section.id}
+						section={section}
+						selected={activeSection === section.id}
+						onClick={() => setActiveSection(section.id)}
 					/>
-				</label>
-				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
-					Save profile
-				</Button>
-			</section>
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<Bell aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Notification preferences</h2>
-				<div className="mt-5 space-y-2">
-					{notificationEventDefinitions.map((event) => (
-						<div
-							key={event.key}
-							className="rounded-lg border border-glass-border bg-background/45 p-3 text-sm"
-						>
-							<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-								<div>
-									<p className="font-medium">{event.label}</p>
-									<p className="text-xs leading-5 text-muted">
-										{event.description}
-									</p>
+				))}
+			</div>
+			<div className="grid min-w-0 gap-4 lg:grid-cols-2">
+				{activeSection === "profile" ? (
+					<>
+						<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
+							<Link2 aria-hidden="true" className="text-secondary" size={22} />
+							<h2 className="mt-4 text-xl font-semibold">
+								Profile and linked accounts
+							</h2>
+							<p className="mt-2 text-sm text-muted">
+								{email ?? "Email address unavailable"}
+							</p>
+							<div className="mt-5 space-y-2">
+								<p className="text-sm font-medium">Linked sign-in sources</p>
+								<div className="space-y-2">
+									{linkedAuthProviders.length > 0 ? (
+										linkedAuthProviders.map((provider) => (
+											<div
+												key={`${provider.type}:${provider.identifier}`}
+												className="flex items-center justify-between rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm"
+											>
+												<span className="font-medium">
+													{provider.label}
+												</span>
+												<span className="break-all text-right text-muted">
+													{provider.identifier}
+												</span>
+											</div>
+										))
+									) : (
+										<p className="rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm text-muted">
+											Sign in again to sync linked sources.
+										</p>
+									)}
 								</div>
-								<div className="grid grid-cols-3 gap-2 text-xs text-muted sm:w-56">
-									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
-										<input
-											aria-label={`${event.label} email`}
-											type="checkbox"
-											checked={notificationPreferences[event.key].email}
-											onChange={(changeEvent) =>
-												setNotificationPreference(
-													event.key,
-													"email",
-													changeEvent.target.checked,
-												)
-											}
-										/>
-										Email
-									</label>
-									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
-										<input
-											aria-label={`${event.label} SMS`}
-											type="checkbox"
-											checked={notificationPreferences[event.key].sms}
-											onChange={(changeEvent) =>
-												setNotificationPreference(
-													event.key,
-													"sms",
-													changeEvent.target.checked,
-												)
-											}
-										/>
-										SMS
-									</label>
-									<label className="flex min-h-9 items-center justify-center gap-2 rounded-lg bg-glass px-2">
-										<input
-											aria-label={`${event.label} in-app`}
-											type="checkbox"
-											checked
-											disabled
-											readOnly
-										/>
-										In-app
-									</label>
-								</div>
+								<Button
+									type="button"
+									className="mt-3"
+									disabled={isPending || isLinkingGoogle || hasGoogle}
+									onClick={() => void linkGoogle()}
+								>
+									<KeyRound aria-hidden="true" size={16} />
+									{hasGoogle
+										? "Google linked"
+										: isLinkingGoogle
+											? "Opening Google"
+											: "Link Google"}
+								</Button>
 							</div>
+							<label className="mt-5 block text-sm font-medium">
+								Display name
+								<input
+									className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+									value={name}
+									onChange={(event) => setName(event.target.value)}
+								/>
+							</label>
+							<Button
+								type="button"
+								className="mt-5"
+								disabled={isPending}
+								onClick={saveProfile}
+							>
+								Save profile
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								className="mt-3 lg:hidden"
+								disabled={isPending}
+								onClick={async () => {
+									await fetch("/api/auth/session", { method: "DELETE" });
+									await signOut(firebaseAuth).catch(() => undefined);
+									window.location.href = "/";
+								}}
+							>
+								<LogOut aria-hidden="true" size={16} />
+								Sign out
+							</Button>
+						</section>
+						<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
+							<Moon aria-hidden="true" className="text-secondary" size={22} />
+							<h2 className="mt-4 text-xl font-semibold">Appearance</h2>
+							<select
+								aria-label="Theme"
+								className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3"
+								value={theme}
+								onChange={(event) =>
+									setTheme(event.target.value as "system" | "light" | "dark")
+								}
+							>
+								<option value="system">System</option>
+								<option value="light">Light</option>
+								<option value="dark">Dark</option>
+							</select>
+							<Button
+								type="button"
+								className="mt-5"
+								disabled={isPending}
+								onClick={saveProfile}
+							>
+								Save appearance
+							</Button>
+						</section>
+					</>
+				) : null}
+				{activeSection === "notifications" ? (
+					<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6 lg:col-span-2">
+						<Bell aria-hidden="true" className="text-secondary" size={22} />
+						<h2 className="mt-4 text-xl font-semibold">Notification preferences</h2>
+						<p className="mt-2 text-sm leading-6 text-muted">
+							In-app updates are always on. Choose which events should also reach
+							email or SMS.
+						</p>
+						<div className="mt-5 divide-y divide-glass-border overflow-hidden rounded-lg border border-glass-border bg-background/40">
+							{notificationEventDefinitions.map((event) => (
+								<div
+									key={event.key}
+									className="grid gap-3 px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+								>
+									<div>
+										<p className="font-medium">{event.label}</p>
+										<p className="text-xs leading-5 text-muted">
+											{event.description}
+										</p>
+									</div>
+									<div className="grid grid-cols-3 gap-2 text-xs text-muted sm:w-56">
+										<label className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-glass px-2">
+											<input
+												aria-label={`${event.label} email`}
+												type="checkbox"
+												checked={notificationPreferences[event.key].email}
+												onChange={(changeEvent) =>
+													setNotificationPreference(
+														event.key,
+														"email",
+														changeEvent.target.checked,
+													)
+												}
+											/>
+											Email
+										</label>
+										<label className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-glass px-2">
+											<input
+												aria-label={`${event.label} SMS`}
+												type="checkbox"
+												checked={notificationPreferences[event.key].sms}
+												onChange={(changeEvent) =>
+													setNotificationPreference(
+														event.key,
+														"sms",
+														changeEvent.target.checked,
+													)
+												}
+											/>
+											SMS
+										</label>
+										<label className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-glass px-2">
+											<input
+												aria-label={`${event.label} in-app`}
+												type="checkbox"
+												checked
+												disabled
+												readOnly
+											/>
+											In-app
+										</label>
+									</div>
+								</div>
+							))}
 						</div>
-					))}
-				</div>
-				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
-					Save notifications
-				</Button>
-			</section>
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<Moon aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Appearance</h2>
-				<select
-					aria-label="Theme"
-					className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3"
-					value={theme}
-					onChange={(event) =>
-						setTheme(event.target.value as "system" | "light" | "dark")
-					}
-				>
-					<option value="system">System</option>
-					<option value="light">Light</option>
-					<option value="dark">Dark</option>
-				</select>
-				<Button type="button" className="mt-5" disabled={isPending} onClick={saveProfile}>
-					Save appearance
-				</Button>
-			</section>
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<Network aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Refer friends</h2>
-				<p className="mt-2 text-sm leading-6 text-muted">
-					Earn Scholar months when friends generate exams and Guru months when they
-					upgrade.
+						<Button
+							type="button"
+							className="mt-5"
+							disabled={isPending}
+							onClick={saveProfile}
+						>
+							Save notifications
+						</Button>
+					</section>
+				) : null}
+				{activeSection === "referrals" ? (
+					<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6 lg:col-span-2">
+						<Network aria-hidden="true" className="text-secondary" size={22} />
+						<h2 className="mt-4 text-xl font-semibold">Refer friends</h2>
+						<p className="mt-2 text-sm leading-6 text-muted">
+							Earn Scholar months when friends generate exams and Guru months when
+							they upgrade.
+						</p>
+						<div className="mt-5 rounded-lg border border-glass-border bg-background/50 p-3">
+							<p className="text-xs uppercase text-muted">Referral code</p>
+							<p className="mt-1 font-mono text-sm">{referralCode}</p>
+							<p className="mt-3 break-all text-sm text-muted">{referralUrl}</p>
+						</div>
+						<Button
+							type="button"
+							className="mt-5"
+							disabled={isPending}
+							onClick={copyReferralLink}
+						>
+							<Copy aria-hidden="true" size={16} />
+							Copy link
+						</Button>
+					</section>
+				) : null}
+				{activeSection === "billing" ? (
+					<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6 lg:col-span-2">
+						<CreditCard aria-hidden="true" className="text-secondary" size={22} />
+						<h2 className="mt-4 text-xl font-semibold">Subscription and billing</h2>
+						<p className="mt-2 text-sm leading-6 text-muted">
+							Manage invoices, payment method, and cancellation from the billing
+							portal.
+						</p>
+						<a
+							href="/billing"
+							className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"
+						>
+							Open billing
+						</a>
+					</section>
+				) : null}
+				{activeSection === "data" ? (
+					<>
+						<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
+							<Download aria-hidden="true" className="text-secondary" size={22} />
+							<h2 className="mt-4 text-xl font-semibold">Data export</h2>
+							<p className="mt-2 text-sm leading-6 text-muted">
+								Export account, exam, class, attempt, material, and notification
+								records as JSON.
+							</p>
+							<a
+								href="/api/settings/export"
+								className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"
+							>
+								Download export
+							</a>
+						</section>
+						<section className="min-w-0 rounded-lg border border-error/40 bg-error/10 p-6">
+							<Shield aria-hidden="true" className="text-error" size={22} />
+							<h2 className="mt-4 text-xl font-semibold">Account deletion</h2>
+							<p className="mt-2 text-sm leading-6 text-muted">
+								Delete the account, stored files, generated exams, classes,
+								attempts, and Firebase auth identity.
+							</p>
+							<Button
+								type="button"
+								variant="danger"
+								className="mt-5"
+								disabled={isPending}
+								onClick={() => setDeleteDialogOpen(true)}
+							>
+								Delete account
+							</Button>
+						</section>
+					</>
+				) : null}
+				{status ? <StatusMessage className="lg:col-span-2">{status}</StatusMessage> : null}
+			</div>
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				title="Delete your account?"
+				confirmLabel="Delete account"
+				onClose={() => setDeleteDialogOpen(false)}
+				onConfirm={deleteAccount}
+				confirmDisabled={isPending}
+			>
+				<p>
+					This deletes stored files, generated exams, classes, attempts, notifications,
+					and your sign-in identity. This cannot be undone.
 				</p>
-				<div className="mt-5 rounded-lg border border-glass-border bg-background/50 p-3">
-					<p className="text-xs uppercase text-muted">Referral code</p>
-					<p className="mt-1 font-mono text-sm">{referralCode}</p>
-					<p className="mt-3 break-all text-sm text-muted">{referralUrl}</p>
-				</div>
-				<Button
-					type="button"
-					className="mt-5"
-					disabled={isPending}
-					onClick={copyReferralLink}
-				>
-					<Copy aria-hidden="true" size={16} />
-					Copy link
-				</Button>
-			</section>
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<CreditCard aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Subscription and billing</h2>
-				<p className="mt-2 text-sm leading-6 text-muted">
-					Manage invoices, payment method, and cancellation from the billing portal.
-				</p>
-				<a
-					href="/billing"
-					className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"
-				>
-					Open billing
-				</a>
-			</section>
-			<section className="min-w-0 rounded-lg border border-glass-border bg-glass p-6">
-				<Download aria-hidden="true" className="text-secondary" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Data export</h2>
-				<p className="mt-2 text-sm leading-6 text-muted">
-					Export account, exam, class, attempt, material, and notification records as
-					JSON.
-				</p>
-				<a
-					href="/api/settings/export"
-					className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-glass-border bg-glass px-4 text-sm font-medium"
-				>
-					Download export
-				</a>
-			</section>
-			<section className="min-w-0 rounded-lg border border-error/40 bg-error/10 p-6">
-				<Shield aria-hidden="true" className="text-error" size={22} />
-				<h2 className="mt-4 text-xl font-semibold">Account deletion</h2>
-				<p className="mt-2 text-sm leading-6 text-muted">
-					Delete the account, stored files, generated exams, classes, attempts, and
-					Firebase auth identity.
-				</p>
-				<Button
-					type="button"
-					variant="danger"
-					className="mt-5"
-					disabled={isPending}
-					onClick={deleteAccount}
-				>
-					Delete account
-				</Button>
-			</section>
-			{status ? <p className="text-sm text-muted lg:col-span-2">{status}</p> : null}
+			</ConfirmDialog>
 		</div>
+	);
+}
+
+function TabButton({
+	section,
+	selected,
+	onClick,
+}: {
+	section: (typeof settingsSections)[number];
+	selected: boolean;
+	onClick: () => void;
+}) {
+	const Icon = section.icon;
+
+	return (
+		<button
+			type="button"
+			role="tab"
+			aria-label={section.ariaLabel ?? section.label}
+			aria-selected={selected}
+			className={`flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium ${
+				selected
+					? "bg-brand text-white shadow-lg shadow-brand/20"
+					: "text-muted hover:bg-glass-strong hover:text-foreground"
+			}`}
+			onClick={onClick}
+		>
+			<Icon aria-hidden="true" size={16} />
+			<span>{section.label}</span>
+		</button>
 	);
 }

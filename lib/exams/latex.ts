@@ -47,11 +47,11 @@ function styleLabel(style: QuestionStyle) {
 function difficultyInstruction(difficulty: QuestionDifficulty) {
 	switch (difficulty) {
 		case "light":
-			return "Use a direct prompt that checks core understanding.";
+			return "Define the central idea, then apply it to a familiar case.";
 		case "balanced":
-			return "Use a representative prompt that combines concept and application.";
+			return "Connect the concept to a worked application and explain the reasoning.";
 		case "hardcore":
-			return "Use a rigorous prompt with multi-step reasoning and edge cases.";
+			return "Work through a multi-step case and justify each assumption.";
 	}
 }
 
@@ -61,22 +61,22 @@ function slotPrompt(slot: PowerQuestionSlot) {
 	const difficulty = difficultyInstruction(slot.difficulty);
 
 	if (slot.style === "multiple_choice") {
-		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) ${difficulty} Create a four-option question about ${topic}. Mark the best answer and justify why the other choices are tempting but incorrect.`;
+		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) Which statement best captures ${topic}?\\begin{choices}\\choice It is only a notation convention and has no effect on problem solving.\\choice It identifies the governing relationship and determines which assumptions are valid.\\choice It can be ignored once numerical values are available.\\choice It applies only when every variable is constant.\\end{choices} Briefly justify your choice.`;
 	}
 
 	if (slot.style === "proof") {
-		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) ${difficulty} Prove a central result involving ${topic}. State assumptions clearly and write a complete argument.`;
+		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) Prove a central claim involving ${topic}. State the assumptions, identify the result to be shown, and write a complete argument.`;
 	}
 
 	if (slot.style === "essay") {
-		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) ${difficulty} Write a structured response about ${topic}, including definitions, evidence, and a concise conclusion.`;
+		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) Write a structured response explaining ${topic}. Include a definition, one concrete example, and a concise conclusion.`;
 	}
 
 	if (slot.style === "calculation") {
-		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) ${difficulty} Solve a quantitative problem involving ${topic}. Show setup, intermediate work, units where relevant, and final answer.`;
+		return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) Solve a quantitative problem involving ${topic}. ${difficulty} Show setup, intermediate work, units where relevant, and a final answer.`;
 	}
 
-	return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) ${difficulty} Answer a focused question about ${topic}. Include enough reasoning for partial credit.`;
+	return `\\question[${slot.points}] (${latexEscape(style)}; ${latexEscape(slot.difficulty)}) Explain ${topic} clearly enough for partial credit. ${difficulty}`;
 }
 
 function slotSolution(slot: PowerQuestionSlot) {

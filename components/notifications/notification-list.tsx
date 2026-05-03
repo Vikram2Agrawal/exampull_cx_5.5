@@ -15,7 +15,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { StatusMessage } from "@/components/ui/surface";
 import type { UserNotification } from "@/lib/user/data";
+import { cn } from "@/lib/utils";
 
 const iconByKind = {
 	exam: FileText,
@@ -72,20 +74,29 @@ export function NotificationList({ notifications }: { notifications: UserNotific
 
 	return (
 		<div className="space-y-6">
-			<div className="divide-y divide-glass-border rounded-lg border border-glass-border bg-glass">
+			<div className="divide-y divide-glass-border rounded-xl border border-glass-border bg-glass">
 				{notifications.length > 0 ? (
 					notifications.map((notification) => {
 						const Icon = iconForKind(notification.kind);
 						const unread = !notification.read;
 
 						return (
-							<div key={notification.id} className="flex gap-4 p-5">
+							<div
+								key={notification.id}
+								className={cn(
+									"relative flex gap-4 p-5",
+									unread && "bg-secondary/5",
+								)}
+							>
+								{unread ? (
+									<div className="absolute inset-y-4 left-0 w-1 rounded-r-full bg-secondary" />
+								) : null}
 								<div className="flex h-11 w-11 items-center justify-center rounded-lg bg-glass">
 									<Icon aria-hidden="true" className="text-secondary" size={20} />
 								</div>
 								<button
 									type="button"
-									className="flex-1 text-left"
+									className="min-w-0 flex-1 text-left"
 									disabled={isPending}
 									onClick={() =>
 										updateNotification({
@@ -96,8 +107,17 @@ export function NotificationList({ notifications }: { notifications: UserNotific
 										})
 									}
 								>
-									<h2 className="font-semibold">{notification.title}</h2>
+									<h2
+										className={cn("font-semibold", unread && "text-foreground")}
+									>
+										{notification.title}
+									</h2>
 									<p className="mt-1 text-sm text-muted">{notification.body}</p>
+									{notification.href ? (
+										<span className="mt-3 inline-flex min-h-9 items-center justify-center rounded-lg border border-glass-border bg-glass px-3 text-sm font-medium text-foreground">
+											Open
+										</span>
+									) : null}
 								</button>
 								<div className="flex items-start gap-1">
 									{unread ? (
@@ -183,7 +203,7 @@ export function NotificationList({ notifications }: { notifications: UserNotific
 				>
 					Clear all
 				</Button>
-				{status ? <p className="text-sm text-muted">{status}</p> : null}
+				{status ? <StatusMessage className="max-w-md">{status}</StatusMessage> : null}
 			</div>
 		</div>
 	);

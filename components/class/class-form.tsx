@@ -28,11 +28,11 @@ export function ClassForm() {
 	const [name, setName] = useState("");
 	const [institution, setInstitution] = useState("");
 	const [description, setDescription] = useState("");
-	const [educationLevel, setEducationLevel] = useState<number>(EDUCATION_LEVELS[4]?.value ?? 45);
+	const [educationLevel, setEducationLevel] = useState<number | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const selectedEducationLevel =
-		EDUCATION_LEVELS.find((level) => level.value === educationLevel) ?? EDUCATION_LEVELS[4];
+		EDUCATION_LEVELS.find((level) => level.value === educationLevel) ?? null;
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -40,6 +40,10 @@ export function ClassForm() {
 		setError(null);
 
 		try {
+			if (educationLevel === null) {
+				throw new Error("Choose the closest class level.");
+			}
+
 			const response = await fetch("/api/classes", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -96,21 +100,23 @@ export function ClassForm() {
 							Class level
 						</p>
 						<p className="mt-1 text-sm text-muted">
-							Pick the closest match. You can change it later.
+							Pick the closest match. This only tunes wording, notation, and depth.
 						</p>
 					</div>
 					<p className="text-sm text-secondary" aria-live="polite">
-						Selected: {selectedEducationLevel.label}
+						{selectedEducationLevel
+							? `Selected: ${selectedEducationLevel.label}`
+							: "Choose one"}
 					</p>
 				</div>
-				<div className="mt-3 grid gap-2 sm:grid-cols-2">
+				<div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
 					{EDUCATION_LEVELS.map((level) => (
 						<button
 							key={level.label}
 							type="button"
 							aria-pressed={educationLevel === level.value}
 							className={cn(
-								"rounded-lg border px-3 py-3 text-left text-sm transition",
+								"min-h-11 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition",
 								educationLevel === level.value
 									? "border-brand bg-brand text-white"
 									: "border-glass-border bg-background/40 hover:bg-glass",
@@ -121,17 +127,14 @@ export function ClassForm() {
 								<GraduationCap aria-hidden="true" size={16} />
 								{level.label}
 							</span>
-							<span
-								className={cn(
-									"mt-1 block leading-5",
-									educationLevel === level.value ? "text-white/80" : "text-muted",
-								)}
-							>
-								{educationLevelDescriptions[level.label]}
-							</span>
 						</button>
 					))}
 				</div>
+				{selectedEducationLevel ? (
+					<p className="mt-3 rounded-lg border border-glass-border bg-background/40 p-3 text-sm leading-6 text-muted">
+						{educationLevelDescriptions[selectedEducationLevel.label]}
+					</p>
+				) : null}
 			</div>
 			<div>
 				<label className="block text-sm font-medium" htmlFor="description">
@@ -152,7 +155,7 @@ export function ClassForm() {
 			<Button
 				type="submit"
 				variant="primary"
-				disabled={isSubmitting || name.trim().length < 2}
+				disabled={isSubmitting || name.trim().length < 2 || educationLevel === null}
 			>
 				{isSubmitting ? "Creating" : "Create class"}
 				<ArrowRight aria-hidden="true" size={18} />

@@ -18,7 +18,7 @@ export default async function RoadmapPage() {
 				<div className="mt-10">
 					<FeaturebaseEmbed
 						src={featurebasePortalUrl({ surface: "roadmap", jwt })}
-						title="Featurebase roadmap"
+						title="Roadmap"
 						fallbackTitle="Roadmap"
 					/>
 				</div>

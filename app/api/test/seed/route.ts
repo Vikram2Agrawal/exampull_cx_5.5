@@ -69,6 +69,39 @@ function assertEnabled(token: string) {
 	);
 }
 
+function pdfText(value: string) {
+	return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+}
+
+function textPdfBase64(lines: string[]) {
+	const stream = `BT /F1 12 Tf 72 740 Td 18 TL\n${lines
+		.map((line) => `(${pdfText(line)}) Tj T*`)
+		.join("\n")}\nET`;
+	const objects = [
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+		`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>`,
+		`<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
+	];
+	let pdf = "%PDF-1.4\n";
+	const offsets: number[] = [];
+
+	objects.forEach((object, index) => {
+		offsets.push(Buffer.byteLength(pdf, "utf8"));
+		pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+	});
+
+	const xrefOffset = Buffer.byteLength(pdf, "utf8");
+	pdf += "xref\n0 6\n0000000000 65535 f \n";
+	for (const offset of offsets) {
+		pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+	}
+	pdf += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+	return Buffer.from(pdf, "utf8").toString("base64");
+}
+
 export async function POST(request: Request) {
 	const input = requestSchema.parse(await request.json());
 	const user = await getCurrentUser();
@@ -107,6 +140,18 @@ export async function POST(request: Request) {
 					mode: "standard",
 				},
 				sourceNotes: "Synthetic test fixture.",
+				generatedQuestions: [
+					{
+						prompt: "Explain how the derivative test identifies local extrema, including the role of critical points.",
+						answer: "Critical points occur where the derivative is zero or undefined; sign changes in the derivative classify local extrema.",
+						points: 10,
+					},
+					{
+						prompt: "Apply optimization reasoning to choose the dimensions of a simple container with a fixed perimeter constraint.",
+						answer: "Translate the constraint into one variable, maximize the area function, and check the resulting critical point.",
+						points: 10,
+					},
+				],
 				creditsReserved: 0,
 				creditsConsumed: 0,
 				boostedScholar: false,
@@ -116,10 +161,18 @@ export async function POST(request: Request) {
 				bookmarked: false,
 				rating: null,
 				shareCount: 0,
-				examPdfBase64: Buffer.from("%PDF-1.4\n% synthetic test pdf\n").toString("base64"),
-				answerKeyPdfBase64: Buffer.from("%PDF-1.4\n% synthetic answer key\n").toString(
-					"base64",
-				),
+				examPdfBase64: textPdfBase64([
+					input.title,
+					"",
+					"1. Explain the derivative test for optimization.",
+					"2. Apply the method to a realistic course problem.",
+				]),
+				answerKeyPdfBase64: textPdfBase64([
+					`${input.title} answer key`,
+					"",
+					"1. Check critical points and endpoints.",
+					"2. Show reasoning, units, and final answer.",
+				]),
 				createdAt: now,
 				completedAt: now,
 				updatedAt: now,
@@ -164,12 +217,16 @@ export async function POST(request: Request) {
 				{
 					status: "complete",
 					creditsReserved: 0,
-					examPdfBase64: Buffer.from("%PDF-1.4\n% synthetic completed exam\n").toString(
-						"base64",
-					),
-					answerKeyPdfBase64: Buffer.from(
-						"%PDF-1.4\n% synthetic completed answer key\n",
-					).toString("base64"),
+					examPdfBase64: textPdfBase64([
+						"Synthetic completed exam",
+						"",
+						"1. Solve the representative course problem.",
+					]),
+					answerKeyPdfBase64: textPdfBase64([
+						"Synthetic completed answer key",
+						"",
+						"1. Correct answer with reasoning.",
+					]),
 					completedAt: now,
 					updatedAt: now,
 				},

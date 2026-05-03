@@ -1,8 +1,8 @@
 "use client";
 
-import { FileCheck2, FileUp } from "lucide-react";
+import { FileCheck2, FileUp, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AttemptSummary } from "@/lib/exams/attempts";
 import type { Tier } from "@/lib/product/constants";
@@ -15,26 +15,44 @@ type UploadStartResponse = {
 
 const maxUploadBytes = 100 * 1024 * 1024;
 
+function feedbackLines(feedback: string) {
+	return feedback
+		.split(/\n+/)
+		.map((line) => line.trim().replace(/^[-*]\s*/, ""))
+		.filter(Boolean)
+		.slice(0, 6);
+}
+
 export function AttemptUploader({
 	examId,
 	tier,
 	boostGradingAvailable,
+	visualAnnotationCost,
 	attempts,
 }: {
 	examId: string;
 	tier: Tier;
 	boostGradingAvailable: boolean;
+	visualAnnotationCost: number;
 	attempts: AttemptSummary[];
 }) {
 	const router = useRouter();
+	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const [file, setFile] = useState<File | null>(null);
-	const [visualAnnotations, setVisualAnnotations] = useState(false);
 	const [isUploading, setIsUploading] = useState(false);
+	const [visualRequestingAttemptId, setVisualRequestingAttemptId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	function onFileChange(event: ChangeEvent<HTMLInputElement>) {
 		setFile(event.target.files?.[0] ?? null);
 		setError(null);
+	}
+
+	function clearFile() {
+		setFile(null);
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
 	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,7 +79,6 @@ export function AttemptUploader({
 					filename: file.name,
 					contentType: file.type || "application/octet-stream",
 					sizeBytes: file.size,
-					visualAnnotations,
 				}),
 			});
 			const startPayload = (await startResponse.json()) as UploadStartResponse;
@@ -94,13 +111,41 @@ export function AttemptUploader({
 				throw new Error(payload.error ?? "Could not queue grading.");
 			}
 
-			setFile(null);
-			setVisualAnnotations(false);
+			clearFile();
 			router.refresh();
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : "Attempt upload failed.");
 		} finally {
 			setIsUploading(false);
+		}
+	}
+
+	async function requestVisualAnnotations(attemptId: string) {
+		setVisualRequestingAttemptId(attemptId);
+		setError(null);
+
+		try {
+			const response = await fetch(
+				`/api/exams/${examId}/attempts/${attemptId}/visual-feedback`,
+				{
+					method: "POST",
+				},
+			);
+
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as {
+					error?: string;
+				} | null;
+				throw new Error(payload?.error ?? "Could not start visual annotations.");
+			}
+
+			router.refresh();
+		} catch (cause) {
+			setError(
+				cause instanceof Error ? cause.message : "Could not start visual annotations.",
+			);
+		} finally {
+			setVisualRequestingAttemptId(null);
 		}
 	}
 
@@ -114,36 +159,43 @@ export function AttemptUploader({
 
 	return (
 		<div className="space-y-4">
-			<form
-				className="space-y-4 rounded-lg border border-glass-border bg-background/35 p-4"
-				onSubmit={onSubmit}
-			>
+			<form className="space-y-4" onSubmit={onSubmit}>
 				<div>
-					<label className="text-sm font-medium" htmlFor="attempt">
-						Attempt file
+					<label
+						htmlFor="attempt"
+						className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-glass-border bg-background/35 px-4 py-5 text-center transition hover:border-brand hover:bg-brand/10"
+					>
+						<span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/15 text-brand">
+							<FileUp aria-hidden="true" size={20} />
+						</span>
+						<span className="mt-3 text-sm font-semibold">
+							{file ? file.name : "Choose attempt file"}
+						</span>
+						<span className="mt-1 max-w-56 text-sm leading-6 text-muted">
+							Upload a PDF, photo, or marked-up scan after you finish the exam.
+						</span>
 					</label>
 					<input
+						ref={fileInputRef}
 						id="attempt"
+						aria-label="Attempt file"
 						type="file"
 						onChange={onFileChange}
-						className="mt-2 block w-full text-sm text-muted file:mr-4 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+						className="sr-only"
 					/>
+					{file ? (
+						<div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-background/45 px-3 py-2 text-sm">
+							<span className="min-w-0 truncate text-muted">{file.name}</span>
+							<button
+								type="button"
+								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground"
+								onClick={clearFile}
+							>
+								<X aria-label="Remove attempt file" size={16} />
+							</button>
+						</div>
+					) : null}
 				</div>
-				<label className="flex items-start gap-3 rounded-lg border border-glass-border bg-background/50 p-3 text-sm">
-					<input
-						type="checkbox"
-						checked={visualAnnotations}
-						disabled={tier !== "guru"}
-						onChange={(event) => setVisualAnnotations(event.target.checked)}
-						className="mt-1"
-					/>
-					<span>
-						<span className="font-medium">Visual annotations</span>
-						<span className="block text-muted">
-							Guru only. Adds a downloadable visual feedback PDF after grading.
-						</span>
-					</span>
-				</label>
 				{boostGradingAvailable ? (
 					<p className="rounded-lg bg-premium/10 p-3 text-sm text-muted">
 						Scholar Boost covers this grading round for free.
@@ -157,40 +209,53 @@ export function AttemptUploader({
 					{isUploading ? "Uploading" : "Upload and grade"}
 				</Button>
 			</form>
-			<div className="space-y-3">
-				{attempts.length === 0 ? (
-					<p className="rounded-lg border border-dashed border-glass-border p-5 text-sm text-muted">
-						No attempts uploaded yet.
-					</p>
-				) : (
-					attempts.map((attempt) => (
+			{attempts.length > 0 ? (
+				<div className="space-y-3">
+					{attempts.map((attempt) => (
 						<div
 							key={attempt.id}
-							className="rounded-lg border border-glass-border bg-background/35 p-4"
+							className="scroll-mt-24 rounded-lg border border-glass-border bg-background/35 p-4 shadow-glass"
 						>
-							<div className="flex items-start gap-3">
-								<FileCheck2
-									aria-hidden="true"
-									className="mt-1 text-secondary"
-									size={18}
-								/>
-								<div>
-									<p className="font-medium">{attempt.filename}</p>
-									<p className="mt-1 text-sm capitalize text-muted">
-										{attempt.status.replaceAll("_", " ")}
-										{attempt.score !== null && attempt.maxScore !== null
-											? ` - ${attempt.score}/${attempt.maxScore}`
-											: ""}
-									</p>
+							<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+								<div className="flex items-start gap-3">
+									<FileCheck2
+										aria-hidden="true"
+										className="mt-1 text-secondary"
+										size={18}
+									/>
+									<div>
+										<p className="font-medium">{attempt.filename}</p>
+										<p className="mt-1 text-sm capitalize text-muted">
+											{attempt.status.replaceAll("_", " ")}
+										</p>
+									</div>
 								</div>
+								{attempt.score !== null && attempt.maxScore !== null ? (
+									<div className="rounded-lg border border-glass-border bg-glass px-4 py-3 text-center">
+										<p className="text-xs uppercase tracking-[0.12em] text-muted">
+											Score
+										</p>
+										<p className="mt-1 text-2xl font-semibold">
+											{attempt.score}/{attempt.maxScore}
+										</p>
+									</div>
+								) : null}
 							</div>
 							{attempt.feedback ? (
-								<p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted">
-									{attempt.feedback}
-								</p>
+								<div className="mt-4 rounded-lg border border-glass-border bg-glass p-4">
+									<p className="text-sm font-semibold">Grading notes</p>
+									<ul className="mt-3 space-y-2 text-sm leading-6 text-muted">
+										{feedbackLines(attempt.feedback).map((line) => (
+											<li key={line} className="flex gap-2">
+												<span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
+												<span>{line}</span>
+											</li>
+										))}
+									</ul>
+								</div>
 							) : null}
 							{attempt.visualAnnotationStatus ? (
-								<p className="mt-3 text-xs uppercase text-premium-foreground">
+								<p className="mt-3 inline-flex rounded-full border border-premium/40 bg-premium/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-premium">
 									Visual annotations:{" "}
 									{attempt.visualAnnotationStatus.replaceAll("_", " ")}
 								</p>
@@ -202,11 +267,41 @@ export function AttemptUploader({
 								>
 									Download visual feedback
 								</a>
+							) : attempt.status === "graded" && tier === "guru" ? (
+								<div className="mt-4 rounded-lg border border-premium/30 bg-premium/10 p-4">
+									<p className="text-sm font-semibold text-premium">
+										Need marked-up feedback?
+									</p>
+									<p className="mt-2 text-sm leading-6 text-muted">
+										Generate a downloadable visual annotation PDF for{" "}
+										{visualAnnotationCost} credits.
+									</p>
+									<Button
+										type="button"
+										variant="premium"
+										className="mt-3 w-full px-3"
+										aria-label={
+											visualRequestingAttemptId === attempt.id
+												? "Starting visual annotations"
+												: "Generate visual annotations"
+										}
+										disabled={visualRequestingAttemptId === attempt.id}
+										onClick={() => void requestVisualAnnotations(attempt.id)}
+									>
+										{visualRequestingAttemptId === attempt.id
+											? "Starting"
+											: "Generate marked PDF"}
+									</Button>
+								</div>
+							) : attempt.status === "graded" ? (
+								<p className="mt-3 rounded-lg border border-glass-border bg-background/35 p-3 text-sm text-muted">
+									Upgrade to Guru to generate visual annotation PDFs.
+								</p>
 							) : null}
 						</div>
-					))
-				)}
-			</div>
+					))}
+				</div>
+			) : null}
 		</div>
 	);
 }

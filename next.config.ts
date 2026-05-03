@@ -2,14 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	reactStrictMode: true,
-	serverExternalPackages: [
-		"@napi-rs/canvas",
-		"@google-cloud/tasks",
-		"google-gax",
-		"pdf-parse",
-		"pdfjs-dist",
-		"protobufjs",
-	],
+	allowedDevOrigins: ["127.0.0.1", "localhost"],
+	devIndicators: false,
+	serverExternalPackages: ["@napi-rs/canvas", "pdf-parse", "pdfjs-dist", "protobufjs"],
 	experimental: {
 		serverActions: {
 			bodySizeLimit: "100mb",

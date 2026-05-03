@@ -9,7 +9,7 @@ export default async function SettingsPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	const code = await ensureReferralCode(user.uid);

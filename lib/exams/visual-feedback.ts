@@ -90,7 +90,7 @@ ${submittedWork}
 \hfill
 \begin{minipage}[t]{0.28\textwidth}
 {\color{annotate}\bfseries Margin Notes}\\[0.08in]
-{\small
+{\small\raggedright
 \begin{itemize}[leftmargin=*]
 ${notes}
 \end{itemize}

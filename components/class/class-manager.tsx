@@ -4,9 +4,10 @@ import { Archive, GraduationCap, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/surface";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GlassPanel, StatusMessage } from "@/components/ui/surface";
 import type { ClassSummary } from "@/lib/classes/data";
-import { EDUCATION_LEVELS } from "@/lib/product/constants";
+import { EDUCATION_LEVELS, educationLevelLabel } from "@/lib/product/constants";
 
 async function readJson(response: Response) {
 	const body = (await response.json().catch(() => ({}))) as { error?: string };
@@ -27,6 +28,7 @@ export function ClassManager({ course }: { course: ClassSummary }) {
 	const [educationLevel, setEducationLevel] = useState(course.educationLevel);
 	const [archived, setArchived] = useState(course.archived);
 	const [message, setMessage] = useState("");
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	function saveClass(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -68,18 +70,6 @@ export function ClassManager({ course }: { course: ClassSummary }) {
 	}
 
 	function deleteClass() {
-		const firstConfirm = window.confirm("Delete this class permanently?");
-		if (!firstConfirm) {
-			return;
-		}
-
-		const secondConfirm = window.confirm(
-			"Consider archiving instead to preserve history. Delete the class and its materials anyway?",
-		);
-		if (!secondConfirm) {
-			return;
-		}
-
 		startTransition(async () => {
 			try {
 				await readJson(await fetch(`/api/classes/${course.id}`, { method: "DELETE" }));
@@ -118,24 +108,15 @@ export function ClassManager({ course }: { course: ClassSummary }) {
 					/>
 				</label>
 				<div>
-					<label className="text-sm font-medium" htmlFor="class-edit-level">
-						Education level
-					</label>
-					<input
-						id="class-edit-level"
-						type="range"
-						min={0}
-						max={100}
-						value={educationLevel}
-						onChange={(event) => setEducationLevel(Number(event.target.value))}
-						className="mt-3 w-full accent-brand"
-					/>
+					<p className="text-sm font-medium">Course level</p>
+					<p className="mt-1 text-sm text-muted">{educationLevelLabel(educationLevel)}</p>
 					<div className="mt-2 flex flex-wrap gap-2">
 						{EDUCATION_LEVELS.map((level) => (
 							<button
 								key={level.label}
+								aria-pressed={educationLevel === level.value}
 								type="button"
-								className={`rounded-lg border px-2 py-1 text-xs ${
+								className={`min-h-11 rounded-lg border px-3 py-2 text-xs ${
 									educationLevel === level.value
 										? "border-brand bg-brand text-white"
 										: "border-glass-border bg-background/40"
@@ -170,23 +151,44 @@ export function ClassManager({ course }: { course: ClassSummary }) {
 						<Archive aria-hidden="true" size={16} />
 						{archived ? "Restore" : "Archive"}
 					</Button>
-					<Button
-						type="button"
-						variant="danger"
-						onClick={deleteClass}
-						disabled={isPending}
-					>
-						<Trash2 aria-hidden="true" size={16} />
-						Delete
-					</Button>
 				</div>
+				<details className="rounded-lg border border-error/25 bg-error/5">
+					<summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-medium text-error">
+						Danger zone
+					</summary>
+					<div className="border-t border-error/20 p-3">
+						<Button
+							type="button"
+							variant="danger"
+							onClick={() => setDeleteDialogOpen(true)}
+							disabled={isPending}
+						>
+							<Trash2 aria-hidden="true" size={16} />
+							Delete class
+						</Button>
+					</div>
+				</details>
 				{archived ? (
 					<p className="rounded-lg bg-glass p-3 text-sm text-muted">
 						This class is archived. Existing exams remain in the library.
 					</p>
 				) : null}
-				{message ? <p className="text-sm text-muted">{message}</p> : null}
+				{message ? <StatusMessage>{message}</StatusMessage> : null}
 			</form>
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				title="Delete this class?"
+				confirmLabel="Delete class"
+				onClose={() => setDeleteDialogOpen(false)}
+				onConfirm={deleteClass}
+				confirmDisabled={isPending}
+			>
+				<p>
+					This deletes the class and its stored materials. Exams already generated from
+					this class stay in your exam library. Archive the class instead if you may need
+					the materials later.
+				</p>
+			</ConfirmDialog>
 		</GlassPanel>
 	);
 }

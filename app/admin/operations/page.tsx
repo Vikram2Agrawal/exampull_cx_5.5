@@ -32,6 +32,14 @@ export default async function AdminOperationsPage() {
 	return (
 		<AdminShell active="Operations">
 			<div className="space-y-6">
+				<section className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+					<h2 className="font-semibold">High-impact actions require dry-run context</h2>
+					<p className="mt-1">
+						Refunds, bulk credits, suspensions, and regenerations should show the
+						target, before/after state, and re-auth step before execution. The current
+						forms are intentionally grouped here until those detail sheets are built.
+					</p>
+				</section>
 				<BulkCreditGrantForm />
 				<AccountSuspensionForm />
 				<ExamRegenerateForm />

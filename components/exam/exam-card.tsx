@@ -1,4 +1,4 @@
-import { Bookmark, Download, Share2, Star } from "lucide-react";
+import { ArrowRight, Bookmark, Download, Share2 } from "lucide-react";
 import { GlassPanel, Paper } from "@/components/ui/surface";
 import type { ExamSummary } from "@/lib/exams/data";
 import { cn } from "@/lib/utils";
@@ -38,12 +38,9 @@ export function ExamCard({ exam }: { exam: ExamSummary }) {
 							)}
 						/>
 					</div>
-					<div className="flex items-center justify-between text-sm text-muted">
+					<div className="flex items-center justify-between gap-3 text-sm text-muted">
 						<span className="capitalize">{exam.tierAtGen}</span>
-						<span className="inline-flex items-center gap-1">
-							<Star aria-hidden="true" size={14} />
-							{exam.rating ?? "Rate"}
-						</span>
+						{exam.rating !== null ? <span>Rating {exam.rating}/5</span> : null}
 					</div>
 					{exam.shareCount > 0 || exam.archived ? (
 						<div className="flex gap-2 text-xs text-muted">
@@ -55,21 +52,30 @@ export function ExamCard({ exam }: { exam: ExamSummary }) {
 					) : null}
 				</div>
 			</a>
-			<div className="mt-4 flex gap-2 border-t border-glass-border pt-4">
+			<div className="mt-4 flex flex-wrap gap-2 border-t border-glass-border pt-4">
+				<a
+					href={`/exams/${exam.id}`}
+					className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-glass-border bg-glass px-3 text-sm font-medium text-foreground hover:bg-glass-strong"
+				>
+					Open
+					<ArrowRight aria-hidden="true" size={16} />
+				</a>
 				<a
 					href={`/api/exams/${exam.id}/download?type=exam`}
 					className={cn(
-						"flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground",
+						"inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-glass-border bg-glass px-3 text-sm font-medium text-foreground hover:bg-glass-strong",
 						exam.examPdfReady ? "" : "pointer-events-none opacity-40",
 					)}
 				>
-					<Download aria-label="Download exam" size={18} />
+					<Download aria-hidden="true" size={16} />
+					Download
 				</a>
 				<a
 					href={`/exams/${exam.id}`}
-					className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground"
+					className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-glass-border bg-glass px-3 text-sm font-medium text-foreground hover:bg-glass-strong"
 				>
-					<Share2 aria-label="Share exam" size={18} />
+					<Share2 aria-hidden="true" size={16} />
+					Share
 				</a>
 			</div>
 		</GlassPanel>

@@ -23,6 +23,10 @@ export function SupportForm() {
 	function submit() {
 		startTransition(async () => {
 			try {
+				if (!title.trim() || !body.trim()) {
+					throw new Error("Add a subject and a short description.");
+				}
+
 				const response = await fetch("/api/feedback", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -51,7 +55,8 @@ export function SupportForm() {
 
 	return (
 		<div>
-			<div className="grid gap-3">
+			<fieldset className="grid gap-3">
+				<legend className="sr-only">Support request type</legend>
 				{reasons.map((reason) => {
 					const Icon = reason.icon;
 
@@ -59,6 +64,7 @@ export function SupportForm() {
 						<button
 							key={reason.value}
 							type="button"
+							aria-pressed={kind === reason.value}
 							className={cn(
 								"flex min-h-12 items-center gap-3 rounded-lg border border-glass-border bg-background/40 px-3 text-left text-sm hover:bg-glass",
 								kind === reason.value ? "border-secondary bg-glass-strong" : "",
@@ -70,19 +76,27 @@ export function SupportForm() {
 						</button>
 					);
 				})}
-			</div>
-			<input
-				className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
-				placeholder="Subject"
-				value={title}
-				onChange={(event) => setTitle(event.target.value)}
-			/>
-			<textarea
-				className="mt-3 min-h-32 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
-				placeholder="What should we know?"
-				value={body}
-				onChange={(event) => setBody(event.target.value)}
-			/>
+			</fieldset>
+			<label className="mt-5 block text-sm font-medium" htmlFor="support-subject">
+				Subject
+				<input
+					id="support-subject"
+					className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+					placeholder="Payment question, upload issue, exam feedback"
+					value={title}
+					onChange={(event) => setTitle(event.target.value)}
+				/>
+			</label>
+			<label className="mt-3 block text-sm font-medium" htmlFor="support-description">
+				What should we know?
+				<textarea
+					id="support-description"
+					className="mt-2 min-h-32 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
+					placeholder="Include the class, exam title, or file name if it helps us find the issue."
+					value={body}
+					onChange={(event) => setBody(event.target.value)}
+				/>
+			</label>
 			<Button
 				type="button"
 				variant="primary"
@@ -92,7 +106,14 @@ export function SupportForm() {
 			>
 				Send request
 			</Button>
-			{status ? <p className="mt-3 text-sm text-muted">{status}</p> : null}
+			{status ? (
+				<p
+					className="mt-3 rounded-lg bg-glass p-3 text-sm text-muted"
+					role={status.toLowerCase().includes("failed") ? "alert" : "status"}
+				>
+					{status}
+				</p>
+			) : null}
 		</div>
 	);
 }

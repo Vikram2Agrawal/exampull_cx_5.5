@@ -55,7 +55,8 @@ export function FeedbackForm({
 
 	return (
 		<div>
-			<div className="grid gap-2">
+			<fieldset className="grid gap-2">
+				<legend className="sr-only">Feedback type</legend>
 				{kinds.map((tab) => {
 					const Icon = tab.icon;
 
@@ -63,6 +64,7 @@ export function FeedbackForm({
 						<button
 							key={tab.value}
 							type="button"
+							aria-pressed={kind === tab.value}
 							className={cn(
 								"flex min-h-12 items-center gap-3 rounded-lg border border-glass-border bg-background/40 px-3 text-left text-sm hover:bg-glass",
 								kind === tab.value ? "border-secondary bg-glass-strong" : "",
@@ -74,15 +76,23 @@ export function FeedbackForm({
 						</button>
 					);
 				})}
-			</div>
+			</fieldset>
+			<label className="mt-5 block text-sm font-medium" htmlFor={`${source}-feedback-title`}>
+				Title
+			</label>
 			<input
-				className="mt-5 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
+				id={`${source}-feedback-title`}
+				className="mt-2 h-11 w-full rounded-lg border border-glass-border bg-background/70 px-3 outline-none focus:ring-2 focus:ring-brand"
 				placeholder="Title"
 				value={title}
 				onChange={(event) => setTitle(event.target.value)}
 			/>
+			<label className="mt-3 block text-sm font-medium" htmlFor={`${source}-feedback-body`}>
+				Details
+			</label>
 			<textarea
-				className="mt-3 min-h-32 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
+				id={`${source}-feedback-body`}
+				className="mt-2 min-h-32 w-full rounded-lg border border-glass-border bg-background/70 p-3 outline-none focus:ring-2 focus:ring-brand"
 				placeholder="What should change?"
 				value={body}
 				onChange={(event) => setBody(event.target.value)}
@@ -108,7 +118,14 @@ export function FeedbackForm({
 			>
 				Submit
 			</Button>
-			{status ? <p className="mt-3 text-sm text-muted">{status}</p> : null}
+			{status ? (
+				<p
+					className="mt-3 text-sm text-muted"
+					role={status.toLowerCase().includes("failed") ? "alert" : "status"}
+				>
+					{status}
+				</p>
+			) : null}
 		</div>
 	);
 }

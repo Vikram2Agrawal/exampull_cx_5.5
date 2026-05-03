@@ -15,6 +15,21 @@ export default async function AdminOverviewPage() {
 						Platform health, queue depth, spend, failures, and operator action items.
 					</p>
 				</div>
+				<section className="grid gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900 md:grid-cols-[1fr_auto] md:items-center">
+					<div>
+						<h2 className="font-semibold">Needs operator attention</h2>
+						<p className="mt-1">
+							{overview.failedExamCount} failed exams, {overview.openAbuseCount} abuse
+							reports, and {overview.openFeedbackCount} feedback items are open.
+						</p>
+					</div>
+					<a
+						href="/admin/operations"
+						className="inline-flex min-h-10 items-center justify-center rounded-md bg-red-900 px-3 text-sm font-medium text-white"
+					>
+						Open queue
+					</a>
+				</section>
 				<div className="grid gap-4 md:grid-cols-4">
 					<AdminCard
 						title="Users"

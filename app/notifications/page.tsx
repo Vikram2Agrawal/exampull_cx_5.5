@@ -9,14 +9,14 @@ export default async function NotificationsPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	const notifications = await listUserNotifications(user.uid);
 
 	return (
 		<AppShell
-			active="alerts"
+			active="notifications"
 			unreadNotificationCount={user.unreadNotificationCount}
 			theme={user.theme}
 		>

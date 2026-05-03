@@ -1,6 +1,6 @@
 # ExamPull Build Tracker
 
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 
 ## Current Phase
 
@@ -102,6 +102,12 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - [x] Render Guru visual feedback as an annotated submitted-work PDF with source excerpt and margin-note overlay metadata.
 - [x] Add hash-chained admin audit entries, audit-log read meta-audit records, and audit hash unit coverage.
 - [x] Add build-phase destructive admin re-auth and audit archive replication plumbing for hash-chained audit entries.
+- [x] Add full-app UX screenshot matrix and first remediation pass across dashboard, exam builder, exam detail, classes, settings, notifications, billing, and admin surfaces.
+- [x] Add Firebase Storage CORS setup/verify scripts and wire CORS setup into project bootstrap so real browser signed uploads cannot silently regress.
+- [x] Add second full-product UX refactor pass after visual critique: compact mobile dashboard metrics, clearer class cards, simpler exam-source selection, integrated attempt upload workflow, cleaner exam-detail action rail, and dev-overlay-free screenshot artifacts.
+- [x] Rework Guru visual annotations into the PRD post-grading flow: visible attempt upload first, text grading result, explicit 8-credit marked-PDF CTA, queued visual feedback generation, downloadable annotated PDF, sticky paper preview during the workflow, and manual browser-use screenshot/PDF artifacts.
+- [x] Expand hosted smoke from signup-only to a real signed-in canary that verifies phone signup, visible wizard entry, visible Generate click, queued exam detail, and cleanup on the deployed App Hosting origin.
+- [x] Replace the deployed Cloud Tasks SDK enqueue path with a REST enqueue path using `google-auth-library`, after the real hosted canary exposed missing `@google-cloud/tasks` files in Next standalone output.
 
 ## Known Risks
 
@@ -110,6 +116,7 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Scanned image-only PDFs now render the first pages into multimodal extraction context and persist a reusable AI-extracted source context; full verbatim OCR text search remains a deeper document-ingestion fidelity pass.
 - Anonymous preview claim-to-account preservation is covered through the verified test-session path and sign-in preview handoff; full Firebase anonymous provider linking with real OTP remains a later auth-provider fidelity pass.
 - Firebase Auth can only link one credential per provider family in the current client flow; Settings exposes Google linking and provider sync, while multi-Google-account fidelity needs a provider-specific design pass if required beyond Firebase's standard linking model.
+- Exam detail now has a better paper-first workflow, but the preview still renders stored exam content rather than a full PDF.js-backed page viewer; the artifact pipeline is correct, while page-level inspection fidelity remains an improvement target.
 
 ## Process Corrections
 
@@ -124,15 +131,34 @@ Production hardening and PRD coverage expansion on a provisioned Next.js/Firebas
 - Post-mortem: source upload coverage used mostly synthetic text fixtures, which proved code paths but not real student material size/noise. Permanent correction: `e2e/real-materials.spec.ts` benchmarks real USC course PDFs and rendered image pages from `/Users/vikram/class_uploadables` through the visible upload controls.
 - Post-mortem: visual review leaned on route screenshots and feature presence, which let crowded, nested UI ship as "complete." Permanent correction: every UX pass now includes before/after screenshots, visible-copy review, nested-surface review against `DESIGN_PHILOSOPHY.md`, and browser interactions that use the changed labels exactly as a student would.
 - Post-mortem: I twice launched independent Playwright web-server runs in parallel, causing port races that obscure real failures. Permanent correction: web-server-managed Playwright runs are serialized unless they share one already-running server by explicit config.
+- Post-mortem: authenticated upload tests used API-level Storage writes that bypassed browser CORS, while the visible exam/class upload controls failed with `Failed to fetch`. Permanent correction: browser tests now exercise visible file inputs for one-time uploads and class style references, `pnpm setup:storage-cors` configures the Firebase bucket for App Hosting and local origins, and `pnpm verify:storage-cors` is a required pre-deploy gate.
+- Post-mortem: full-page screenshots briefly included the Next.js development issue badge, contaminating visual evidence and making design review less trustworthy. Permanent correction: `next.config.ts` allows the local QA origins and visual capture harnesses hide `nextjs-portal` so screenshots evaluate ExamPull UI, not framework chrome.
+- Post-mortem: a route-level UX pass was still too coarse because it did not force a single comparison matrix across public, authenticated, admin, and responsive breakpoints. Permanent correction: `scripts/capture-ux-matrix.ts` now captures a full-product desktop/mobile matrix, and UX sign-off requires reviewing the screenshot directory alongside functional E2E results.
+- Post-mortem: running `next build` while `next dev` was serving the same checkout corrupted local `.next` manifests and produced unrelated 500s in browser tests. Permanent correction: stop/restart the dev server after production builds, or run the post-build browser pass against a fresh port.
+- Post-mortem: hosted smoke accurately checked Firebase Auth but still skipped most authenticated product E2E, and a fresh QA shell could start with an incompatible Node runtime. Permanent correction: `.nvmrc` plus `pnpm preflight` now fail early on wrong Node/pnpm, and the next production canary track must exercise real signup, upload, generation, detail, and download without `/api/test/session`.
+- Post-mortem: smoke expected protected app routes to redirect to `/sign-in`, contradicting PRD §5.1 signup-first acquisition. Permanent correction: anonymous product routes now redirect to `/sign-up`, and smoke covers dashboard, classes, exams, settings, and billing for that behavior.
+- Post-mortem: E2E can still cheat if it seeds state or calls worker routes in a way a student never could, and static/unit tests are only hygiene. Permanent correction: changed-flow sign-off now requires a visible browser path plus manual visual inspection of screenshots and downloaded artifacts; the Guru attempt flow now clicks the real file input, waits for the real signed upload, grades, clicks the post-grade CTA, downloads the visual PDF, rasterizes it, and records the evidence under `artifacts/manual-use`.
+- Post-mortem: full-page screenshots can lie when sticky headers are present, and they briefly showed duplicated navigation as if it were product UI. Permanent correction: manual-use harnesses now save viewport screenshots for what the user actually sees and separate `*-full-page.png` captures only for layout audits.
+- Post-mortem: hosted smoke stopped after loading the authenticated exam builder, so a deployed `Generate` click still failed on a missing `@google-cloud/tasks` standalone package. Permanent correction: hosted smoke now queues a real exam through the visible wizard after Firebase phone signup, and Cloud Tasks enqueue uses the REST API with `google-auth-library` instead of the brittle generated SDK bundle.
 
 ## Latest Verification
 
 - `pnpm lint` passing.
 - `pnpm typecheck` passing.
 - `pnpm test` passing.
+- `pnpm verify:storage-cors` passing for the Firebase Storage bucket and active local/App Hosting origins.
+- Focused visible browser upload regressions passing after the CORS/process correction: one-time source upload and class style-reference upload both use Playwright `setInputFiles` on the real UI and complete signed Storage writes from `http://127.0.0.1:3102`.
 - `pnpm verify:firebase-auth` passing for `exampull-web--exampull-gpt-5-5.us-central1.hosted.app`, including authorized domain, Phone Auth provider/test phone, and Google provider configuration.
 - Focused browser checks after the auth/UX correction passed: Firebase phone signup smoke with human-formatted phone entry, Settings linked-auth control click, real USC material upload E2E, and keyboard wizard accessibility E2E.
 - UX screenshot artifacts captured before/after/refined under `artifacts/ux-audit` for dashboard, classes, class creation, exam builder, settings, and landing surfaces.
+- Full-product UX matrix after the second refactor is captured at `artifacts/ux-audit/full-product/2026-05-03T05-56-40-736Z` with the framework dev overlay suppressed.
+- Focused second-pass UX verification passed: `pnpm typecheck`, `pnpm lint`, `pnpm test` with 17 files and 40 tests, focused desktop Chrome accessibility/quality/real-materials with 9 tests, and the full desktop Chrome gate with 60 passed and 4 intended skips.
+- Production build, Firebase Auth verification, Storage CORS verification, App Hosting deploy, and hosted smoke passed after the second UX pass. Current deployed URL: `https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app`; hosted smoke passed with 6 public browser tests and 58 local-only specs skipped.
+- Runtime preflight, protected-route redirect smoke, typecheck, lint, and unit tests passed after the PRD redirect correction. Updated screenshot matrix captured at `artifacts/ux-audit/full-product/2026-05-03T06-32-56-426Z`.
+- Guru visual-feedback PRD-flow correction passed focused visible browser E2E against local dev on `http://127.0.0.1:3103`: `guru user can download completed visual feedback PDF` and `guru user can upload an attempt and complete visual feedback worker`. Manual browser-use artifacts are saved at `artifacts/manual-use/guru-visual/2026-05-03T06-59-48-742Z`, including viewport screenshots before upload, selected file, post-grade marked-PDF CTA, completed visual feedback, downloaded `visual-feedback.pdf`, and a rasterized first page under `pdf-pages/page-1.png`.
+- Full local desktop Chrome browser gate after the visual-feedback PRD-flow correction passed with 60 tests and 4 intended persona-project skips; coverage included real Firebase auth/phone signup, visible upload controls, USC real-material uploads, quality screenshots, and the revised Guru visual-feedback flow.
+- Production build, Firebase Auth verification, Storage CORS verification, App Hosting deploy, and hosted smoke passed after the visual-feedback PRD-flow correction. Current deployed URL: `https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app`; hosted smoke passed with 6 public browser tests and 58 local-only specs skipped.
+- Upgraded hosted smoke initially failed on a real post-signup Generate click with missing `@google-cloud/tasks` standalone files; after replacing Cloud Tasks enqueue with REST, removing the unused SDK dependency, and redeploying, `TEST_BASE_URL=https://exampull-web--exampull-gpt-5-5.us-central1.hosted.app pnpm exec playwright test --config=playwright.prod.config.ts --project=desktop-chrome --workers=1 e2e/smoke.spec.ts` passed with 6 tests, including live phone signup, visible wizard Generate, queued exam detail, admin 404, and cleanup.
 - `pnpm build` passed after the auth/UX correction.
 - Full desktop Chrome gate after the auth/UX correction passed with 59 tests and four intended project skips.
 - App Hosting deploy after the auth/UX correction passed and hosted production smoke passed with 6 public smoke tests and 57 local-only specs skipped.

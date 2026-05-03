@@ -11,7 +11,7 @@ export const attemptUploadSchema = z.object({
 	filename: z.string().trim().min(1).max(180),
 	contentType: z.string().trim().min(1).max(120),
 	sizeBytes: z.number().int().min(1).max(maxUploadBytes),
-	visualAnnotations: z.boolean().default(false),
+	visualAnnotations: z.boolean().optional(),
 });
 
 export type AttemptUploadInput = z.infer<typeof attemptUploadSchema>;
@@ -117,8 +117,8 @@ export async function createAttemptUpload({
 		throw new Error("Attempt grading is available on Scholar and Guru.");
 	}
 
-	if (parsed.visualAnnotations && user.tier !== "guru") {
-		throw new Error("Visual annotations require Guru.");
+	if (parsed.visualAnnotations) {
+		throw new Error("Upload and grade first. Visual annotations are requested after grading.");
 	}
 
 	const attemptId = randomUUID();
@@ -126,24 +126,21 @@ export async function createAttemptUpload({
 	const storagePath = `users/${user.uid}/attempts/${attemptId}/${filename}`;
 	const now = Timestamp.now();
 
-	await examRef(user.uid, examId)
-		.collection("attempts")
-		.doc(attemptId)
-		.create({
-			filename: parsed.filename,
-			contentType: parsed.contentType,
-			sizeBytes: parsed.sizeBytes,
-			storagePath,
-			status: "uploading",
-			visualAnnotations: parsed.visualAnnotations,
-			visualAnnotationStatus: parsed.visualAnnotations ? "pending_upload" : null,
-			boostGradingCandidate: boostGradingAvailable,
-			creditsReserved: 0,
-			createdAt: now,
-			updatedAt: now,
-			uploadedAt: null,
-			isTestData: user.isTestAccount,
-		});
+	await examRef(user.uid, examId).collection("attempts").doc(attemptId).create({
+		filename: parsed.filename,
+		contentType: parsed.contentType,
+		sizeBytes: parsed.sizeBytes,
+		storagePath,
+		status: "uploading",
+		visualAnnotations: false,
+		visualAnnotationStatus: null,
+		boostGradingCandidate: boostGradingAvailable,
+		creditsReserved: 0,
+		createdAt: now,
+		updatedAt: now,
+		uploadedAt: null,
+		isTestData: user.isTestAccount,
+	});
 
 	const [uploadUrl] = await adminStorage
 		.bucket()
@@ -163,7 +160,6 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 	const targetExamRef = examRef(user.uid, examId);
 	const attemptRef = targetExamRef.collection("attempts").doc(attemptId);
 	let creditsReserved = 0;
-	let visualAnnotations = false;
 	let boostGradingUsed = false;
 
 	await adminDb.runTransaction(async (transaction) => {
@@ -178,16 +174,11 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 		}
 
 		const questionCount = Number(examSnapshot.get("questionCount") ?? 0);
-		visualAnnotations = Boolean(attemptSnapshot.get("visualAnnotations") ?? false);
 		boostGradingUsed =
 			user.tier === "free" &&
 			Boolean(examSnapshot.get("boostGradingIncluded") ?? false) &&
-			!userSnapshot.get("boostGradingUsedAt") &&
-			!visualAnnotations;
-		creditsReserved = boostGradingUsed
-			? 0
-			: questionCount * CREDIT_COSTS.GRADE_QUESTION +
-				(visualAnnotations ? questionCount * CREDIT_COSTS.ANNOTATE_QUESTION : 0);
+			!userSnapshot.get("boostGradingUsedAt");
+		creditsReserved = boostGradingUsed ? 0 : questionCount * CREDIT_COSTS.GRADE_QUESTION;
 		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
 
 		if (availableCredits < creditsReserved) {
@@ -209,7 +200,7 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 		}
 		transaction.update(attemptRef, {
 			status: "grading_queued",
-			visualAnnotationStatus: visualAnnotations ? "queued_after_grading" : null,
+			visualAnnotationStatus: null,
 			creditsReserved,
 			boostGradingUsed,
 			uploadedAt: Timestamp.now(),
@@ -232,5 +223,94 @@ export async function completeAttemptUpload(user: CurrentUser, examId: string, a
 		);
 	}
 
-	return { queued: queueResult.queued, creditsReserved, visualAnnotations };
+	return { queued: queueResult.queued, creditsReserved, visualAnnotations: false };
+}
+
+export async function requestVisualFeedback({
+	user,
+	examId,
+	attemptId,
+}: {
+	user: CurrentUser;
+	examId: string;
+	attemptId: string;
+}) {
+	if (user.tier !== "guru") {
+		throw new Error("Visual annotations require Guru.");
+	}
+
+	const userRef = adminDb.collection("users").doc(user.uid);
+	const targetExamRef = examRef(user.uid, examId);
+	const attemptRef = targetExamRef.collection("attempts").doc(attemptId);
+	let creditsReserved = 0;
+
+	await adminDb.runTransaction(async (transaction) => {
+		const [userSnapshot, examSnapshot, attemptSnapshot] = await Promise.all([
+			transaction.get(userRef),
+			transaction.get(targetExamRef),
+			transaction.get(attemptRef),
+		]);
+
+		if (!examSnapshot.exists || !attemptSnapshot.exists) {
+			throw new Error("Attempt not found.");
+		}
+
+		if (attemptSnapshot.get("status") !== "graded") {
+			throw new Error("Grade the attempt before requesting visual annotations.");
+		}
+
+		if (
+			typeof attemptSnapshot.get("visualFeedbackPdfBase64") === "string" ||
+			typeof attemptSnapshot.get("visualFeedbackPdfStoragePath") === "string"
+		) {
+			throw new Error("Visual annotations are already ready.");
+		}
+
+		const currentStatus = attemptSnapshot.get("visualAnnotationStatus");
+		if (currentStatus === "queued" || currentStatus === "annotating") {
+			throw new Error("Visual annotations are already in progress.");
+		}
+
+		const questionCount = Number(examSnapshot.get("questionCount") ?? 0);
+		creditsReserved = questionCount * CREDIT_COSTS.ANNOTATE_QUESTION;
+		const availableCredits = Number(userSnapshot.get("credits") ?? 0);
+
+		if (availableCredits < creditsReserved) {
+			throw new Error("Insufficient credits for visual annotations.");
+		}
+
+		transaction.update(userRef, {
+			credits: availableCredits - creditsReserved,
+			reservedCredits: Number(userSnapshot.get("reservedCredits") ?? 0) + creditsReserved,
+			updatedAt: Timestamp.now(),
+		});
+		transaction.update(attemptRef, {
+			visualAnnotations: true,
+			visualAnnotationStatus: "queued",
+			creditsReserved,
+			updatedAt: Timestamp.now(),
+		});
+	});
+
+	const input = { userId: user.uid, examId, attemptId };
+	const queueResult = await enqueueWorkerTask({
+		route: "/api/workers/visual-feedback",
+		payload: input,
+	});
+
+	if (!queueResult.queued) {
+		await attemptRef.set(
+			{
+				visualAnnotationStatus: "annotating_inline",
+				queueWarning: queueResult.reason,
+				updatedAt: Timestamp.now(),
+			},
+			{ merge: true },
+		);
+
+		const { completeVisualFeedback } = await import("@/lib/exams/visual-feedback");
+		await completeVisualFeedback(input);
+	}
+
+	return { queued: queueResult.queued, creditsReserved };
 }

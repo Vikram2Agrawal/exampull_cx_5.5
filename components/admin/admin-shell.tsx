@@ -13,6 +13,7 @@ import {
 import { cookies } from "next/headers";
 import { AdminCsrfProvider } from "@/components/admin/admin-csrf";
 import { AdminGlobalSearch } from "@/components/admin/admin-global-search";
+import { AdminMobileReadOnly } from "@/components/admin/admin-mobile-readonly";
 import { createAdminCsrfToken } from "@/lib/admin/session";
 import { cn } from "@/lib/utils";
 
@@ -80,14 +81,47 @@ export async function AdminShell({
 				</aside>
 				<div className="lg:pl-64">
 					<header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
-						<AdminGlobalSearch />
+						<div className="flex min-w-0 flex-1 items-center gap-3">
+							<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white lg:hidden">
+								E
+							</span>
+							<AdminGlobalSearch />
+						</div>
 						<span className="ml-4 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
 							Agent session
 						</span>
 					</header>
-					<main id="main-content" className="p-4 lg:p-6">
+					<nav
+						className="sticky top-16 z-20 flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 lg:hidden"
+						aria-label="Admin mobile sections"
+					>
+						{nav.map((item) => (
+							<a
+								key={item.href}
+								href={item.href}
+								className={cn(
+									"whitespace-nowrap rounded-md px-3 py-2 text-sm text-slate-600",
+									active === item.label && "bg-slate-950 text-white",
+								)}
+							>
+								{item.label}
+							</a>
+						))}
+					</nav>
+					<div
+						className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 lg:hidden"
+						role="status"
+					>
+						Mobile admin is read-only. Review data here, then switch to desktop for
+						credits, refunds, triage, broadcasts, and account changes.
+					</div>
+					<main
+						id="main-content"
+						className="p-4 max-lg:[&_button]:pointer-events-none max-lg:[&_button]:cursor-not-allowed max-lg:[&_button]:opacity-60 max-lg:[&_form]:pointer-events-none max-lg:[&_form]:select-none max-lg:[&_form]:opacity-60 max-lg:[&_input]:pointer-events-none max-lg:[&_input]:cursor-not-allowed max-lg:[&_select]:pointer-events-none max-lg:[&_select]:cursor-not-allowed max-lg:[&_textarea]:pointer-events-none max-lg:[&_textarea]:cursor-not-allowed lg:p-6"
+					>
 						{children}
 					</main>
+					<AdminMobileReadOnly rootId="main-content" />
 				</div>
 			</div>
 		</AdminCsrfProvider>

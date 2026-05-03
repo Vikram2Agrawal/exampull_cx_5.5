@@ -19,6 +19,14 @@ export default async function AdminExamsPage() {
 	return (
 		<AdminShell active="Exams">
 			<div className="space-y-6">
+				<section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+					<h2 className="font-semibold">Artifact review should precede re-runs</h2>
+					<p className="mt-1">
+						Use exam IDs from a support report or search result, then verify status,
+						user, and credit impact before regenerating. Operator detail sheets will
+						make this contextual instead of ID-driven.
+					</p>
+				</section>
 				<ExamRegenerateForm />
 				<AdminTable
 					title="Exams"

@@ -2,9 +2,10 @@ import {
 	ArrowRight,
 	BookOpen,
 	CheckCircle2,
-	Clock,
 	Coins,
+	Download,
 	FileText,
+	KeyRound,
 	UploadCloud,
 } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -22,7 +23,7 @@ export default async function DashboardPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	const [exams, classes] = await Promise.all([
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
 	const activeExam = exams.find(
 		(exam) => exam.status === "generating" || exam.status === "qa_in_progress",
 	);
+	const readyExam = exams.find((exam) => exam.status === "complete" && exam.examPdfReady);
 
 	return (
 		<AppShell
@@ -52,7 +54,7 @@ export default async function DashboardPage() {
 						<ArrowRight aria-hidden="true" size={18} />
 					</ButtonLink>
 				</div>
-				<div className="grid gap-4 md:grid-cols-4">
+				<div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
 					<MetricCard
 						icon={Coins}
 						label="Credits available"
@@ -68,8 +70,13 @@ export default async function DashboardPage() {
 						label="Active classes"
 						value={String(classes.filter((course) => !course.archived).length)}
 					/>
-					<MetricCard icon={Clock} label="Avg generation" value="1m 42s" />
+					<MetricCard
+						icon={CheckCircle2}
+						label="Ready to practice"
+						value={String(exams.filter((exam) => exam.status === "complete").length)}
+					/>
 				</div>
+				{readyExam ? <ReadyPracticePanel exam={readyExam} /> : null}
 				{activeExam ? (
 					<GlassPanel className="p-6">
 						<div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -124,6 +131,103 @@ export default async function DashboardPage() {
 				</section>
 			</div>
 		</AppShell>
+	);
+}
+
+function ReadyPracticePanel({ exam }: { exam: Parameters<typeof ExamCard>[0]["exam"] }) {
+	return (
+		<GlassPanel className="grid gap-5 p-4 md:p-6 lg:grid-cols-[340px_1fr]">
+			<Paper className="min-h-[220px] overflow-hidden p-5 md:min-h-[260px] md:p-6">
+				<div className="border-b border-paper-border pb-3 text-center">
+					<p className="text-xs uppercase tracking-[0.16em] text-ink-muted">
+						{exam.className}
+					</p>
+					<h2 className="mt-2 text-2xl font-semibold leading-tight">{exam.title}</h2>
+				</div>
+				<ol className="mt-5 space-y-3 text-sm leading-6 text-ink">
+					{exam.topics.slice(0, 3).map((topic, index) => (
+						<li key={topic}>
+							<strong>{index + 1}.</strong> {topic}
+						</li>
+					))}
+				</ol>
+			</Paper>
+			<div className="flex flex-col justify-center">
+				<p className="text-sm font-semibold uppercase tracking-[0.12em] text-secondary">
+					Ready to practice
+				</p>
+				<h2 className="mt-3 text-2xl font-semibold md:text-3xl">{exam.title}</h2>
+				<p className="mt-3 max-w-xl text-sm leading-6 text-muted">
+					Your exam artifact is ready. Work it like a real exam first, then upload your
+					attempt and review the answer key.
+				</p>
+				<ol className="mt-5 grid gap-2 md:mt-6 md:gap-3">
+					<li className="rounded-lg border border-glass-border bg-background/40 p-3 md:p-4">
+						<div className="flex gap-3">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-sm font-semibold text-secondary">
+								1
+							</span>
+							<div>
+								<p className="font-semibold">Download the practice PDF</p>
+								<p className="mt-1 text-sm leading-6 text-muted">
+									Print it or work from the student copy.
+								</p>
+								<ButtonLink
+									href={`/api/exams/${exam.id}/download?type=exam`}
+									variant="primary"
+									className="mt-3"
+								>
+									<Download aria-hidden="true" size={18} />
+									Download exam
+								</ButtonLink>
+							</div>
+						</div>
+					</li>
+					<li className="rounded-lg border border-glass-border bg-background/40 p-3 md:p-4">
+						<div className="flex gap-3">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-sm font-semibold text-secondary">
+								2
+							</span>
+							<div>
+								<p className="font-semibold">Upload your finished attempt</p>
+								<p className="mt-1 text-sm leading-6 text-muted">
+									Get grading after you complete the exam.
+								</p>
+								<ButtonLink
+									href={`/exams/${exam.id}`}
+									variant="secondary"
+									className="mt-3"
+								>
+									<UploadCloud aria-hidden="true" size={18} />
+									Upload attempt
+								</ButtonLink>
+							</div>
+						</div>
+					</li>
+					<li className="rounded-lg border border-glass-border bg-background/40 p-3 md:p-4">
+						<div className="flex gap-3">
+							<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-sm font-semibold text-secondary">
+								3
+							</span>
+							<div>
+								<p className="font-semibold">Review the answer key</p>
+								<p className="mt-1 text-sm leading-6 text-muted">
+									Check solutions after the practice round.
+								</p>
+								<ButtonLink
+									href={`/api/exams/${exam.id}/download?type=answer`}
+									variant="secondary"
+									className="mt-3"
+								>
+									<KeyRound aria-hidden="true" size={18} />
+									Answer key
+								</ButtonLink>
+							</div>
+						</div>
+					</li>
+				</ol>
+			</div>
+		</GlassPanel>
 	);
 }
 
@@ -200,10 +304,10 @@ function MetricCard({
 	value: string;
 }) {
 	return (
-		<GlassPanel className="p-5">
+		<GlassPanel className="p-4 md:p-5">
 			<Icon aria-hidden="true" className="text-secondary" size={20} />
-			<p className="mt-4 text-sm text-muted">{label}</p>
-			<p className="mt-1 text-3xl font-semibold">{value}</p>
+			<p className="mt-3 text-xs leading-5 text-muted md:text-sm">{label}</p>
+			<p className="mt-1 text-2xl font-semibold md:text-3xl">{value}</p>
 		</GlassPanel>
 	);
 }

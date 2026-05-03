@@ -15,8 +15,8 @@ const tiers = [
 		features: [
 			"12 questions per exam",
 			"Exam PDF download",
-			"Locked answer keys",
-			"One Scholar Boost",
+			"Try one Scholar-level exam after your first PDF",
+			"Upgrade when you want answer keys and grading",
 		],
 	},
 	{
@@ -25,7 +25,12 @@ const tiers = [
 		credits: "400 credits monthly",
 		cta: "Upgrade to Scholar",
 		href: "/sign-up?plan=scholar",
-		features: ["25 questions per exam", "Answer keys", "Power Mode", "Attempt grading"],
+		features: [
+			"25 questions per exam",
+			"Separate answer keys",
+			"Control question type and difficulty",
+			"Upload your attempt for grading",
+		],
 	},
 	{
 		name: "Guru",
@@ -35,9 +40,9 @@ const tiers = [
 		href: "/sign-up?plan=guru",
 		features: [
 			"100 questions per exam",
-			"Visual annotations",
+			"Marked-up feedback on your submitted work",
 			"Credit rollover",
-			"Highest usage limits",
+			"Built for heavier course loads",
 		],
 	},
 ] as const;

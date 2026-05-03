@@ -1,8 +1,10 @@
 # ExamPull Blockers
 
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 
 No human blockers are currently accepted. The blank repository, missing generated env values, and unprovisioned services are build tasks in scope, not blockers.
+
+Current UX/auth/deploy issues are executable loop work, not blockers. The active loop owns design iteration, real browser verification, hosted smoke, and any Firebase/App Hosting configuration drift.
 
 ## Blocker Format
 

@@ -356,6 +356,7 @@ export async function POST(request: Request) {
 				status: "complete",
 				examLatex,
 				answerKeyLatex,
+				generatedQuestions,
 				examPdfStoragePath: examArtifact.pdfStoragePath,
 				answerKeyPdfStoragePath: answerKeyArtifact.pdfStoragePath,
 				examRenderedPageStoragePaths: examArtifact.pageStoragePaths,

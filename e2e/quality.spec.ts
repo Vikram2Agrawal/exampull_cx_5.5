@@ -66,6 +66,7 @@ async function setTheme(page: Page, theme: Theme) {
 async function captureScreenshot(page: Page, testInfo: TestInfo, name: string) {
 	mkdirSync(qualityArtifactRoot, { recursive: true });
 	const filePath = join(qualityArtifactRoot, `${slug(testInfo.title)}-${slug(name)}.png`);
+	await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
 	const screenshot = await page.screenshot({
 		fullPage: true,
 		animations: "disabled",

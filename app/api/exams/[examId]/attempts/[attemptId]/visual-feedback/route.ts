@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readStorageBase64 } from "@/lib/exams/artifacts";
+import { requestVisualFeedback } from "@/lib/exams/attempts";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -68,4 +69,34 @@ export async function GET(
 			"Cache-Control": "private, max-age=60",
 		},
 	});
+}
+
+export async function POST(
+	_request: Request,
+	{ params }: { params: Promise<{ examId: string; attemptId: string }> },
+) {
+	const user = await getCurrentUser();
+
+	if (!user) {
+		return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+	}
+
+	try {
+		const { examId, attemptId } = await params;
+		const result = await requestVisualFeedback({ user, examId, attemptId });
+
+		return NextResponse.json(result, { status: 202 });
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Visual annotations could not be requested.";
+		const status = message.includes("Insufficient")
+			? 402
+			: message.includes("not found")
+				? 404
+				: message.includes("require Guru")
+					? 403
+					: 400;
+
+		return NextResponse.json({ error: message }, { status });
+	}
 }

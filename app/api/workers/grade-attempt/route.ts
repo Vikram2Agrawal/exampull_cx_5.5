@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callLlm } from "@/lib/ai/client";
-import { completeVisualFeedback } from "@/lib/exams/visual-feedback";
 import { adminDb, adminStorage, Timestamp } from "@/lib/firebase/admin";
 import { extractTextFromPdf } from "@/lib/materials/extract-text";
-import { CREDIT_COSTS } from "@/lib/product/constants";
 import { requireWorkerRequest } from "@/lib/tasks/auth";
-import { enqueueWorkerTask } from "@/lib/tasks/enqueue";
 import { createUserNotification } from "@/lib/user/data";
 
 export const runtime = "nodejs";
@@ -88,8 +85,6 @@ export async function POST(request: Request) {
 	const topics = Array.isArray(exam.get("topics")) ? (exam.get("topics") as string[]) : [];
 	const answerKeyLatex =
 		typeof exam.get("answerKeyLatex") === "string" ? String(exam.get("answerKeyLatex")) : "";
-	const gradeCost = questionCount * CREDIT_COSTS.GRADE_QUESTION;
-	const annotationCost = questionCount * CREDIT_COSTS.ANNOTATE_QUESTION;
 	const examTitle = String(exam.get("title") ?? "Practice exam");
 
 	try {
@@ -114,76 +109,35 @@ export async function POST(request: Request) {
 		});
 		const score = boundedScore(questionCount, result.content);
 		const attempt = await attemptRef.get();
-		const visualAnnotations = Boolean(attempt.get("visualAnnotations") ?? false);
 		const creditsReserved = Number(attempt.get("creditsReserved") ?? 0);
-		let shouldRunVisualFeedbackInline = false;
-
-		if (visualAnnotations) {
-			const queueResult = await enqueueWorkerTask({
-				route: "/api/workers/visual-feedback",
-				payload: input,
+		await adminDb.runTransaction(async (transaction) => {
+			const user = await transaction.get(userRef);
+			transaction.update(userRef, {
+				reservedCredits: Math.max(
+					0,
+					Number(user.get("reservedCredits") ?? 0) - creditsReserved,
+				),
+				totalCreditsConsumed:
+					Number(user.get("totalCreditsConsumed") ?? 0) + creditsReserved,
+				updatedAt: Timestamp.now(),
 			});
-			shouldRunVisualFeedbackInline = !queueResult.queued;
-
-			await adminDb.runTransaction(async (transaction) => {
-				const user = await transaction.get(userRef);
-				transaction.update(userRef, {
-					reservedCredits: Math.max(
-						0,
-						Number(user.get("reservedCredits") ?? 0) - gradeCost,
-					),
-					totalCreditsConsumed: Number(user.get("totalCreditsConsumed") ?? 0) + gradeCost,
-					updatedAt: Timestamp.now(),
-				});
-				transaction.update(attemptRef, {
-					status: "graded",
-					score: score.score,
-					maxScore: score.maxScore,
-					feedback: result.content,
-					gradedAt: Timestamp.now(),
-					creditsReserved: annotationCost,
-					creditsConsumed: gradeCost,
-					visualAnnotationStatus: queueResult.queued ? "queued" : "annotating_inline",
-					queueWarning: queueResult.queued ? null : queueResult.reason,
-					gradingMetadata: {
-						model: result.model,
-						inputTokens: result.inputTokens,
-						outputTokens: result.outputTokens,
-						latencyMs: result.latencyMs,
-					},
-					updatedAt: Timestamp.now(),
-				});
+			transaction.update(attemptRef, {
+				status: "graded",
+				score: score.score,
+				maxScore: score.maxScore,
+				feedback: result.content,
+				gradedAt: Timestamp.now(),
+				creditsReserved: 0,
+				creditsConsumed: creditsReserved,
+				gradingMetadata: {
+					model: result.model,
+					inputTokens: result.inputTokens,
+					outputTokens: result.outputTokens,
+					latencyMs: result.latencyMs,
+				},
+				updatedAt: Timestamp.now(),
 			});
-		} else {
-			await adminDb.runTransaction(async (transaction) => {
-				const user = await transaction.get(userRef);
-				transaction.update(userRef, {
-					reservedCredits: Math.max(
-						0,
-						Number(user.get("reservedCredits") ?? 0) - creditsReserved,
-					),
-					totalCreditsConsumed:
-						Number(user.get("totalCreditsConsumed") ?? 0) + creditsReserved,
-					updatedAt: Timestamp.now(),
-				});
-				transaction.update(attemptRef, {
-					status: "graded",
-					score: score.score,
-					maxScore: score.maxScore,
-					feedback: result.content,
-					gradedAt: Timestamp.now(),
-					creditsReserved: 0,
-					creditsConsumed: creditsReserved,
-					gradingMetadata: {
-						model: result.model,
-						inputTokens: result.inputTokens,
-						outputTokens: result.outputTokens,
-						latencyMs: result.latencyMs,
-					},
-					updatedAt: Timestamp.now(),
-				});
-			});
-		}
+		});
 
 		await createUserNotification({
 			userId: input.userId,
@@ -192,23 +146,6 @@ export async function POST(request: Request) {
 			kind: "grading",
 			href: `/exams/${input.examId}`,
 		});
-
-		if (shouldRunVisualFeedbackInline) {
-			try {
-				await completeVisualFeedback(input);
-			} catch (error) {
-				await createUserNotification({
-					userId: input.userId,
-					title: `${examTitle} visual feedback failed`,
-					body:
-						error instanceof Error
-							? error.message
-							: "Visual feedback could not be generated.",
-					kind: "grading",
-					href: `/exams/${input.examId}`,
-				});
-			}
-		}
 
 		return NextResponse.json({ ok: true });
 	} catch (error) {

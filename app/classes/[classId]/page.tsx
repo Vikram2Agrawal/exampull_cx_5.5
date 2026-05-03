@@ -3,10 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { ClassManager } from "@/components/class/class-manager";
 import { MaterialUploader } from "@/components/class/material-uploader";
 import { AppShell } from "@/components/layout/site-nav";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { GlassPanel, SectionHeader } from "@/components/ui/surface";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getUserClass, listClassMaterials } from "@/lib/classes/data";
+import { educationLevelLabel } from "@/lib/product/constants";
 
 export default async function ClassDetailPage({
 	params,
@@ -17,7 +18,7 @@ export default async function ClassDetailPage({
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	const [course, materials] = await Promise.all([
@@ -39,13 +40,23 @@ export default async function ClassDetailPage({
 				<div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
 					<SectionHeader title={course.name}>
 						<p>
-							{course.institution ?? "Independent study"} - {course.educationLevel}
-							/100 difficulty - {course.materialCount} materials
+							{course.institution ?? "Independent study"} -{" "}
+							{educationLevelLabel(course.educationLevel)} - {course.materialCount}{" "}
+							materials
 						</p>
 					</SectionHeader>
-					<ButtonLink href="/exams/new" variant="primary">
-						Create exam
-					</ButtonLink>
+					{materials.length > 0 ? (
+						<ButtonLink
+							href={`/exams/new?classId=${encodeURIComponent(course.id)}`}
+							variant="primary"
+						>
+							Create exam from {course.name}
+						</ButtonLink>
+					) : (
+						<Button type="button" variant="primary" disabled>
+							Add material before creating exam
+						</Button>
+					)}
 				</div>
 				<div className="grid gap-6 lg:grid-cols-[1fr_360px]">
 					<GlassPanel className="p-6">

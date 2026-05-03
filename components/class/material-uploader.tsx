@@ -1,9 +1,11 @@
 "use client";
 
-import { FileUp, Sparkles, Trash2 } from "lucide-react";
+import { FileUp, Sparkles, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatusMessage } from "@/components/ui/surface";
 import type { MaterialSummary } from "@/lib/classes/data";
 
 type UploadStartResponse = {
@@ -23,14 +25,23 @@ export function MaterialUploader({
 }) {
 	const router = useRouter();
 	const [file, setFile] = useState<File | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [focus, setFocus] = useState("");
 	const [styleReference, setStyleReference] = useState(false);
 	const [isUploading, setIsUploading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [materialToDelete, setMaterialToDelete] = useState<MaterialSummary | null>(null);
 
 	function onFileChange(event: ChangeEvent<HTMLInputElement>) {
 		setFile(event.target.files?.[0] ?? null);
 		setError(null);
+	}
+
+	function clearSelectedFile() {
+		setFile(null);
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
 	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -92,6 +103,9 @@ export function MaterialUploader({
 			}
 
 			setFile(null);
+			if (fileInputRef.current) {
+				fileInputRef.current.value = "";
+			}
 			setFocus("");
 			setStyleReference(false);
 			router.refresh();
@@ -102,13 +116,15 @@ export function MaterialUploader({
 		}
 	}
 
-	async function deleteMaterial(materialId: string) {
-		const confirmed = window.confirm("Delete this material permanently?");
-		if (!confirmed) {
+	async function deleteMaterial() {
+		if (!materialToDelete) {
 			return;
 		}
 
-		await fetch(`/api/classes/${classId}/materials/${materialId}`, { method: "DELETE" });
+		await fetch(`/api/classes/${classId}/materials/${materialToDelete.id}`, {
+			method: "DELETE",
+		});
+		setMaterialToDelete(null);
 		router.refresh();
 	}
 
@@ -119,15 +135,47 @@ export function MaterialUploader({
 				onSubmit={onSubmit}
 			>
 				<div>
-					<label className="text-sm font-medium" htmlFor="material">
-						Material file
-					</label>
 					<input
+						ref={fileInputRef}
 						id="material"
+						aria-label="Material file"
 						type="file"
 						onChange={onFileChange}
-						className="mt-2 block w-full text-sm text-muted file:mr-4 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+						className="sr-only"
 					/>
+					{file ? (
+						<div className="rounded-xl border border-glass-border bg-background/45 p-4">
+							<div className="flex items-center justify-between gap-3">
+								<div className="min-w-0">
+									<p className="truncate text-sm font-semibold">{file.name}</p>
+									<p className="mt-1 text-xs text-muted">
+										{Math.max(1, Math.round(file.size / 1024))} KB selected
+									</p>
+								</div>
+								<button
+									type="button"
+									aria-label="Remove selected material file"
+									className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-glass hover:text-foreground"
+									onClick={clearSelectedFile}
+								>
+									<X aria-hidden="true" size={18} />
+								</button>
+							</div>
+						</div>
+					) : (
+						<label
+							htmlFor="material"
+							className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-glass-border bg-background/45 p-5 text-center transition hover:border-brand/60 hover:bg-brand/10"
+						>
+							<span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/15 text-brand">
+								<FileUp aria-hidden="true" size={22} />
+							</span>
+							<span className="mt-4 text-sm font-semibold">Choose material file</span>
+							<span className="mt-1 max-w-sm text-xs leading-5 text-muted">
+								PDFs, slides, notes, photos, and source documents. 100 MB max.
+							</span>
+						</label>
+					)}
 				</div>
 				<div>
 					<label className="text-sm font-medium" htmlFor="focus">
@@ -157,12 +205,10 @@ export function MaterialUploader({
 						</span>
 					</span>
 				</label>
-				{error ? (
-					<p className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</p>
-				) : null}
+				{error ? <StatusMessage variant="error">{error}</StatusMessage> : null}
 				<Button type="submit" variant="primary" disabled={isUploading || !file}>
 					<FileUp aria-hidden="true" size={18} />
-					{isUploading ? "Uploading" : "Upload material"}
+					{isUploading ? "Uploading" : file ? "Upload material" : "Choose a file first"}
 				</Button>
 			</form>
 			<div className="space-y-3">
@@ -186,10 +232,11 @@ export function MaterialUploader({
 								</div>
 								<button
 									type="button"
-									className="rounded-lg p-2 hover:bg-glass"
-									onClick={() => void deleteMaterial(material.id)}
+									aria-label={`Delete ${material.filename}`}
+									className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-glass"
+									onClick={() => setMaterialToDelete(material)}
 								>
-									<Trash2 aria-label="Delete material" size={18} />
+									<Trash2 aria-hidden="true" size={18} />
 								</button>
 							</div>
 							{material.styleReference ? (
@@ -214,6 +261,18 @@ export function MaterialUploader({
 					))
 				)}
 			</div>
+			<ConfirmDialog
+				open={Boolean(materialToDelete)}
+				title="Delete this material?"
+				confirmLabel="Delete material"
+				onClose={() => setMaterialToDelete(null)}
+				onConfirm={() => void deleteMaterial()}
+			>
+				<p>
+					{materialToDelete?.filename} will be removed from this class and cannot be used
+					for future exams. Existing generated exams are not changed.
+				</p>
+			</ConfirmDialog>
 		</div>
 	);
 }

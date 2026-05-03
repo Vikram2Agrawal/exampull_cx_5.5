@@ -23,7 +23,7 @@ export default async function ChangelogPage() {
 				<div className="mt-10">
 					<FeaturebaseEmbed
 						src={featurebasePortalUrl({ surface: "changelog", jwt })}
-						title="Featurebase changelog"
+						title="Changelog"
 						fallbackTitle="Changelog"
 					/>
 				</div>

@@ -8,11 +8,13 @@ import {
 	Grid2X2,
 	List,
 	Search,
+	SlidersHorizontal,
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GlassPanel, Paper } from "@/components/ui/surface";
 import type { ClassSummary } from "@/lib/classes/data";
 import type { ExamSummary } from "@/lib/exams/data";
@@ -72,16 +74,9 @@ export function ExamLibrary({
 	const [view, setView] = useState<"grid" | "list">("grid");
 	const [bulkClassId, setBulkClassId] = useState("");
 	const [message, setMessage] = useState("");
+	const [filtersOpen, setFiltersOpen] = useState(false);
+	const [selectMode, setSelectMode] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const cancelDeleteRef = useRef<HTMLButtonElement>(null);
-	const confirmDeleteRef = useRef<HTMLButtonElement>(null);
-	const deleteTriggerRef = useRef<HTMLButtonElement>(null);
-
-	useEffect(() => {
-		if (deleteDialogOpen) {
-			cancelDeleteRef.current?.focus();
-		}
-	}, [deleteDialogOpen]);
 
 	const styles = useMemo(
 		() => Array.from(new Set(exams.flatMap((exam) => exam.questionStyles))).sort(),
@@ -130,6 +125,7 @@ export function ExamLibrary({
 	}
 
 	function toggleAllVisible() {
+		setSelectMode(true);
 		if (allVisibleSelected) {
 			setSelectedIds((current) =>
 				current.filter((id) => !filteredExams.some((exam) => exam.id === id)),
@@ -140,6 +136,17 @@ export function ExamLibrary({
 		setSelectedIds((current) =>
 			Array.from(new Set([...current, ...filteredExams.map((exam) => exam.id)])),
 		);
+	}
+
+	function toggleSelectMode() {
+		setSelectMode((current) => {
+			if (current) {
+				setSelectedIds([]);
+				return false;
+			}
+
+			return true;
+		});
 	}
 
 	function applyLocalAction(action: LibraryAction, classId?: string | null) {
@@ -172,33 +179,6 @@ export function ExamLibrary({
 		});
 	}
 
-	function closeDeleteDialog() {
-		setDeleteDialogOpen(false);
-		deleteTriggerRef.current?.focus();
-	}
-
-	function onDeleteDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (event.key === "Escape") {
-			event.preventDefault();
-			closeDeleteDialog();
-			return;
-		}
-
-		if (event.key !== "Tab") {
-			return;
-		}
-
-		if (event.shiftKey && document.activeElement === cancelDeleteRef.current) {
-			event.preventDefault();
-			confirmDeleteRef.current?.focus();
-		}
-
-		if (!event.shiftKey && document.activeElement === confirmDeleteRef.current) {
-			event.preventDefault();
-			cancelDeleteRef.current?.focus();
-		}
-	}
-
 	function runBulkAction(action: LibraryAction, confirmed = false) {
 		if (selectedIds.length === 0) {
 			setMessage("Select at least one exam.");
@@ -212,6 +192,7 @@ export function ExamLibrary({
 			return;
 		}
 
+		setMessage(action === "delete" ? "Deleting selected exams..." : "Updating library...");
 		startTransition(async () => {
 			try {
 				await readJson(
@@ -250,36 +231,62 @@ export function ExamLibrary({
 								placeholder="Search title, topic, or class"
 							/>
 						</label>
-						<select
-							aria-label="Status filter"
-							value={statusFilter}
-							onChange={(event) => setStatusFilter(event.target.value)}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3"
-						>
-							<option value="all">All statuses</option>
-							{Array.from(new Set(exams.map((exam) => exam.status))).map((status) => (
-								<option key={status} value={status}>
-									{labelForToken(status)}
-								</option>
-							))}
-						</select>
-						<select
-							aria-label="Class filter"
-							value={classFilter}
-							onChange={(event) => setClassFilter(event.target.value)}
-							className="h-11 rounded-lg border border-glass-border bg-background/70 px-3"
-						>
-							<option value="all">All classes</option>
-							<option value="">Manual topics</option>
-							{classes.map((course) => (
-								<option key={course.id} value={course.id}>
-									{course.name}
-								</option>
-							))}
-						</select>
+						<div className="flex gap-2">
+							<Button
+								type="button"
+								variant={filtersOpen ? "primary" : "secondary"}
+								onClick={() => setFiltersOpen((current) => !current)}
+								aria-expanded={filtersOpen}
+								aria-controls="exam-library-filters"
+							>
+								<SlidersHorizontal aria-hidden="true" size={16} />
+								Filters
+							</Button>
+							<Button
+								type="button"
+								variant={selectMode ? "primary" : "secondary"}
+								onClick={toggleSelectMode}
+								aria-pressed={selectMode}
+							>
+								<CheckSquare aria-hidden="true" size={16} />
+								{selectMode ? "Done" : "Select"}
+							</Button>
+						</div>
 					</div>
-					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					{filtersOpen ? (
+						<div
+							id="exam-library-filters"
+							className="grid gap-3 rounded-lg border border-glass-border bg-background/35 p-3 sm:grid-cols-2 lg:grid-cols-6"
+						>
+							<select
+								aria-label="Status filter"
+								value={statusFilter}
+								onChange={(event) => setStatusFilter(event.target.value)}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+							>
+								<option value="all">All statuses</option>
+								{Array.from(new Set(exams.map((exam) => exam.status))).map(
+									(status) => (
+										<option key={status} value={status}>
+											{labelForToken(status)}
+										</option>
+									),
+								)}
+							</select>
+							<select
+								aria-label="Class filter"
+								value={classFilter}
+								onChange={(event) => setClassFilter(event.target.value)}
+								className="h-11 rounded-lg border border-glass-border bg-background/70 px-3 text-sm"
+							>
+								<option value="all">All classes</option>
+								<option value="">Manual topics</option>
+								{classes.map((course) => (
+									<option key={course.id} value={course.id}>
+										{course.name}
+									</option>
+								))}
+							</select>
 							<select
 								aria-label="Style filter"
 								value={styleFilter}
@@ -331,6 +338,11 @@ export function ExamLibrary({
 								<option value="all">Active + archived</option>
 							</select>
 						</div>
+					) : null}
+					<div className="flex items-center justify-between gap-3">
+						<p className="text-sm text-muted">
+							{filteredExams.length} exam{filteredExams.length === 1 ? "" : "s"}
+						</p>
 						<div className="flex gap-2">
 							<Button
 								type="button"
@@ -350,19 +362,21 @@ export function ExamLibrary({
 							>
 								<List aria-hidden="true" size={18} />
 							</Button>
-							<Button type="button" onClick={toggleAllVisible}>
-								<CheckSquare aria-hidden="true" size={16} />
-								{allVisibleSelected ? "Clear visible" : "Select visible"}
-							</Button>
 						</div>
 					</div>
 				</div>
 			</GlassPanel>
-			{selectedIds.length > 0 ? (
+			{selectMode ? (
 				<GlassPanel className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-					<p className="text-sm text-muted">
-						{selectedExams.length} selected across {filteredExams.length} visible.
-					</p>
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+						<p className="text-sm text-muted">
+							{selectedExams.length} selected across {filteredExams.length} visible.
+						</p>
+						<Button type="button" variant="secondary" onClick={toggleAllVisible}>
+							<CheckSquare aria-hidden="true" size={16} />
+							{allVisibleSelected ? "Clear visible" : "Select visible"}
+						</Button>
+					</div>
 					<div className="flex flex-wrap gap-2">
 						<Button
 							type="button"
@@ -420,7 +434,6 @@ export function ExamLibrary({
 						<Button
 							type="button"
 							variant="danger"
-							ref={deleteTriggerRef}
 							onClick={() => runBulkAction("delete")}
 							disabled={isPending}
 						>
@@ -435,60 +448,38 @@ export function ExamLibrary({
 					{message}
 				</p>
 			) : null}
-			{deleteDialogOpen ? (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-					role="presentation"
-				>
-					<div
-						role="alertdialog"
-						aria-modal="true"
-						aria-labelledby="bulk-delete-title"
-						aria-describedby="bulk-delete-description"
-						onKeyDown={onDeleteDialogKeyDown}
-						className="w-full max-w-md rounded-lg border border-glass-border bg-background p-5 shadow-glass"
-					>
-						<h2 id="bulk-delete-title" className="text-lg font-semibold">
-							Delete selected exams?
-						</h2>
-						<p id="bulk-delete-description" className="mt-2 text-sm text-muted">
-							This permanently deletes {selectedIds.length} selected exam
-							{selectedIds.length === 1 ? "" : "s"}. Archive first if you need the
-							history.
-						</p>
-						<div className="mt-5 flex justify-end gap-2">
-							<Button type="button" ref={cancelDeleteRef} onClick={closeDeleteDialog}>
-								Cancel
-							</Button>
-							<Button
-								type="button"
-								variant="danger"
-								ref={confirmDeleteRef}
-								onClick={() => {
-									setDeleteDialogOpen(false);
-									runBulkAction("delete", true);
-								}}
-								disabled={isPending}
-							>
-								Confirm delete
-							</Button>
-						</div>
-					</div>
-				</div>
-			) : null}
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				title="Delete selected exams?"
+				confirmLabel="Confirm delete"
+				confirmDisabled={isPending}
+				onClose={() => setDeleteDialogOpen(false)}
+				onConfirm={() => {
+					setDeleteDialogOpen(false);
+					runBulkAction("delete", true);
+				}}
+			>
+				<p>
+					This permanently deletes {selectedIds.length} selected exam
+					{selectedIds.length === 1 ? "" : "s"}. Archive first if you need the history.
+				</p>
+			</ConfirmDialog>
 			{filteredExams.length > 0 ? (
 				view === "grid" ? (
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 						{filteredExams.map((exam) => (
 							<div key={exam.id} className="relative">
-								<label className="absolute left-3 top-3 z-10 rounded-lg bg-background/90 p-2 shadow-sm">
-									<input
-										type="checkbox"
-										checked={selectedIds.includes(exam.id)}
-										onChange={() => toggleSelected(exam.id)}
-										aria-label={`Select ${exam.title}`}
-									/>
-								</label>
+								{selectMode ? (
+									<label className="absolute left-3 top-3 z-10 flex h-12 w-12 items-center justify-center rounded-lg bg-background/90 shadow-sm">
+										<input
+											type="checkbox"
+											checked={selectedIds.includes(exam.id)}
+											onChange={() => toggleSelected(exam.id)}
+											aria-label={`Select ${exam.title}`}
+											className="h-5 w-5"
+										/>
+									</label>
+								) : null}
 								<ExamCard exam={exam} />
 							</div>
 						))}
@@ -499,14 +490,22 @@ export function ExamLibrary({
 							{filteredExams.map((exam) => (
 								<div
 									key={exam.id}
-									className="grid gap-3 p-4 md:grid-cols-[32px_1.4fr_1fr_130px_120px]"
+									className={cn(
+										"grid gap-3 p-4 md:grid-cols-[1.4fr_1fr_130px_120px]",
+										selectMode && "md:grid-cols-[48px_1.4fr_1fr_130px_120px]",
+									)}
 								>
-									<input
-										type="checkbox"
-										checked={selectedIds.includes(exam.id)}
-										onChange={() => toggleSelected(exam.id)}
-										aria-label={`Select ${exam.title}`}
-									/>
+									{selectMode ? (
+										<label className="flex h-12 w-12 items-center justify-center rounded-lg bg-background/70">
+											<input
+												type="checkbox"
+												checked={selectedIds.includes(exam.id)}
+												onChange={() => toggleSelected(exam.id)}
+												aria-label={`Select ${exam.title}`}
+												className="h-5 w-5"
+											/>
+										</label>
+									) : null}
 									<a
 										href={`/exams/${exam.id}`}
 										className="font-semibold hover:text-brand"

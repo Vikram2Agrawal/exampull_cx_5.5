@@ -187,4 +187,6 @@ run(
 	{ allowExists: true },
 );
 
+run("pnpm", ["setup:storage-cors"]);
+
 console.log("Project bootstrap commands completed.");

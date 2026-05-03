@@ -18,6 +18,7 @@ async function assertNoHorizontalOverflow(page: Page) {
 async function attachSmokeScreenshot(page: Page, testInfo: TestInfo, name: string) {
 	mkdirSync(smokeArtifactRoot, { recursive: true });
 	const path = join(smokeArtifactRoot, `${name}.png`);
+	await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
 	await page.screenshot({ fullPage: true, path });
 	await testInfo.attach(name, { path, contentType: "image/png" });
 }
@@ -75,14 +76,23 @@ test("Firebase browser auth accepts the current origin", async ({ page }) => {
 });
 
 test("protected app routes redirect instead of server-erroring", async ({ page }) => {
-	for (const path of ["/dashboard", "/classes", "/exams", "/exams/new"]) {
+	for (const path of [
+		"/dashboard",
+		"/classes",
+		"/exams",
+		"/exams/new",
+		"/settings",
+		"/billing",
+	]) {
 		const response = await page.context().request.get(path, { maxRedirects: 0 });
-		expect(response.status(), `${path} should redirect to sign-in`).toBe(307);
-		expect(response.headers().location).toBe("/sign-in");
+		expect(response.status(), `${path} should redirect to sign-up`).toBe(307);
+		expect(response.headers().location).toBe("/sign-up");
 	}
 });
 
-test("Firebase phone signup verifies through the browser form", async ({ page }, testInfo) => {
+test("Firebase phone signup verifies through the browser form and queues an exam", async ({
+	page,
+}, testInfo) => {
 	const phoneNumber = envValue("FIREBASE_TEST_PHONE_NUMBER");
 	const phoneCode = envValue("FIREBASE_TEST_PHONE_CODE");
 	test.skip(
@@ -113,6 +123,18 @@ test("Firebase phone signup verifies through the browser form", async ({ page },
 		await page.goto("/exams/new");
 		await expect(page.getByRole("heading", { name: "Build a practice exam" })).toBeVisible();
 		await attachSmokeScreenshot(page, testInfo, "phone-signup-new-exam-builder");
+		await page.getByLabel("Exam title").fill("Hosted phone signup canary");
+		await page.getByRole("button", { name: "Next: Choose topics" }).click();
+		await page
+			.getByRole("textbox", { name: "Topics to include" })
+			.fill("Cell membranes\nDiffusion\nOsmosis");
+		await page.getByRole("button", { name: "Next: Set length" }).click();
+		await page.getByRole("button", { name: "Generate", exact: true }).click();
+		await expect(
+			page.getByRole("heading", { level: 1, name: "Hosted phone signup canary" }),
+		).toBeVisible({ timeout: 20_000 });
+		await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
+		await attachSmokeScreenshot(page, testInfo, "phone-signup-queued-exam");
 
 		const cleanupResponse = await page.context().request.post("/api/settings/delete");
 		expect(cleanupResponse.status()).toBe(200);

@@ -23,7 +23,7 @@ export default async function FeedbackPage() {
 					<div className="mt-8">
 						<FeaturebaseEmbed
 							src={featurebasePortalUrl({ surface: "feedback", jwt })}
-							title="Featurebase feedback board"
+							title="Feedback board"
 							fallbackTitle="Feedback board"
 						/>
 					</div>

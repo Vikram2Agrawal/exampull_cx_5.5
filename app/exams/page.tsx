@@ -11,7 +11,7 @@ export default async function ExamsPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/sign-in");
+		redirect("/sign-up");
 	}
 
 	const [exams, classes] = await Promise.all([

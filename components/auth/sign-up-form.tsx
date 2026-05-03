@@ -14,7 +14,6 @@ import {
 	updateProfile,
 } from "firebase/auth";
 import { Phone, ShieldCheck } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { normalizePhoneNumberInput, phonePreview } from "@/lib/auth/phone-format";
@@ -94,7 +93,6 @@ async function createSession({
 }
 
 export function SignUpForm() {
-	const router = useRouter();
 	const verifierRef = useRef<RecaptchaVerifier | null>(null);
 	const pendingUserRef = useRef<User | null>(null);
 	const [phase, setPhase] = useState<Phase>("details");
@@ -109,6 +107,7 @@ export function SignUpForm() {
 	const [code, setCode] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [status, setStatus] = useState<string | null>(null);
 
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -141,6 +140,24 @@ export function SignUpForm() {
 		return verifierRef.current;
 	}
 
+	function validateDetails() {
+		const cleanEmail = email.trim();
+
+		if (!cleanEmail || !password || !phone.trim()) {
+			return "Enter your email, password, and phone number.";
+		}
+
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+			return "Enter a valid email address.";
+		}
+
+		if (password.length < 12) {
+			return "Use a password with at least 12 characters.";
+		}
+
+		return null;
+	}
+
 	async function sendCode(user?: User) {
 		const normalizedPhone = normalizePhoneNumberInput(phone);
 		if (!normalizedPhone.ok) {
@@ -153,25 +170,45 @@ export function SignUpForm() {
 		const id = await provider.verifyPhoneNumber(normalizedPhone.value, verifier());
 		setVerificationId(id);
 		setPhase("code");
+		setStatus("Code sent. Enter the six digits to finish creating your account.");
 	}
 
 	async function onEmailSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setIsSubmitting(true);
 		setError(null);
+		setStatus("Sending verification code...");
 
 		try {
+			const validationError = validateDetails();
+			if (validationError) {
+				throw new Error(validationError);
+			}
+
 			await sendCode();
 		} catch (cause) {
+			setStatus(null);
 			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
 		}
 	}
 
+	function openDestination(session: { claimedExamId?: string }) {
+		const destination = session.claimedExamId
+			? `/exams/${session.claimedExamId}`
+			: "/dashboard";
+		if (session.claimedExamId) {
+			window.localStorage.removeItem("exampull_preview_id");
+		}
+		setStatus("Account created. Opening your workspace...");
+		window.location.assign(destination);
+	}
+
 	async function onGoogle() {
 		setIsSubmitting(true);
 		setError(null);
+		setStatus("Opening Google sign-in...");
 
 		try {
 			const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
@@ -184,6 +221,7 @@ export function SignUpForm() {
 			}
 
 			if (hasVerifiedPhone) {
+				setStatus("Creating your ExamPull session...");
 				const session = await createSession({
 					idToken: await credential.user.getIdToken(true),
 					displayName,
@@ -191,19 +229,14 @@ export function SignUpForm() {
 					referralCode,
 					previewId,
 				});
-				if (session.claimedExamId) {
-					window.localStorage.removeItem("exampull_preview_id");
-				}
-				router.push(
-					session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard",
-				);
-				router.refresh();
+				openDestination(session);
 				return;
 			}
 
 			await sendCode(credential.user);
 		} catch (cause) {
 			await signOut(firebaseAuth).catch(() => undefined);
+			setStatus(null);
 			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
@@ -220,6 +253,7 @@ export function SignUpForm() {
 		pendingUserRef.current = null;
 		setVerificationId("");
 		setCode("");
+		setStatus(null);
 		setPhase("details");
 		await signOut(firebaseAuth).catch(() => undefined);
 	}
@@ -228,12 +262,17 @@ export function SignUpForm() {
 		event.preventDefault();
 		setIsSubmitting(true);
 		setError(null);
+		setStatus("Checking verification code...");
 		let transientUser: User | null = null;
 		let sessionCreated = false;
 		let phoneLinked = false;
 
 		try {
-			const credential = PhoneAuthProvider.credential(verificationId, code);
+			if (!/^\d{6}$/.test(code.trim())) {
+				throw new Error("Enter the 6-digit code from the text message.");
+			}
+
+			const credential = PhoneAuthProvider.credential(verificationId, code.trim());
 			const pendingUser = pendingUserRef.current ?? firebaseAuth.currentUser;
 			const user =
 				pendingUser ??
@@ -246,6 +285,7 @@ export function SignUpForm() {
 
 			await linkWithCredential(user, credential);
 			phoneLinked = true;
+			setStatus("Creating your ExamPull session...");
 			const idToken = await user.getIdToken(true);
 			const session = await createSession({
 				idToken,
@@ -255,17 +295,14 @@ export function SignUpForm() {
 				previewId,
 			});
 			sessionCreated = true;
-			if (session.claimedExamId) {
-				window.localStorage.removeItem("exampull_preview_id");
-			}
-			router.push(session.claimedExamId ? `/exams/${session.claimedExamId}` : "/dashboard");
-			router.refresh();
+			openDestination(session);
 		} catch (cause) {
 			if (transientUser && !sessionCreated) {
 				await deleteTransientUser(transientUser);
 			} else if (phoneLinked && !sessionCreated) {
 				await signOut(firebaseAuth).catch(() => undefined);
 			}
+			setStatus(null);
 			setError(signupMessage(cause));
 		} finally {
 			setIsSubmitting(false);
@@ -275,7 +312,7 @@ export function SignUpForm() {
 	return (
 		<div>
 			{phase === "details" ? (
-				<form className="space-y-5" onSubmit={onEmailSubmit}>
+				<form className="space-y-5" onSubmit={onEmailSubmit} noValidate>
 					<div>
 						<label className="text-sm font-medium" htmlFor="display-name">
 							Name
@@ -352,6 +389,11 @@ export function SignUpForm() {
 							) : null}
 						</div>
 					) : null}
+					{status ? (
+						<p className="rounded-lg bg-glass p-3 text-sm text-muted" role="status">
+							{status}
+						</p>
+					) : null}
 					<div id="signup-recaptcha" />
 					<Button
 						type="submit"
@@ -367,13 +409,18 @@ export function SignUpForm() {
 						variant="secondary"
 						className="w-full"
 						onClick={onGoogle}
+						aria-describedby="google-signup-note"
 						disabled={isSubmitting || !phone}
 					>
 						Continue with Google
 					</Button>
+					<p id="google-signup-note" className="-mt-2 text-xs leading-5 text-muted">
+						Enter your phone number first. Google signup still finishes with the same
+						SMS check before your workspace opens.
+					</p>
 				</form>
 			) : (
-				<form className="space-y-5" onSubmit={onVerify}>
+				<form className="space-y-5" onSubmit={onVerify} noValidate>
 					<div>
 						<label className="text-sm font-medium" htmlFor="otp">
 							6-digit code
@@ -393,6 +440,11 @@ export function SignUpForm() {
 							{error}
 						</p>
 					) : null}
+					{status ? (
+						<p className="rounded-lg bg-glass p-3 text-sm text-muted" role="status">
+							{status}
+						</p>
+					) : null}
 					<Button
 						type="submit"
 						variant="primary"
@@ -410,8 +462,8 @@ export function SignUpForm() {
 			<div className="mt-6 flex gap-3 rounded-lg border border-glass-border bg-glass p-4 text-sm text-muted">
 				<ShieldCheck aria-hidden="true" className="mt-0.5 text-success" size={18} />
 				<p>
-					No account record is written until the OTP succeeds. One phone number maps to
-					one account.
+					We use phone verification to protect free exam credits and keep your account
+					recoverable.
 				</p>
 			</div>
 		</div>

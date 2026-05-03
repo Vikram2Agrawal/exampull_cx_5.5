@@ -1,4 +1,5 @@
 import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
+import type { GeneratedExamQuestion } from "@/lib/exams/latex";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import {
 	EXAM_STATUSES,
@@ -35,6 +36,7 @@ export type ExamSummary = {
 	answerKeyPdfReady: boolean;
 	examPdfBase64: string | null;
 	answerKeyPdfBase64: string | null;
+	generatedQuestions: Pick<GeneratedExamQuestion, "prompt" | "points">[];
 	cloneUnavailableReason: string | null;
 	adHocSources: {
 		id: string;
@@ -107,6 +109,23 @@ function adHocSources(value: unknown) {
 						: null,
 			},
 		];
+	});
+}
+
+function generatedQuestions(value: unknown): Pick<GeneratedExamQuestion, "prompt" | "points">[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter(isRecord).flatMap((question) => {
+		const prompt = typeof question.prompt === "string" ? question.prompt.trim() : "";
+		const points = typeof question.points === "number" ? question.points : 10;
+
+		if (!prompt) {
+			return [];
+		}
+
+		return [{ prompt, points }];
 	});
 }
 
@@ -201,6 +220,7 @@ function examFromDoc(id: string, data: FirebaseFirestore.DocumentData): ExamSumm
 		examPdfBase64: typeof data.examPdfBase64 === "string" ? data.examPdfBase64 : null,
 		answerKeyPdfBase64:
 			typeof data.answerKeyPdfBase64 === "string" ? data.answerKeyPdfBase64 : null,
+		generatedQuestions: generatedQuestions(data.generatedQuestions),
 		cloneUnavailableReason:
 			data.sourceClassDeletedAt instanceof Timestamp ? deletedSourceClassCloneMessage : null,
 		adHocSources: adHocSources(data.adHocSources),

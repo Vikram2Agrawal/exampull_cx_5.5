@@ -224,6 +224,10 @@ test("authenticated test user can view own seeded exam", async ({ page }) => {
 	await page.goto(`/exams/${examId}`);
 	await expect(page.getByRole("heading", { name: "Authenticated ownership exam" })).toBeVisible();
 	await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+	await expect(
+		page.getByText("Explain how the derivative test identifies local extrema"),
+	).toBeVisible();
+	await expect(page.getByText(/Answer a representative question/)).toHaveCount(0);
 });
 
 test("settings shows synced linked auth sources without duplicate account state", async ({
@@ -244,6 +248,7 @@ test("settings shows synced linked auth sources without duplicate account state"
 	await expect(page.getByRole("button", { name: "Link Google" })).toBeVisible();
 	await page.getByRole("button", { name: "Link Google" }).click();
 	await expect(page.getByText("Sign in again before linking Google.")).toBeVisible();
+	await page.getByRole("tab", { name: "Notifications" }).click();
 	await expect(page.getByLabel("Payment failure SMS")).toBeChecked();
 	await page.getByLabel("Payment failure SMS").uncheck();
 	await page.getByLabel("Low credits email").check();
@@ -1469,39 +1474,34 @@ test("guru user can upload an attempt and complete visual feedback worker", asyn
 		credits: 100,
 	});
 	const examId = await seedExam(page, "Guru worker visual feedback exam");
-	const attemptBody = Buffer.from(
-		"Question 1: I set up the derivative and solved the critical point. Question 2: I checked the endpoints and estimate this earns 82%.",
-	);
+	const attemptBody = textPdfBuffer([
+		"Question 1: I set up the derivative and solved the critical point.",
+		"Question 2: I checked the endpoints and estimate this earns 82%.",
+	]);
 
-	const startResponse = await page.context().request.post(`/api/exams/${examId}/attempts`, {
-		data: {
-			filename: "guru-worker-attempt.txt",
-			contentType: "text/plain",
-			sizeBytes: attemptBody.byteLength,
-			visualAnnotations: true,
-		},
+	await page.goto(`/exams/${examId}`);
+	await page.getByLabel("Attempt file").setInputFiles({
+		name: "guru-worker-attempt.pdf",
+		mimeType: "application/pdf",
+		buffer: attemptBody,
 	});
-	expect(startResponse.status()).toBe(201);
-	const startPayload = (await startResponse.json()) as {
-		attemptId: string;
-		uploadUrl: string;
+	await expect(page.getByText("guru-worker-attempt.pdf").first()).toBeVisible();
+	await page.getByRole("button", { name: "Upload and grade" }).click();
+	await expect(page.getByText("grading queued")).toBeVisible({ timeout: 30_000 });
+
+	const attemptsResponse = await page.context().request.get(`/api/exams/${examId}/attempts`);
+	expect(attemptsResponse.status()).toBe(200);
+	const attemptsPayload = (await attemptsResponse.json()) as {
+		attempts: { id: string; filename: string }[];
 	};
-
-	const uploadResponse = await page.context().request.put(startPayload.uploadUrl, {
-		headers: { "Content-Type": "text/plain" },
-		data: attemptBody,
-	});
-	expect(uploadResponse.status()).toBe(200);
-
-	const completeResponse = await page
-		.context()
-		.request.patch(`/api/exams/${examId}/attempts/${startPayload.attemptId}`, {
-			data: { status: "uploaded" },
-		});
-	expect(completeResponse.status()).toBe(200);
+	const uploadedAttempt = attemptsPayload.attempts.find(
+		(attempt) => attempt.filename === "guru-worker-attempt.pdf",
+	);
+	expect(uploadedAttempt?.id).toBeTruthy();
+	const attemptId = uploadedAttempt?.id ?? "";
 
 	const gradeResponse = await page.context().request.post("/api/workers/grade-attempt", {
-		data: { userId: uid, examId, attemptId: startPayload.attemptId },
+		data: { userId: uid, examId, attemptId },
 	});
 	expect(gradeResponse.status()).toBe(200);
 
@@ -1509,8 +1509,13 @@ test("guru user can upload an attempt and complete visual feedback worker", asyn
 	await expect(
 		page.getByRole("heading", { level: 1, name: "Guru worker visual feedback exam" }),
 	).toBeVisible();
-	await expect(page.getByText("guru-worker-attempt.txt")).toBeVisible();
-	await expect(page.getByText("Visual annotations: complete")).toBeVisible();
+	await expect(page.getByText("guru-worker-attempt.pdf")).toBeVisible();
+	await expect(page.getByText("Visual annotations: complete")).toHaveCount(0);
+	await expect(page.getByRole("button", { name: "Generate visual annotations" })).toBeVisible();
+	await page.getByRole("button", { name: "Generate visual annotations" }).click();
+	await expect(page.getByText("Visual annotations: complete")).toBeVisible({
+		timeout: 60_000,
+	});
 	const download = page.getByRole("link", { name: "Download visual feedback" });
 	await expect(download).toBeVisible();
 	const feedbackResponse = await page
@@ -1547,9 +1552,7 @@ test("guru user can upload an attempt and complete visual feedback worker", asyn
 	expect(exportPayload.profile?.reservedCredits).toBe(0);
 	expect(exportPayload.profile?.totalCreditsConsumed).toBe(10);
 	const attemptGroup = exportPayload.attempts.find((group) => group.examId === examId);
-	const completedAttempt = attemptGroup?.attempts.find(
-		(attempt) => attempt.id === startPayload.attemptId,
-	);
+	const completedAttempt = attemptGroup?.attempts.find((attempt) => attempt.id === attemptId);
 	expect(completedAttempt?.status).toBe("graded");
 	expect(completedAttempt?.visualAnnotationStatus).toBe("complete");
 	expect(completedAttempt?.creditsReserved).toBe(0);
@@ -1570,9 +1573,11 @@ test("free user can queue a 12-question Standard exam from manual topics", async
 
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Free manual topics exam");
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Implicit differentiation\nRelated rates\nOptimization");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -1841,9 +1846,11 @@ test("scholar user can configure and queue a reordered Power Mode exam", async (
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Power Mode orchestration exam");
 	await page.getByLabel("Course or class").fill("Physical Chemistry");
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Entropy\nReaction kinetics\nElectrochemistry");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Power" }).click();
 	await expect(page.getByRole("heading", { name: "Power Mode slots" })).toBeVisible();
 	await page.getByLabel("Question 1 topic").fill("Entropy");
@@ -1910,9 +1917,11 @@ test("mobile user can tap reorder and bulk edit Power Mode slots", async ({ page
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Mobile Power Mode exam");
 	await page.getByLabel("Course or class").fill("AP Biology Mobile");
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Photosynthesis\nCalvin cycle\nCellular respiration");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Power" }).click();
 	await page.getByLabel("Question 1 topic").fill("Photosynthesis");
 	await page.getByRole("button", { name: "Add slot" }).click();
@@ -1973,7 +1982,9 @@ test("authenticated user can upload one-time source material and queue a grounde
 	await expect(page.getByText("Focus: rate laws and Arrhenius equation")).toBeVisible();
 	await expect(page.getByText(/topics extracted/)).toBeVisible();
 
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page.getByRole("textbox", { name: "Topics to include" }).fill("Activation energy");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -2210,6 +2221,7 @@ test("new exam wizard preserves source topic and configure drafts across refresh
 	);
 	await expect(page.getByLabel("Use as a format example")).toBeChecked();
 
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Cell signaling\nSignal transduction\nSecond messengers");
@@ -2224,6 +2236,7 @@ test("new exam wizard preserves source topic and configure drafts across refresh
 		"Favor diagram interpretation and multi-step pathway reasoning.",
 	);
 
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Power" }).click();
 	await page.getByLabel("Quick-add topic").fill("Signal transduction");
 	await page.getByLabel("Quick-add count").fill("2");
@@ -2417,10 +2430,12 @@ test("authenticated user can upload a class style reference and see credit accou
 	expect(exportedMaterial?.styleReference).toBe(true);
 	expect(exportedMaterial?.extractedTopics?.length).toBeGreaterThan(0);
 
-	await page.goto("/exams/new");
+	await page.goto(`/classes/${classPayload.classId}`);
+	await page.getByRole("link", { name: "Create exam from Style Reference Chemistry" }).click();
+	await expect(page).toHaveURL(new RegExp(`/exams/new\\?classId=${classPayload.classId}`));
+	await expect(page.getByLabel("Stored class")).toHaveValue(classPayload.classId);
+	await expect(page.getByLabel(/instructor-style-reference\.txt/)).toBeChecked();
 	await page.getByLabel("Exam title").fill("Combined stored and ad hoc sources exam");
-	await page.getByLabel("Stored class").selectOption(classPayload.classId);
-	await page.getByLabel(/instructor-style-reference\.txt/).check();
 	await page.getByLabel("What should ExamPull focus on?").fill("activation energy supplement");
 	await page.getByLabel("Upload files").setInputFiles({
 		name: "activation-energy-supplement.txt",
@@ -2430,7 +2445,9 @@ test("authenticated user can upload a class style reference and see credit accou
 	await expect(page.getByText("activation-energy-supplement.txt")).toBeVisible({
 		timeout: 20000,
 	});
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page.getByRole("textbox", { name: "Topics to include" }).fill("Collision theory");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 
 	await expect(
@@ -3227,7 +3244,7 @@ test("notification center handles event matrix read delete and clear actions", a
 	}
 
 	await page.goto("/dashboard");
-	await expect(page.getByRole("link", { name: "Alerts, 7 unread notifications" })).toBeVisible();
+	await expect(page.getByRole("link", { name: "Notifications, 7 unread" })).toBeVisible();
 
 	await page.goto("/notifications");
 	for (const fixture of fixtures) {
@@ -3495,6 +3512,8 @@ test("authenticated user can search and bulk manage the exam library", async ({ 
 
 	await page.goto("/exams");
 	await page.getByRole("button", { name: "List view" }).click();
+	await expect(page.getByLabel("Select Library entropy exam")).toHaveCount(0);
+	await page.getByRole("button", { name: "Select" }).click();
 	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
 	await page.getByRole("button", { name: "Grid view" }).click();
 
@@ -3507,6 +3526,7 @@ test("authenticated user can search and bulk manage the exam library", async ({ 
 	await page.getByRole("button", { name: "Bookmark", exact: true }).click();
 	await expect(page.getByText("Library updated.")).toBeVisible();
 
+	await page.getByRole("button", { name: "Filters" }).click();
 	await page.getByLabel("Bookmark filter").selectOption("bookmarked");
 	await expect(page.getByLabel("Select Library entropy exam")).toBeVisible();
 	await expect(page.getByLabel("Select Library kinetics exam")).toHaveCount(0);

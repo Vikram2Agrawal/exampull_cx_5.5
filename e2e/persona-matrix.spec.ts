@@ -19,9 +19,11 @@ test("desktop Safari scholar persona can drag Power Mode slots and queue an exam
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Safari Scholar Power Exam");
 	await page.getByLabel("Course or class").fill("Safari Organic Chemistry");
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("SN1 reactions\nSN2 reactions");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Power" }).click();
 	await page.getByLabel("Question 1 topic").fill("SN1 reactions");
 	await page.getByRole("button", { name: "Add slot" }).click();
@@ -50,9 +52,11 @@ test("mobile Android free persona can queue a standard exam", async ({ page }, t
 	await page.goto("/exams/new");
 	await page.getByLabel("Exam title").fill("Android Free Practice Exam");
 	await page.getByLabel("Course or class").fill("Android Algebra");
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page
 		.getByRole("textbox", { name: "Topics to include" })
 		.fill("Linear equations\nInequalities");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByLabel("Questions").fill("8");
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 	await expect(
@@ -84,7 +88,9 @@ test("mobile Safari guru persona can upload source material and queue a grounded
 	await expect(page.getByText(/KB - Ready/)).toBeVisible({ timeout: 20000 });
 	await expect(page.getByText(/topics extracted/)).toBeVisible();
 
+	await page.getByRole("button", { name: "Next: Choose topics" }).click();
 	await page.getByRole("textbox", { name: "Topics to include" }).fill("Action potentials");
+	await page.getByRole("button", { name: "Next: Set length" }).click();
 	await page.getByRole("button", { name: "Generate", exact: true }).click();
 	await expect(
 		page.getByRole("heading", { level: 1, name: "Mobile Guru Source Exam" }),

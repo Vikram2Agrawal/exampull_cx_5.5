@@ -19,9 +19,8 @@ export default function SignUpPage() {
 								Verify once. Start building exams.
 							</h1>
 							<p className="text-lg leading-8 text-muted">
-								Phone verification happens before the account is created. That keeps
-								free credits protected and prevents half-created accounts if the
-								code step fails.
+								Create your account, confirm your phone, and start with monthly
+								credits for your first printable practice exam.
 							</p>
 						</div>
 						<ExamArtifactPreview compact className="hidden max-w-lg lg:block" />
