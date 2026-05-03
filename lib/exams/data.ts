@@ -1,5 +1,5 @@
 import { deletedSourceClassCloneMessage } from "@/lib/exams/clone-policy";
-import type { GeneratedExamQuestion } from "@/lib/exams/latex";
+import type { GeneratedExamQuestion } from "@/lib/exams/generated-questions";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import {
 	EXAM_STATUSES,

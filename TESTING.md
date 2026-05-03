@@ -39,11 +39,13 @@ Do not run `next build` against the same checkout while `next dev` is serving br
 
 Run `pnpm preflight` before accepting any local QA result. It verifies the active Node and pnpm runtime versions so a fresh shell cannot quietly run incompatible tooling and produce misleading Playwright or package-manager errors.
 
-Hosted smoke is not the same as hosted product E2E. Smoke is the minimum production-safe Firebase/auth/origin check; production canary coverage must keep growing toward real browser signup, visible upload, visible generation, detail review, PDF download, and account cleanup without `/api/test/session`. The current hosted smoke must, at minimum, complete Firebase phone signup, open the deployed exam builder, click the visible Generate button, assert the queued exam detail page, and clean up the test account.
+Hosted smoke is not the same as hosted product E2E. Smoke is the minimum production-safe Firebase/auth/origin check; production canary coverage must keep growing toward real browser signup, visible upload, visible generation, detail review, PDF download, and account cleanup without `/api/test/session`. The current hosted smoke must complete Firebase phone signup, open the deployed exam builder, click the visible Generate button, wait through deployed Cloud Tasks completion, click the visible Exam PDF link, save the downloaded PDF, and clean up the test account only after artifact capture.
 
 Static tests and unit tests are hygiene, not proof. A changed user flow is not accepted until an agent has used the UI path through a browser, watched the visible state changes, and inspected the resulting artifact when the flow produces one. Playwright is allowed to drive the browser, but it must not only manufacture backend state that gives the appearance of success; any seeded setup must be explicitly separated from the user action under test, and the user-visible controls must be clicked or typed into for the critical path.
 
 When visual evidence is captured, viewport screenshots are the primary artifact because they represent what a user actually sees. Full-page screenshots are secondary layout-audit artifacts only; sticky navigation, browser overlays, or framework chrome in a full-page capture must not be mistaken for product UI.
+
+For artifact-producing flows, a completed UI state is not enough. Download the artifact, render at least the first PDF page to an image, and inspect it against the product promise: concrete course content, professional typesetting, no placeholder/fallback wording, no broken LaTeX escapes, and no visual truncation. A generic but technically downloadable PDF is a failed flow.
 
 ## Flow Enumeration Formula
 

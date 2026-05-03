@@ -1,6 +1,8 @@
-import { PDFParse } from "pdf-parse";
+import { installPdfNodePolyfills } from "@/lib/materials/pdf-node-polyfills";
 
 export async function renderPdfPageDataUrls(buffer: Buffer, maxPages = 3) {
+	await installPdfNodePolyfills();
+	const { PDFParse } = await import("pdf-parse");
 	const parser = new PDFParse({
 		data: new Uint8Array(buffer),
 		disableFontFace: true,

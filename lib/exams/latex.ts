@@ -1,11 +1,7 @@
 import type { PowerQuestionSlot, QuestionDifficulty, QuestionStyle } from "@/lib/billing/credits";
+import type { GeneratedExamQuestion } from "@/lib/exams/generated-questions";
+import { latexEscape } from "@/lib/latex/escape";
 import { sanitizeLatex } from "@/lib/latex/sanitize";
-
-export type GeneratedExamQuestion = {
-	prompt: string;
-	answer: string;
-	points: number;
-};
 
 function questionTopic(topics: string[], index: number) {
 	if (topics.length === 0) {
@@ -13,20 +9,6 @@ function questionTopic(topics: string[], index: number) {
 	}
 
 	return topics[index % topics.length] ?? topics[0];
-}
-
-function latexEscape(value: string) {
-	return value
-		.replaceAll("\\", "\\textbackslash{}")
-		.replaceAll("&", "\\&")
-		.replaceAll("%", "\\%")
-		.replaceAll("$", "\\$")
-		.replaceAll("#", "\\#")
-		.replaceAll("_", "\\_")
-		.replaceAll("{", "\\{")
-		.replaceAll("}", "\\}")
-		.replaceAll("~", "\\textasciitilde{}")
-		.replaceAll("^", "\\textasciicircum{}");
 }
 
 function styleLabel(style: QuestionStyle) {

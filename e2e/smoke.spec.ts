@@ -23,6 +23,37 @@ async function attachSmokeScreenshot(page: Page, testInfo: TestInfo, name: strin
 	await testInfo.attach(name, { path, contentType: "image/png" });
 }
 
+async function saveDownloadedSmokeArtifact(page: Page, testInfo: TestInfo, name: string) {
+	mkdirSync(smokeArtifactRoot, { recursive: true });
+	const path = join(smokeArtifactRoot, `${name}.pdf`);
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByRole("link", { name: "Exam PDF" }).click(),
+	]);
+	await download.saveAs(path);
+	await testInfo.attach(name, { path, contentType: "application/pdf" });
+}
+
+async function waitForGeneratedExam(page: Page, examUrl: string) {
+	await expect
+		.poll(
+			async () => {
+				await page.goto(examUrl);
+				if (await page.getByText("Manual topics - 12 questions - complete").count()) {
+					return "complete";
+				}
+				const failureVisible =
+					(await page.getByText(/failed|partial qa fail/i).count()) > 0;
+				return failureVisible ? "failed" : "pending";
+			},
+			{
+				timeout: 240_000,
+				intervals: [5_000, 10_000],
+			},
+		)
+		.toBe("complete");
+}
+
 function humanPhoneEntry(phoneNumber: string) {
 	const digits = phoneNumber.replace(/\D/g, "");
 
@@ -90,9 +121,10 @@ test("protected app routes redirect instead of server-erroring", async ({ page }
 	}
 });
 
-test("Firebase phone signup verifies through the browser form and queues an exam", async ({
+test("Firebase phone signup verifies through the browser form and downloads a generated exam", async ({
 	page,
 }, testInfo) => {
+	test.setTimeout(300_000);
 	const phoneNumber = envValue("FIREBASE_TEST_PHONE_NUMBER");
 	const phoneCode = envValue("FIREBASE_TEST_PHONE_CODE");
 	test.skip(
@@ -102,6 +134,7 @@ test("Firebase phone signup verifies through the browser form and queues an exam
 
 	const email = `phone-smoke-${Date.now()}@exampull.test`;
 	await cleanupFirebaseTestPhoneAccount(phoneNumber ?? "");
+	let sessionCreated = false;
 
 	try {
 		await page.goto(`/sign-up?testToken=${encodeURIComponent(testSignupToken())}`);
@@ -119,6 +152,7 @@ test("Firebase phone signup verifies through the browser form and queues an exam
 		).toBeVisible({
 			timeout: 20_000,
 		});
+		sessionCreated = true;
 		await attachSmokeScreenshot(page, testInfo, "phone-signup-dashboard");
 		await page.goto("/exams/new");
 		await expect(page.getByRole("heading", { name: "Build a practice exam" })).toBeVisible();
@@ -133,12 +167,30 @@ test("Firebase phone signup verifies through the browser form and queues an exam
 		await expect(
 			page.getByRole("heading", { level: 1, name: "Hosted phone signup canary" }),
 		).toBeVisible({ timeout: 20_000 });
-		await expect(page.getByText("Manual topics - 12 questions - queued")).toBeVisible();
-		await attachSmokeScreenshot(page, testInfo, "phone-signup-queued-exam");
+		await expect(
+			page.getByText(
+				/Manual topics - 12 questions - (queued|generating|qa_in_progress|complete)/,
+			),
+		).toBeVisible();
+		await attachSmokeScreenshot(page, testInfo, "phone-signup-active-exam");
+		const examUrl = page.url();
+		await waitForGeneratedExam(page, examUrl);
+		await expect(page.getByRole("link", { name: "Exam PDF" })).toBeVisible();
+		await attachSmokeScreenshot(page, testInfo, "phone-signup-complete-exam");
+		await saveDownloadedSmokeArtifact(page, testInfo, "phone-signup-generated-exam");
 
-		const cleanupResponse = await page.context().request.post("/api/settings/delete");
-		expect(cleanupResponse.status()).toBe(200);
+		if (sessionCreated) {
+			const cleanupResponse = await page.context().request.post("/api/settings/delete");
+			expect(cleanupResponse.status()).toBe(200);
+			sessionCreated = false;
+		}
 	} finally {
+		if (sessionCreated) {
+			await page
+				.context()
+				.request.post("/api/settings/delete")
+				.catch(() => null);
+		}
 		await cleanupFirebaseTestPhoneAccount(phoneNumber ?? "");
 	}
 });

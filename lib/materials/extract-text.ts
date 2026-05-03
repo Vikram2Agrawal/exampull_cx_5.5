@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import { installPdfNodePolyfills } from "@/lib/materials/pdf-node-polyfills";
 
 export type PdfTextExtraction = {
 	text: string;
@@ -11,6 +11,8 @@ export async function extractTextFromPdfWithMetadata(
 	maxChars = 50000,
 	maxPages = 40,
 ): Promise<PdfTextExtraction> {
+	await installPdfNodePolyfills();
+	const { PDFParse } = await import("pdf-parse");
 	const parser = new PDFParse({
 		data: new Uint8Array(buffer),
 		disableFontFace: true,

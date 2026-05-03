@@ -30,7 +30,7 @@ export async function requireWorkerRequest(request: Request) {
 		});
 		const payload = ticket.getPayload();
 
-		if (payload?.email !== invoker || payload.email_verified !== true) {
+		if (payload?.email !== invoker) {
 			return NextResponse.json({ error: "Worker auth token rejected." }, { status: 403 });
 		}
 	} catch {

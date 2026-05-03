@@ -52,4 +52,24 @@ describe("exam LaTeX builder", () => {
 		expect(latex).toContain("\\begin{solution}");
 		expect(latex).toContain("second law");
 	});
+
+	it("escapes generated math notation without corrupting LaTeX escape macros", () => {
+		const latex = buildExamLatex({
+			title: "Generated Math Test",
+			topics: ["Diffusion"],
+			questionCount: 1,
+			answerKey: true,
+			generatedQuestions: [
+				{
+					prompt: "Use Fick's law J = -D\\frac{dC}{dx} and explain why C_0 matters.",
+					answer: "The sign, units, and boundary value C_0 determine the flux direction.",
+					points: 10,
+				},
+			],
+		});
+
+		expect(latex).toContain("\\textbackslash{}frac\\{dC\\}\\{dx\\}");
+		expect(latex).toContain("C\\_0");
+		expect(latex).not.toContain("\\textbackslash\\{\\}");
+	});
 });

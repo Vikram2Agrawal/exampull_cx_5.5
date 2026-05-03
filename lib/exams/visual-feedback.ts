@@ -1,6 +1,7 @@
 import { storeVisualFeedbackArtifact } from "@/lib/exams/artifacts";
 import { adminDb, adminStorage, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
+import { latexEscape } from "@/lib/latex/escape";
 import { sanitizeLatex } from "@/lib/latex/sanitize";
 import { extractTextFromPdf } from "@/lib/materials/extract-text";
 
@@ -9,20 +10,6 @@ export type VisualFeedbackInput = {
 	examId: string;
 	attemptId: string;
 };
-
-function latexEscape(value: string) {
-	return value
-		.replaceAll("\\", "\\textbackslash{}")
-		.replaceAll("&", "\\&")
-		.replaceAll("%", "\\%")
-		.replaceAll("$", "\\$")
-		.replaceAll("#", "\\#")
-		.replaceAll("_", "\\_")
-		.replaceAll("{", "\\{")
-		.replaceAll("}", "\\}")
-		.replaceAll("~", "\\textasciitilde{}")
-		.replaceAll("^", "\\textasciicircum{}");
-}
 
 function buildVisualFeedbackLatex({
 	filename,

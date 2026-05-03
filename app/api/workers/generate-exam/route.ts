@@ -3,7 +3,11 @@ import { z } from "zod";
 import { callLlm, type LlmContentPart } from "@/lib/ai/client";
 import { examConfigSchema } from "@/lib/billing/credits";
 import { storeExamArtifact } from "@/lib/exams/artifacts";
-import { buildExamLatex, type GeneratedExamQuestion } from "@/lib/exams/latex";
+import {
+	hasCompleteGeneratedQuestionSet,
+	parseGeneratedQuestions,
+} from "@/lib/exams/generated-questions";
+import { buildExamLatex } from "@/lib/exams/latex";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { compileLatex } from "@/lib/latex/client";
 import { readSourceDocumentContent } from "@/lib/materials/source-reader";
@@ -18,12 +22,6 @@ const requestSchema = z.object({
 	examId: z.string().min(1),
 });
 
-const generatedQuestionSchema = z.object({
-	prompt: z.string().trim().min(10).max(1500),
-	answer: z.string().trim().min(10).max(2500),
-	points: z.number().int().min(1).max(100),
-});
-
 type SourceContext = {
 	text: string;
 	imageDataUrl?: string;
@@ -36,38 +34,6 @@ function stringList(value: unknown) {
 	}
 
 	return value.filter((item): item is string => typeof item === "string");
-}
-
-function extractJsonArray(value: string) {
-	const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
-	if (fenced) {
-		return fenced;
-	}
-
-	const start = value.indexOf("[");
-	const end = value.lastIndexOf("]");
-	if (start >= 0 && end > start) {
-		return value.slice(start, end + 1);
-	}
-
-	return value;
-}
-
-function parseGeneratedQuestions(value: string, expectedCount: number): GeneratedExamQuestion[] {
-	let decoded: unknown;
-	try {
-		decoded = JSON.parse(extractJsonArray(value));
-	} catch {
-		return [];
-	}
-
-	const parsed = z.array(generatedQuestionSchema).min(1).safeParse(decoded);
-
-	if (!parsed.success) {
-		return [];
-	}
-
-	return parsed.data.slice(0, expectedCount);
 }
 
 async function sourceContextFromSnapshot(snapshot: FirebaseFirestore.DocumentSnapshot) {
@@ -274,35 +240,78 @@ export async function POST(request: Request) {
 				},
 			],
 		});
-		const questionGeneration = await callLlm({
+		const expectedGeneratedQuestionCount = powerSlots?.length ?? questionCount;
+		const questionGenerationMessages = [
+			{
+				role: "system" as const,
+				content:
+					'Write original, course-grounded practice exam questions and answer-key solutions. Return strict JSON only: {"questions":[{"prompt":"...","answer":"...","points":10}]}. Do not use markdown fences. Do not write generic placeholder prompts; every prompt must name concrete concepts, mechanisms, equations, cases, or terms from the supplied topics and source context.',
+			},
+			{
+				role: "user" as const,
+				content: contentWithSourceImages(
+					powerSlots
+						? `Title: ${title}\nBlueprint:\n${plan.content}${sourceNotesText}\nGenerate exactly ${expectedGeneratedQuestionCount} questions, one per Power slot. Preserve each slot's points exactly.\nPower slots:\n${powerSlots
+								.map(
+									(slot, index) =>
+										`${index + 1}. Topic: ${slot.topic}; style: ${slot.style}; difficulty: ${slot.difficulty}; points: ${slot.points}`,
+								)
+								.join("\n")}${sourceContextText}`
+						: `Title: ${title}\nBlueprint:\n${plan.content}\nGenerate exactly ${expectedGeneratedQuestionCount} questions across these topics: ${topics.join(", ")}. Use 10 points per question. Use varied formats such as interpretation, application, comparison, and short calculation where appropriate.${sourceNotesText}${sourceContextText}`,
+					sourceContexts,
+				),
+			},
+		];
+		let questionGeneration = await callLlm({
 			stage: "questionGeneration",
 			tier,
-			messages: [
-				{
-					role: "system",
-					content:
-						"Write professional exam questions and answer-key solutions. Return JSON only: an array of objects with prompt, answer, and points. Prompts must be self-contained and suitable for a formal PDF exam.",
-				},
-				{
-					role: "user",
-					content: contentWithSourceImages(
-						powerSlots
-							? `Title: ${title}\nBlueprint:\n${plan.content}${sourceNotesText}\nPower slots:\n${powerSlots
-									.map(
-										(slot, index) =>
-											`${index + 1}. Topic: ${slot.topic}; style: ${slot.style}; difficulty: ${slot.difficulty}; points: ${slot.points}`,
-									)
-									.join("\n")}${sourceContextText}`
-							: `Title: ${title}\nBlueprint:\n${plan.content}\nGenerate exactly ${questionCount} questions across these topics: ${topics.join(", ")}. Use 10 points per question.${sourceNotesText}${sourceContextText}`,
-						sourceContexts,
-					),
-				},
-			],
+			messages: questionGenerationMessages,
 		});
-		const generatedQuestions = parseGeneratedQuestions(
+		let generatedQuestions = parseGeneratedQuestions(
 			questionGeneration.content,
-			powerSlots?.length ?? questionCount,
+			expectedGeneratedQuestionCount,
 		);
+
+		if (!hasCompleteGeneratedQuestionSet(generatedQuestions, expectedGeneratedQuestionCount)) {
+			const repair = await callLlm({
+				stage: "questionGeneration",
+				tier,
+				messages: [
+					...questionGenerationMessages,
+					{
+						role: "assistant",
+						content: questionGeneration.content.slice(0, 12000),
+					},
+					{
+						role: "user",
+						content: `The previous response did not produce exactly ${expectedGeneratedQuestionCount} valid JSON questions. Return only a valid JSON object with exactly ${expectedGeneratedQuestionCount} items in the questions array. Keep prompts concrete and exam-ready.`,
+					},
+				],
+			});
+			const repairedQuestions = parseGeneratedQuestions(
+				repair.content,
+				expectedGeneratedQuestionCount,
+			);
+
+			if (
+				hasCompleteGeneratedQuestionSet(repairedQuestions, expectedGeneratedQuestionCount)
+			) {
+				questionGeneration = {
+					...repair,
+					latencyMs: questionGeneration.latencyMs + repair.latencyMs,
+					inputTokens: questionGeneration.inputTokens + repair.inputTokens,
+					outputTokens: questionGeneration.outputTokens + repair.outputTokens,
+					model: `${questionGeneration.model},${repair.model}`,
+				};
+				generatedQuestions = repairedQuestions;
+			}
+		}
+
+		if (!hasCompleteGeneratedQuestionSet(generatedQuestions, expectedGeneratedQuestionCount)) {
+			throw new Error(
+				`Question generation returned ${generatedQuestions.length.toString()} of ${expectedGeneratedQuestionCount.toString()} usable questions.`,
+			);
+		}
 
 		const examLatex = buildExamLatex({
 			title,
